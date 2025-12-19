@@ -5,30 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FBA Live</title>
     <link rel="stylesheet" href="./styles.css" />
-    <!-- CSV Parser (PapaParse) -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   </head>
   <body>
     <header class="topbar">
-  <div class="brand">
-    <img class="brand__logo" src="./assets/fba-logo.png" alt="FBA Logo" />
-    <div class="brand__text">
-      <div class="brand__title">FBA Live</div>
-      <div class="brand__sub">Standings • Power Ranking • Matchups</div>
-    </div>
-  </div>
+      <div class="topbar__inner">
+        <div class="brand">
+          <img class="brand__logo" src="./assets/fba-logo.png" alt="FBA" />
+          <div class="brand__text">
+            <div class="brand__title">FBA Live</div>
+            <div class="brand__sub">Standings • Power Ranking • Matchups</div>
+          </div>
+        </div>
 
-  <nav class="tabs">
-    <button class="tab is-active" data-view="standings">Standings</button>
-    <button class="tab" data-view="pr">Power Ranking</button>
-    <button class="tab" data-view="prp">Power Ranking+</button>
-    <button class="tab" data-view="matchups">Matchups</button>
-  </nav>
-</header>
+        <nav class="tabs" aria-label="Navigation">
+          <button class="tab is-active" data-view="standings">Standings</button>
+          <button class="tab" data-view="pr">Power Ranking</button>
+          <button class="tab" data-view="prp">Power Ranking+</button>
+          <button class="tab" data-view="matchups">Matchups</button>
+        </nav>
+      </div>
+    </header>
 
-    <main>
-      <div id="status">Lade Daten…</div>
-      <div id="tableWrap"></div>
+    <main class="container">
+      <section class="card">
+        <div class="card__meta">
+          <div>
+            <div id="title" class="card__title">Standings</div>
+            <div id="status" class="status">Lade Daten…</div>
+          </div>
+          <div class="actions">
+            <input id="search" class="search" type="search" placeholder="Suchen (Team/Manager) …" />
+            <button id="refreshBtn" class="btn">Refresh</button>
+          </div>
+        </div>
+
+        <div id="tableWrap" class="tableWrap"></div>
+      </section>
+
+      <footer class="footer">
+        Datenquelle: Google Sheets (CSV). Live-Stand hängt an deinen aktualisierten Tabs.
+      </footer>
     </main>
 
     <script src="./app.js"></script>
