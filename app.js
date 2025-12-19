@@ -82,23 +82,16 @@ function guessTeamColumn(cols) {
 // Standings: FIX auf Spalten I–M (Index 8..12) + harte Benennung
 // -----------------------
 function getStandingsColumnPlanByIM(rawCols) {
-  // I–M: I=8 ... M=12  => slice(8,13) nimmt 8,9,10,11,12
   const im = rawCols.length >= 13 ? rawCols.slice(8, 13) : null;
-
-  // Fallback: wenn Sheet weniger Spalten hat, nimm die ersten 5 (damit nichts crasht)
   const cols = im && im.length ? im : rawCols.slice(0, 5);
 
-  // Fixe Anzeige-Namen nach Position (I..M)
   const fixedLabels = ["Team", "Conf", "W", "L", "WIN%"];
   const rename = {};
   cols.forEach((c, idx) => {
     rename[c] = fixedLabels[idx] || c;
   });
 
-  // Team ist immer die erste Spalte (I)
   const teamCol = cols[0];
-
-  // W / L / WIN% sind fix nach Position
   const wCol = cols[2] || null;
   const lCol = cols[3] || null;
   const winPctCol = cols[4] || null;
@@ -107,14 +100,13 @@ function getStandingsColumnPlanByIM(rawCols) {
 }
 
 // -----------------------
-// Standings Sortierung (absteigend nach WIN%, dann W, dann L aufsteigend)
+// Standings Sortierung
 // -----------------------
 function parseWinPct(val) {
   if (val === null || val === undefined) return NaN;
   const s = String(val).trim().replace("%", "").replace(",", ".");
   const n = Number(s);
   if (Number.isNaN(n)) return NaN;
-  // 0.xx -> Prozent, 50..100 -> schon Prozent
   return n <= 1 ? n * 100 : n;
 }
 
@@ -130,14 +122,12 @@ function sortStandingsRows(rows, plan) {
     const aPct = winPctCol ? parseWinPct(a[winPctCol]) : NaN;
     const bPct = winPctCol ? parseWinPct(b[winPctCol]) : NaN;
 
-    // 1) WIN% desc (NaN nach hinten)
     const aPctOk = Number.isFinite(aPct);
     const bPctOk = Number.isFinite(bPct);
     if (aPctOk && bPctOk && aPct !== bPct) return bPct - aPct;
     if (aPctOk && !bPctOk) return -1;
     if (!aPctOk && bPctOk) return 1;
 
-    // 2) W desc
     const aW = wCol ? parseNum(a[wCol]) : NaN;
     const bW = wCol ? parseNum(b[wCol]) : NaN;
     const aWOk = Number.isFinite(aW);
@@ -146,7 +136,6 @@ function sortStandingsRows(rows, plan) {
     if (aWOk && !bWOk) return -1;
     if (!aWOk && bWOk) return 1;
 
-    // 3) L asc (weniger Niederlagen besser)
     const aL = lCol ? parseNum(a[lCol]) : NaN;
     const bL = lCol ? parseNum(b[lCol]) : NaN;
     const aLOk = Number.isFinite(aL);
@@ -155,7 +144,6 @@ function sortStandingsRows(rows, plan) {
     if (aLOk && !bLOk) return -1;
     if (!aLOk && bLOk) return 1;
 
-    // 4) stabiler Fallback: Teamname
     const aT = String(a[plan.teamCol] ?? "");
     const bT = String(b[plan.teamCol] ?? "");
     return aT.localeCompare(bT);
@@ -188,20 +176,23 @@ function normalizeConf(v) {
   return s;
 }
 
-function buildTableHtml(rows, cols, rename, teamCol, winPctCol) {
+/**
+ * Baut eine Tabelle als HTML-String.
+ * Wichtig: colsToUse erlaubt uns, für Conference-Tabellen "Conf" auszublenden.
+ */
+function buildTableHtml(rows, colsToUse, rename, teamCol, winPctCol) {
   const displayName = (c) => rename[c] || c;
 
-  const thead = `<thead><tr>${cols
+  const thead = `<thead><tr>${colsToUse
     .map((c) => `<th>${escapeHtml(displayName(c))}</th>`)
     .join("")}</tr></thead>`;
 
   const tbody = `<tbody>${
     rows
       .map((r) => {
-        const tds = cols.map((c) => {
+        const tds = colsToUse.map((c) => {
           const val = r[c];
 
-          // Teamzelle: Logo + Name
           if (teamCol && c === teamCol) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
@@ -211,7 +202,6 @@ function buildTableHtml(rows, cols, rename, teamCol, winPctCol) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // WIN% hübscher formatieren
           if (winPctCol && c === winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -231,21 +221,22 @@ function buildTableHtml(rows, cols, rename, teamCol, winPctCol) {
 function appendConferenceTablesUnderStandings(rows, plan) {
   ensureConfTablesStyles();
 
-  const cols = plan.cols;
+  const cols = plan.cols; // [Team, Conf, W, L, WIN%] als echte CSV-Header
   const rename = plan.rename;
   const teamCol = plan.teamCol;
   const winPctCol = plan.winPctCol;
 
-  // Conf steht bei dir als angezeigte Spalte "Conf" in Spalte J (2. Spalte im Plan)
-  // -> wir nutzen genau diese zweite Spalte, damit es 100% passt.
+  // Conf ist die 2. Spalte im Plan (J)
   const confCol = cols[1];
 
   const eastRows = rows.filter((r) => normalizeConf(r[confCol]) === "east");
   const westRows = rows.filter((r) => normalizeConf(r[confCol]) === "west");
 
-  // Falls Conf-Werte nicht sauber sind, trotzdem nichts kaputt machen
-  const eastHtml = buildTableHtml(eastRows, cols, rename, teamCol, winPctCol);
-  const westHtml = buildTableHtml(westRows, cols, rename, teamCol, winPctCol);
+  // Für Conference-Tabellen: Conf-Spalte raus -> [Team, W, L, WIN%]
+  const confLessCols = [cols[0], cols[2], cols[3], cols[4]];
+
+  const eastHtml = buildTableHtml(eastRows, confLessCols, rename, teamCol, winPctCol);
+  const westHtml = buildTableHtml(westRows, confLessCols, rename, teamCol, winPctCol);
 
   const extraHtml = `
     <div class="conf-tables-wrap">
@@ -286,7 +277,6 @@ function renderTable(rows) {
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
 
-    // Sortierung hier sicherstellen (auch bei Filter-Render)
     rows = sortStandingsRows(rows, plan);
   } else {
     teamColGuess = guessTeamColumn(cols);
@@ -306,7 +296,6 @@ function renderTable(rows) {
         const tds = cols.map((c) => {
           const val = r[c];
 
-          // Teamzelle: Logo + Name
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
@@ -316,7 +305,6 @@ function renderTable(rows) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // Standings: WIN% hübscher formatieren (fixe Spalte M)
           if (currentView === "standings" && plan && plan.winPctCol && c === plan.winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -332,7 +320,7 @@ function renderTable(rows) {
 
   tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
 
-  // >>> HIER: Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
+  // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran (ohne Conf-Spalte)
   if (currentView === "standings" && plan) {
     appendConferenceTablesUnderStandings(rows, plan);
   }
@@ -379,7 +367,6 @@ async function loadView(viewKey) {
   try {
     let rows = await fetchCsv(url);
 
-    // Standings schon beim Laden sortieren (damit currentRows auch sortiert ist)
     if (viewKey === "standings" && rows.length) {
       const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
       const plan = getStandingsColumnPlanByIM(rawCols);
