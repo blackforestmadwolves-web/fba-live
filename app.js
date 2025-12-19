@@ -153,6 +153,7 @@ function sortStandingsRows(rows, plan) {
 // -----------------------
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
 // + Team-Spalte schmaler (Ellipsis)
+// + Rank-Spalte bei PR/PR+ schmaler
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -173,14 +174,14 @@ function ensureMobileTableStyles() {
       padding: 8px 4px 0;
     }
 
-    /* Wichtig: fixed layout, damit Spaltenbreiten (insb. Team) wirklich greifen */
+    /* Wichtig: fixed layout, damit Spaltenbreiten greifen */
     .table-scroll table {
       width: 100%;
       min-width: 520px;
       table-layout: fixed;
     }
 
-    /* Team-Spalte generell begrenzen (auch Desktop) */
+    /* --- Team-Spalte generell begrenzen (auch Desktop) --- */
     .table-scroll table th:first-child,
     .table-scroll table td:first-child {
       width: 200px;
@@ -199,6 +200,17 @@ function ensureMobileTableStyles() {
       vertical-align: bottom;
     }
 
+    /* --- Rank-Spalte schmaler (PR & PR+) ---
+       Wir setzen das über einen Klassen-Hook auf dem Wrapper (siehe renderTable).
+       Rank ist dann immer Spalte 1.
+    */
+    .table-scroll.is-pr table th:first-child,
+    .table-scroll.is-pr table td:first-child {
+      width: 64px;
+      max-width: 64px;
+      text-align: center;
+    }
+
     @media (max-width: 520px) {
       .scroll-hint { display: block; }
       table th, table td { padding: 8px 10px; font-size: 13px; }
@@ -214,7 +226,14 @@ function ensureMobileTableStyles() {
         max-width: 110px;
       }
 
-      /* Sticky erste Spalte */
+      /* PR/PR+: Rank am Handy extra schmal */
+      .table-scroll.is-pr table th:first-child,
+      .table-scroll.is-pr table td:first-child {
+        width: 52px;
+        max-width: 52px;
+      }
+
+      /* Sticky erste Spalte (wenn sinnvoll) */
       .table-scroll table th:first-child,
       .table-scroll table td:first-child {
         position: sticky;
@@ -418,9 +437,12 @@ function renderTable(rows) {
   // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
+  // PR/PR+ Hook: erster Wrapper bekommt .is-pr => Rank-Spalte wird schmal
+  const wrapClass = currentView === "pr" || currentView === "prp" ? "table-scroll is-pr" : "table-scroll";
+
   tableWrap.innerHTML = `
     <div class="scroll-hint">Tipp: Seitlich wischen für mehr Spalten</div>
-    <div class="table-scroll">
+    <div class="${wrapClass}">
       <table>${thead}${tbody}</table>
     </div>
   `;
