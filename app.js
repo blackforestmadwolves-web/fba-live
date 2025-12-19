@@ -17,6 +17,28 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
+/**
+ * View-spezifische Darstellung
+ * - columns: welche Spalten (in dieser Reihenfolge) angezeigt werden sollen
+ * - rename:  schöne Spaltennamen
+ * - teamCol: welche Spalte als Teamname gilt (für Logos)
+ */
+const VIEW_CONFIG = {
+  standings: {
+    // Deine gewünschten Standings-Spalten (entspricht „H–M“ in deinem Setup)
+    // Wenn bei dir Header anders heißen: NUR diese Liste + rename anpassen.
+    columns: ["team_sorted", "conf_sorted", "W_live_sort", "L_live_sort", "win_pct_sorted"],
+    rename: {
+      team_sorted: "Team",
+      conf_sorted: "Conf",
+      W_live_sort: "W",
+      L_live_sort: "L",
+      win_pct_sorted: "WIN%",
+    },
+    teamCol: "team_sorted",
+  },
+};
+
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
@@ -43,10 +65,9 @@ async function fetchCsv(url) {
     dynamicTyping: true,
   });
 
-  // PapaParse kann Warnungen liefern – nicht blockieren, nur loggen
   if (parsed.errors?.length) console.warn("CSV parse warnings:", parsed.errors);
 
-  // Leere Zeilen/Objekte raus
+  // Leere Zeilen raus (mind. ein Feld hat Inhalt)
   const rows = (parsed.data || []).filter((r) =>
     Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== "")
   );
@@ -66,27 +87,37 @@ function escapeHtml(v) {
 
 // --- Teamlogo-Pfad: exakt so, wie du es ablegst (Teamname.png) ---
 function teamLogoPath(teamName) {
-  // Deine Dateinamen sind exakt "Teamname.png"
-  // Wir encode'n nur für URL-Sicherheit (Leerzeichen etc.)
   return `./assets/teams/${encodeURIComponent(teamName)}.png`;
 }
 
 // --- Heuristik: Team-Spalte finden ---
 function guessTeamColumn(cols) {
-  const preferred = [
-    "team",
-    "Team",
-    "team_name",
-    "team_sorted",
-    "team_name_conf",
-    "Teamname",
-  ];
+  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
   for (const p of preferred) {
     if (cols.includes(p)) return p;
   }
-  // Fallback: erste Spalte, deren Header "team" enthält
   const maybe = cols.find((c) => c.toLowerCase().includes("team"));
   return maybe || null;
+}
+
+function getViewConfig() {
+  return VIEW_CONFIG[currentView] || {};
+}
+
+function getDisplayName(col) {
+  const cfg = getViewConfig();
+  return (cfg.rename && cfg.rename[col]) ? cfg.rename[col] : col;
+}
+
+function getColumnsForRows(rows) {
+  const rawCols = Object.keys(rows[0] || {}).filter((c) => c && c.trim() !== "");
+  const cfg = getViewConfig();
+
+  if (cfg.columns && cfg.columns.length) {
+    // Nur Spalten, die es wirklich gibt (sonst leere Header vermeiden)
+    return cfg.columns.filter((c) => rawCols.includes(c));
+  }
+  return rawCols;
 }
 
 // --- Table render ---
@@ -96,13 +127,15 @@ function renderTable(rows) {
     return;
   }
 
-  // Spalten ermitteln (nur nicht-leere Header)
-  const cols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
+  const cols = getColumnsForRows(rows);
   currentCols = cols;
 
-  teamColGuess = guessTeamColumn(cols);
+  const cfg = getViewConfig();
+  teamColGuess = cfg.teamCol || guessTeamColumn(cols);
 
-  const thead = `<thead><tr>${cols.map((c) => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead>`;
+  const thead = `<thead><tr>${cols
+    .map((c) => `<th>${escapeHtml(getDisplayName(c))}</th>`)
+    .join("")}</tr></thead>`;
 
   const tbody = `<tbody>${
     rows
@@ -115,12 +148,21 @@ function renderTable(rows) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
 
-            // onerror -> wenn Logo fehlt, einfach ausblenden (kein rotes Broken-Icon)
             const logoHtml = name
               ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
               : "";
 
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
+          }
+
+          // Optional: WIN% etwas hübscher formatieren, falls numerisch
+          if (currentView === "standings" && c === "win_pct_sorted") {
+            const num = Number(val);
+            if (!Number.isNaN(num) && Number.isFinite(num)) {
+              // Wenn es 0.xx ist -> als Prozent
+              const pct = num <= 1 ? (num * 100) : num;
+              return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
+            }
           }
 
           return `<td>${escapeHtml(val)}</td>`;
@@ -172,13 +214,10 @@ async function loadView(viewKey) {
     const rows = await fetchCsv(url);
     currentRows = rows;
 
-    // initial render
     renderTable(rows);
 
-    // Status
     setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
 
-    // Suche zurücksetzen
     if (searchEl) searchEl.value = "";
   } catch (e) {
     console.error(e);
