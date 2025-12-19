@@ -151,6 +151,55 @@ function sortStandingsRows(rows, plan) {
 }
 
 // -----------------------
+// Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
+// -----------------------
+function ensureMobileTableStyles() {
+  if (document.getElementById("mobileTableStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "mobileTableStyles";
+  style.textContent = `
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
+    }
+
+    .scroll-hint {
+      display: none;
+      font-size: 12px;
+      opacity: 0.75;
+      padding: 8px 4px 0;
+    }
+
+    .table-scroll table {
+      width: 100%;
+      min-width: 520px;
+    }
+
+    @media (max-width: 520px) {
+      .scroll-hint { display: block; }
+      table th, table td { padding: 8px 10px; font-size: 13px; }
+      .cell-team span { font-size: 13px; }
+
+      table th:first-child,
+      table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: rgba(18, 18, 18, 0.95);
+        box-shadow: 8px 0 12px rgba(0,0,0,0.25);
+      }
+
+      table thead th:first-child {
+        z-index: 4;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// -----------------------
 // Zusatz: East/West Tabellen UNTER dem bestehenden Standings-Table
 // -----------------------
 function ensureConfTablesStyles() {
@@ -177,9 +226,8 @@ function normalizeConf(v) {
 }
 
 /**
- * Baut eine Tabelle als HTML-String.
+ * Baut eine Tabelle als HTML-String und wrapp't sie in .table-scroll (mobile-friendly).
  * colsToUse sind echte CSV-Header-Keys.
- * wCol/lCol sorgen dafür, dass W/L sauber als Zahl gerendert werden.
  */
 function buildTableHtml(rows, colsToUse, rename, teamCol, wCol, lCol, winPctCol) {
   const displayName = (c) => rename[c] || c;
@@ -203,13 +251,11 @@ function buildTableHtml(rows, colsToUse, rename, teamCol, wCol, lCol, winPctCol)
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // W/L als Zahl rendern
           if ((wCol && c === wCol) || (lCol && c === lCol)) {
             const n = parseNum(val);
             return `<td>${Number.isFinite(n) ? escapeHtml(n) : escapeHtml(val)}</td>`;
           }
 
-          // WIN% hübscher formatieren
           if (winPctCol && c === winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -223,28 +269,29 @@ function buildTableHtml(rows, colsToUse, rename, teamCol, wCol, lCol, winPctCol)
       .join("")
   }</tbody>`;
 
-  return `<table>${thead}${tbody}</table>`;
+  return `
+    <div class="table-scroll">
+      <table>${thead}${tbody}</table>
+    </div>
+  `;
 }
 
 function appendConferenceTablesUnderStandings(rows, plan) {
   ensureConfTablesStyles();
 
-  const cols = plan.cols; // [Team, Conf, W, L, WIN%] als echte CSV-Header-Keys
+  const cols = plan.cols;
   const teamCol = plan.teamCol;
   const wCol = plan.wCol;
   const lCol = plan.lCol;
   const winPctCol = plan.winPctCol;
 
-  // Conf ist die 2. Spalte im Plan (J)
   const confCol = cols[1];
 
   const eastRows = rows.filter((r) => normalizeConf(r[confCol]) === "east");
   const westRows = rows.filter((r) => normalizeConf(r[confCol]) === "west");
 
-  // Für Conference-Tabellen: genau Team, W, L, WIN% (Conf raus)
   const confLessCols = [teamCol, wCol, lCol, winPctCol].filter(Boolean);
 
-  // Für Conference-Tabellen auch saubere Überschriften erzwingen
   const renameConf = {
     [teamCol]: "Team",
     [wCol]: "W",
@@ -335,7 +382,15 @@ function renderTable(rows) {
       .join("")
   }</tbody>`;
 
-  tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
+  // Mobile-Styles aktivieren + Tabellen in Scroll-Wrapper packen
+  ensureMobileTableStyles();
+
+  tableWrap.innerHTML = `
+    <div class="scroll-hint">Tipp: Seitlich wischen für mehr Spalten</div>
+    <div class="table-scroll">
+      <table>${thead}${tbody}</table>
+    </div>
+  `;
 
   // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
   if (currentView === "standings" && plan) {
