@@ -151,6 +151,26 @@ function sortStandingsRows(rows, plan) {
 }
 
 // -----------------------
+// PR/PR+: Spalten umbenennen (Rank, Team, Score)
+// -----------------------
+function getPrColumnPlan(rawCols) {
+  // wir nehmen die ersten 3 Spalten aus dem CSV (typisch: Rank, Team, Score)
+  const cols = rawCols.slice(0, 3);
+
+  // Fallback: wenn weniger als 3 da sind, trotzdem robust bleiben
+  const fixedLabels = ["Rank", "Team", "Score"];
+  const rename = {};
+  cols.forEach((c, idx) => {
+    rename[c] = fixedLabels[idx] || c;
+  });
+
+  // Team-Spalte explizit setzen, damit Logo/Cell-Team greift
+  const teamCol = cols[1] || guessTeamColumn(rawCols);
+
+  return { cols, rename, teamCol };
+}
+
+// -----------------------
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
 // + Team-Spalte schmaler (Ellipsis)
 // + Rank-Spalte bei PR/PR+ schmaler
@@ -388,12 +408,16 @@ function renderTable(rows) {
 
   if (currentView === "standings") {
     plan = getStandingsColumnPlanByIM(rawCols);
-
     cols = plan.cols;
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
-
     rows = sortStandingsRows(rows, plan);
+  } else if (currentView === "pr" || currentView === "prp") {
+    // PR/PR+: nur 3 Spalten zeigen + Umbenennung erzwingen
+    const prPlan = getPrColumnPlan(rawCols);
+    cols = prPlan.cols;
+    rename = prPlan.rename || {};
+    teamColGuess = prPlan.teamCol || guessTeamColumn(cols);
   } else {
     teamColGuess = guessTeamColumn(cols);
   }
@@ -437,7 +461,7 @@ function renderTable(rows) {
   // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
-  // PR/PR+ Hook: erster Wrapper bekommt .is-pr => Rank-Spalte wird schmal
+  // PR/PR+ Hook: .is-pr => Rank-Spalte wird schmal
   const wrapClass = currentView === "pr" || currentView === "prp" ? "table-scroll is-pr" : "table-scroll";
 
   tableWrap.innerHTML = `
