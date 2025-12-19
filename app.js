@@ -92,38 +92,27 @@ function guessTeamColumn(cols) {
 }
 
 // -----------------------
-// Standings: FIX auf Spalten H–M (Index 7..12)
+// Standings: FIX auf Spalten I–M (Index 8..12) + harte Benennung
 // -----------------------
-function niceStandingsHeaderName(header) {
-  const h = String(header || "").toLowerCase();
+function getStandingsColumnPlanByIM(rawCols) {
+  // I–M: I=8 ... M=12  => slice(8,13) nimmt 8,9,10,11,12
+  const im = rawCols.length >= 13 ? rawCols.slice(8, 13) : null;
 
-  if (h.includes("team")) return "Team";
-  if (h.includes("conf") || h.includes("conference") || h.includes("division")) return "Conf";
-  if (h === "w" || h.includes("wins") || h.includes(" w ") || h.startsWith("w_") || h.includes("_w")) return "W";
-  if (h === "l" || h.includes("loss") || h.includes(" l ") || h.startsWith("l_") || h.includes("_l")) return "L";
-  if (h.includes("win%") || h.includes("win_pct") || h.includes("pct") || h.includes("%")) return "WIN%";
-  if (h.includes("streak") || h.includes("serie")) return "Serie";
+  // Fallback: wenn Sheet weniger Spalten hat, nimm die ersten 5 (damit nichts crasht)
+  const cols = im && im.length ? im : rawCols.slice(0, 5);
 
-  return header;
-}
-
-function getStandingsColumnPlanByHM(rawCols) {
-  // H–M: H=7 ... M=12
-  // slice(7,13) -> nimmt 7,8,9,10,11,12
-  const hm = rawCols.length >= 13 ? rawCols.slice(7, 13) : null;
-
-  // Fallback: wenn Sheet weniger Spalten hat, nimm die bisherigen ersten 6
-  const cols = hm && hm.length ? hm : rawCols.slice(0, 6);
-
-  // Teamspalte innerhalb H–M suchen (sonst erste Spalte von H–M)
-  const teamCol = pickCol(cols, ["team_sorted", "Team", "team", "team_name", "team_name_conf", "Teamname"]) || cols[0];
-
-  // WIN%-Spalte innerhalb H–M suchen (für Formatierung)
-  const winPctCol = pickCol(cols, ["win_pct_sorted", "WIN%", "Win%", "win_pct", "win%", "pct", "win_pct_live"]);
-
-  // Rename-Mapping automatisch aus Headernamen ableiten
+  // Fixe Anzeige-Namen nach Position (I..M)
+  const fixedLabels = ["Team", "Conf", "W", "L", "WIN%"];
   const rename = {};
-  cols.forEach((c) => (rename[c] = niceStandingsHeaderName(c)));
+  cols.forEach((c, idx) => {
+    rename[c] = fixedLabels[idx] || c;
+  });
+
+  // Team ist immer die erste Spalte (I)
+  const teamCol = cols[0];
+
+  // WIN% ist immer die 5. Spalte (M)
+  const winPctCol = cols[4] || null;
 
   return { cols, rename, teamCol, winPctCol };
 }
@@ -143,7 +132,7 @@ function renderTable(rows) {
   let winPctCol = null;
 
   if (currentView === "standings") {
-    const plan = getStandingsColumnPlanByHM(rawCols);
+    const plan = getStandingsColumnPlanByIM(rawCols);
 
     cols = plan.cols;
     rename = plan.rename || {};
