@@ -73,7 +73,6 @@ function pickCol(rawCols, candidates) {
   for (const c of candidates) {
     if (rawCols.includes(c)) return c;
   }
-  // Fallback: case-insensitive match
   const lower = rawCols.map((c) => c.toLowerCase());
   for (const cand of candidates) {
     const idx = lower.indexOf(String(cand).toLowerCase());
@@ -82,83 +81,51 @@ function pickCol(rawCols, candidates) {
   return null;
 }
 
+// --- Heuristik: Team-Spalte finden (für andere Views) ---
+function guessTeamColumn(cols) {
+  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
+  for (const p of preferred) {
+    if (cols.includes(p)) return p;
+  }
+  const maybe = cols.find((c) => c.toLowerCase().includes("team"));
+  return maybe || null;
+}
+
 // -----------------------
-// Standings: automatische Spalten-Auswahl + hübsche Namen
+// Standings: FIX auf Spalten H–M (Index 7..12)
 // -----------------------
-function getStandingsColumnPlan(rawCols) {
-  // Du willst praktisch H–M: Team, Conf, W, L, WIN%
-  // Wir wählen dafür automatisch passende Header aus deinem Sheet.
-  const teamCol = pickCol(rawCols, [
-    "team_sorted",
-    "Team",
-    "team",
-    "team_name",
-    "team_name_conf",
-    "Teamname",
-  ]);
+function niceStandingsHeaderName(header) {
+  const h = String(header || "").toLowerCase();
 
-  const confCol = pickCol(rawCols, [
-    "conf_sorted",
-    "Conf",
-    "conf",
-    "conference",
-    "Conference",
-    "Division",
-  ]);
+  if (h.includes("team")) return "Team";
+  if (h.includes("conf") || h.includes("conference") || h.includes("division")) return "Conf";
+  if (h === "w" || h.includes("wins") || h.includes(" w ") || h.startsWith("w_") || h.includes("_w")) return "W";
+  if (h === "l" || h.includes("loss") || h.includes(" l ") || h.startsWith("l_") || h.includes("_l")) return "L";
+  if (h.includes("win%") || h.includes("win_pct") || h.includes("pct") || h.includes("%")) return "WIN%";
+  if (h.includes("streak") || h.includes("serie")) return "Serie";
 
-  const wCol = pickCol(rawCols, [
-    "W_live_sort",
-    "W_live",
-    "W",
-    "Wins",
-    "wins",
-    "W_live_week",
-  ]);
+  return header;
+}
 
-  const lCol = pickCol(rawCols, [
-    "L_live_sort",
-    "L_live",
-    "L",
-    "Losses",
-    "losses",
-    "L_live_week",
-  ]);
+function getStandingsColumnPlanByHM(rawCols) {
+  // H–M: H=7 ... M=12
+  // slice(7,13) -> nimmt 7,8,9,10,11,12
+  const hm = rawCols.length >= 13 ? rawCols.slice(7, 13) : null;
 
-  const winPctCol = pickCol(rawCols, [
-    "win_pct_sorted",
-    "WIN%",
-    "Win%",
-    "win_pct",
-    "win%",
-    "pct",
-    "win_pct_live",
-  ]);
+  // Fallback: wenn Sheet weniger Spalten hat, nimm die bisherigen ersten 6
+  const cols = hm && hm.length ? hm : rawCols.slice(0, 6);
 
-  const cols = [];
-  if (teamCol) cols.push(teamCol);
-  if (confCol) cols.push(confCol);
-  if (wCol) cols.push(wCol);
-  if (lCol) cols.push(lCol);
-  if (winPctCol) cols.push(winPctCol);
+  // Teamspalte innerhalb H–M suchen (sonst erste Spalte von H–M)
+  const teamCol = pickCol(cols, ["team_sorted", "Team", "team", "team_name", "team_name_conf", "Teamname"]) || cols[0];
 
+  // WIN%-Spalte innerhalb H–M suchen (für Formatierung)
+  const winPctCol = pickCol(cols, ["win_pct_sorted", "WIN%", "Win%", "win_pct", "win%", "pct", "win_pct_live"]);
+
+  // Rename-Mapping automatisch aus Headernamen ableiten
   const rename = {};
-  if (teamCol) rename[teamCol] = "Team";
-  if (confCol) rename[confCol] = "Conf";
-  if (wCol) rename[wCol] = "W";
-  if (lCol) rename[lCol] = "L";
-  if (winPctCol) rename[winPctCol] = "WIN%";
+  cols.forEach((c) => (rename[c] = niceStandingsHeaderName(c)));
 
-  const missing = [];
-  if (!wCol) missing.push("W");
-  if (!lCol) missing.push("L");
-
-  return {
-    cols,
-    rename,
-    teamCol,
-    winPctCol,
-    missing,
-  };
+  return { cols, rename, teamCol, winPctCol };
 }
 
 // -----------------------
@@ -175,26 +142,14 @@ function renderTable(rows) {
   let rename = {};
   let winPctCol = null;
 
-  // Standings: nur ausgewählte Spalten + rename
   if (currentView === "standings") {
-    const plan = getStandingsColumnPlan(rawCols);
+    const plan = getStandingsColumnPlanByHM(rawCols);
 
-    // Falls irgendwas komplett schief geht, fallback auf rawCols
-    cols = plan.cols.length ? plan.cols : rawCols;
+    cols = plan.cols;
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
     winPctCol = plan.winPctCol || null;
-
-    if (plan.missing.length) {
-      // Kurzer Hinweis im Status, ohne die Seite kaputt zu machen
-      setStatus(
-        `OK: ${VIEW_TITLES[currentView]} geladen (${rows.length} Zeilen). Hinweis: Spalte(n) nicht gefunden: ${plan.missing.join(
-          ", "
-        )}.`
-      );
-    }
   } else {
-    // andere Views wie bisher
     teamColGuess = guessTeamColumn(cols);
   }
 
@@ -222,7 +177,7 @@ function renderTable(rows) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // Standings: WIN% hübscher formatieren, egal wie die Spalte heißt
+          // Standings: WIN% hübscher formatieren
           if (currentView === "standings" && winPctCol && c === winPctCol) {
             const num = Number(val);
             if (!Number.isNaN(num) && Number.isFinite(num)) {
@@ -240,16 +195,6 @@ function renderTable(rows) {
   }</tbody>`;
 
   tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
-}
-
-// --- Heuristik: Team-Spalte finden (für andere Views) ---
-function guessTeamColumn(cols) {
-  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
-  for (const p of preferred) {
-    if (cols.includes(p)) return p;
-  }
-  const maybe = cols.find((c) => c.toLowerCase().includes("team"));
-  return maybe || null;
 }
 
 // -----------------------
@@ -296,10 +241,7 @@ async function loadView(viewKey) {
 
     renderTable(rows);
 
-    // Wenn Standings nicht schon einen Hinweis gesetzt hat:
-    if (currentView !== "standings") {
-      setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
-    }
+    setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
 
     if (searchEl) searchEl.value = "";
   } catch (e) {
