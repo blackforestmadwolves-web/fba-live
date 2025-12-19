@@ -17,28 +17,6 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
-/**
- * View-spezifische Darstellung
- * - columns: welche Spalten (in dieser Reihenfolge) angezeigt werden sollen
- * - rename:  schöne Spaltennamen
- * - teamCol: welche Spalte als Teamname gilt (für Logos)
- */
-const VIEW_CONFIG = {
-  standings: {
-    // Deine gewünschten Standings-Spalten (entspricht „H–M“ in deinem Setup)
-    // Wenn bei dir Header anders heißen: NUR diese Liste + rename anpassen.
-    columns: ["team_sorted", "conf_sorted", "W_live_sort", "L_live_sort", "win_pct_sorted"],
-    rename: {
-      team_sorted: "Team",
-      conf_sorted: "Conf",
-      W_live_sort: "W",
-      L_live_sort: "L",
-      win_pct_sorted: "WIN%",
-    },
-    teamCol: "team_sorted",
-  },
-};
-
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
@@ -50,6 +28,9 @@ let currentRows = [];
 let currentCols = [];
 let teamColGuess = null;
 
+// -----------------------
+// Helpers
+// -----------------------
 function setStatus(msg) {
   statusEl.textContent = msg;
 }
@@ -67,7 +48,6 @@ async function fetchCsv(url) {
 
   if (parsed.errors?.length) console.warn("CSV parse warnings:", parsed.errors);
 
-  // Leere Zeilen raus (mind. ein Feld hat Inhalt)
   const rows = (parsed.data || []).filter((r) =>
     Object.values(r).some((v) => v !== null && v !== undefined && String(v).trim() !== "")
   );
@@ -75,7 +55,6 @@ async function fetchCsv(url) {
   return rows;
 }
 
-// --- Utility: HTML escapen ---
 function escapeHtml(v) {
   return String(v ?? "")
     .replaceAll("&", "&amp;")
@@ -85,56 +64,146 @@ function escapeHtml(v) {
     .replaceAll("'", "&#039;");
 }
 
-// --- Teamlogo-Pfad: exakt so, wie du es ablegst (Teamname.png) ---
 function teamLogoPath(teamName) {
   return `./assets/teams/${encodeURIComponent(teamName)}.png`;
 }
 
-// --- Heuristik: Team-Spalte finden ---
-function guessTeamColumn(cols) {
-  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
-  for (const p of preferred) {
-    if (cols.includes(p)) return p;
+// Findet die erste passende Spalte aus einer Kandidatenliste
+function pickCol(rawCols, candidates) {
+  for (const c of candidates) {
+    if (rawCols.includes(c)) return c;
   }
-  const maybe = cols.find((c) => c.toLowerCase().includes("team"));
-  return maybe || null;
-}
-
-function getViewConfig() {
-  return VIEW_CONFIG[currentView] || {};
-}
-
-function getDisplayName(col) {
-  const cfg = getViewConfig();
-  return (cfg.rename && cfg.rename[col]) ? cfg.rename[col] : col;
-}
-
-function getColumnsForRows(rows) {
-  const rawCols = Object.keys(rows[0] || {}).filter((c) => c && c.trim() !== "");
-  const cfg = getViewConfig();
-
-  if (cfg.columns && cfg.columns.length) {
-    // Nur Spalten, die es wirklich gibt (sonst leere Header vermeiden)
-    return cfg.columns.filter((c) => rawCols.includes(c));
+  // Fallback: case-insensitive match
+  const lower = rawCols.map((c) => c.toLowerCase());
+  for (const cand of candidates) {
+    const idx = lower.indexOf(String(cand).toLowerCase());
+    if (idx !== -1) return rawCols[idx];
   }
-  return rawCols;
+  return null;
 }
 
-// --- Table render ---
+// -----------------------
+// Standings: automatische Spalten-Auswahl + hübsche Namen
+// -----------------------
+function getStandingsColumnPlan(rawCols) {
+  // Du willst praktisch H–M: Team, Conf, W, L, WIN%
+  // Wir wählen dafür automatisch passende Header aus deinem Sheet.
+  const teamCol = pickCol(rawCols, [
+    "team_sorted",
+    "Team",
+    "team",
+    "team_name",
+    "team_name_conf",
+    "Teamname",
+  ]);
+
+  const confCol = pickCol(rawCols, [
+    "conf_sorted",
+    "Conf",
+    "conf",
+    "conference",
+    "Conference",
+    "Division",
+  ]);
+
+  const wCol = pickCol(rawCols, [
+    "W_live_sort",
+    "W_live",
+    "W",
+    "Wins",
+    "wins",
+    "W_live_week",
+  ]);
+
+  const lCol = pickCol(rawCols, [
+    "L_live_sort",
+    "L_live",
+    "L",
+    "Losses",
+    "losses",
+    "L_live_week",
+  ]);
+
+  const winPctCol = pickCol(rawCols, [
+    "win_pct_sorted",
+    "WIN%",
+    "Win%",
+    "win_pct",
+    "win%",
+    "pct",
+    "win_pct_live",
+  ]);
+
+  const cols = [];
+  if (teamCol) cols.push(teamCol);
+  if (confCol) cols.push(confCol);
+  if (wCol) cols.push(wCol);
+  if (lCol) cols.push(lCol);
+  if (winPctCol) cols.push(winPctCol);
+
+  const rename = {};
+  if (teamCol) rename[teamCol] = "Team";
+  if (confCol) rename[confCol] = "Conf";
+  if (wCol) rename[wCol] = "W";
+  if (lCol) rename[lCol] = "L";
+  if (winPctCol) rename[winPctCol] = "WIN%";
+
+  const missing = [];
+  if (!wCol) missing.push("W");
+  if (!lCol) missing.push("L");
+
+  return {
+    cols,
+    rename,
+    teamCol,
+    winPctCol,
+    missing,
+  };
+}
+
+// -----------------------
+// Table render
+// -----------------------
 function renderTable(rows) {
   if (!rows || !rows.length) {
     tableWrap.innerHTML = "<div style='padding:12px;'>Keine Daten.</div>";
     return;
   }
 
-  const cols = getColumnsForRows(rows);
+  const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
+  let cols = rawCols;
+  let rename = {};
+  let winPctCol = null;
+
+  // Standings: nur ausgewählte Spalten + rename
+  if (currentView === "standings") {
+    const plan = getStandingsColumnPlan(rawCols);
+
+    // Falls irgendwas komplett schief geht, fallback auf rawCols
+    cols = plan.cols.length ? plan.cols : rawCols;
+    rename = plan.rename || {};
+    teamColGuess = plan.teamCol || null;
+    winPctCol = plan.winPctCol || null;
+
+    if (plan.missing.length) {
+      // Kurzer Hinweis im Status, ohne die Seite kaputt zu machen
+      setStatus(
+        `OK: ${VIEW_TITLES[currentView]} geladen (${rows.length} Zeilen). Hinweis: Spalte(n) nicht gefunden: ${plan.missing.join(
+          ", "
+        )}.`
+      );
+    }
+  } else {
+    // andere Views wie bisher
+    teamColGuess = guessTeamColumn(cols);
+  }
+
   currentCols = cols;
 
-  const cfg = getViewConfig();
-  teamColGuess = cfg.teamCol || guessTeamColumn(cols);
+  const displayName = (c) => rename[c] || c;
 
   const thead = `<thead><tr>${cols
-    .map((c) => `<th>${escapeHtml(getDisplayName(c))}</th>`)
+    .map((c) => `<th>${escapeHtml(displayName(c))}</th>`)
     .join("")}</tr></thead>`;
 
   const tbody = `<tbody>${
@@ -147,20 +216,17 @@ function renderTable(rows) {
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
-
             const logoHtml = name
               ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
               : "";
-
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // Optional: WIN% etwas hübscher formatieren, falls numerisch
-          if (currentView === "standings" && c === "win_pct_sorted") {
+          // Standings: WIN% hübscher formatieren, egal wie die Spalte heißt
+          if (currentView === "standings" && winPctCol && c === winPctCol) {
             const num = Number(val);
             if (!Number.isNaN(num) && Number.isFinite(num)) {
-              // Wenn es 0.xx ist -> als Prozent
-              const pct = num <= 1 ? (num * 100) : num;
+              const pct = num <= 1 ? num * 100 : num;
               return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
             }
           }
@@ -176,7 +242,19 @@ function renderTable(rows) {
   tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
 }
 
-// --- Suche/Filter (einfach, aber effektiv) ---
+// --- Heuristik: Team-Spalte finden (für andere Views) ---
+function guessTeamColumn(cols) {
+  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
+  for (const p of preferred) {
+    if (cols.includes(p)) return p;
+  }
+  const maybe = cols.find((c) => c.toLowerCase().includes("team"));
+  return maybe || null;
+}
+
+// -----------------------
+// Suche/Filter
+// -----------------------
 function applySearch() {
   const q = (searchEl?.value || "").trim().toLowerCase();
   if (!q) {
@@ -192,7 +270,9 @@ function applySearch() {
   setStatus(`OK: ${VIEW_TITLES[currentView]} (${filtered.length}/${currentRows.length} Zeilen, gefiltert).`);
 }
 
-// --- Tabs active state ---
+// -----------------------
+// Tabs / Load
+// -----------------------
 function setActiveTab(viewKey) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.remove("is-active"));
   const btn = document.querySelector(`.tab[data-view="${viewKey}"]`);
@@ -216,7 +296,10 @@ async function loadView(viewKey) {
 
     renderTable(rows);
 
-    setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
+    // Wenn Standings nicht schon einen Hinweis gesetzt hat:
+    if (currentView !== "standings") {
+      setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
+    }
 
     if (searchEl) searchEl.value = "";
   } catch (e) {
@@ -233,7 +316,6 @@ document.querySelectorAll("nav button").forEach((btn) => {
 });
 
 refreshBtn?.addEventListener("click", () => loadView(currentView));
-
 searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
