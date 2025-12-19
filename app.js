@@ -178,9 +178,10 @@ function normalizeConf(v) {
 
 /**
  * Baut eine Tabelle als HTML-String.
- * Wichtig: colsToUse erlaubt uns, für Conference-Tabellen "Conf" auszublenden.
+ * colsToUse sind echte CSV-Header-Keys.
+ * wCol/lCol sorgen dafür, dass W/L sauber als Zahl gerendert werden.
  */
-function buildTableHtml(rows, colsToUse, rename, teamCol, winPctCol) {
+function buildTableHtml(rows, colsToUse, rename, teamCol, wCol, lCol, winPctCol) {
   const displayName = (c) => rename[c] || c;
 
   const thead = `<thead><tr>${colsToUse
@@ -202,6 +203,13 @@ function buildTableHtml(rows, colsToUse, rename, teamCol, winPctCol) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
+          // W/L als Zahl rendern
+          if ((wCol && c === wCol) || (lCol && c === lCol)) {
+            const n = parseNum(val);
+            return `<td>${Number.isFinite(n) ? escapeHtml(n) : escapeHtml(val)}</td>`;
+          }
+
+          // WIN% hübscher formatieren
           if (winPctCol && c === winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -221,9 +229,10 @@ function buildTableHtml(rows, colsToUse, rename, teamCol, winPctCol) {
 function appendConferenceTablesUnderStandings(rows, plan) {
   ensureConfTablesStyles();
 
-  const cols = plan.cols; // [Team, Conf, W, L, WIN%] als echte CSV-Header
-  const rename = plan.rename;
+  const cols = plan.cols; // [Team, Conf, W, L, WIN%] als echte CSV-Header-Keys
   const teamCol = plan.teamCol;
+  const wCol = plan.wCol;
+  const lCol = plan.lCol;
   const winPctCol = plan.winPctCol;
 
   // Conf ist die 2. Spalte im Plan (J)
@@ -232,11 +241,19 @@ function appendConferenceTablesUnderStandings(rows, plan) {
   const eastRows = rows.filter((r) => normalizeConf(r[confCol]) === "east");
   const westRows = rows.filter((r) => normalizeConf(r[confCol]) === "west");
 
-  // Für Conference-Tabellen: Conf-Spalte raus -> [Team, W, L, WIN%]
-  const confLessCols = [cols[0], cols[2], cols[3], cols[4]];
+  // Für Conference-Tabellen: genau Team, W, L, WIN% (Conf raus)
+  const confLessCols = [teamCol, wCol, lCol, winPctCol].filter(Boolean);
 
-  const eastHtml = buildTableHtml(eastRows, confLessCols, rename, teamCol, winPctCol);
-  const westHtml = buildTableHtml(westRows, confLessCols, rename, teamCol, winPctCol);
+  // Für Conference-Tabellen auch saubere Überschriften erzwingen
+  const renameConf = {
+    [teamCol]: "Team",
+    [wCol]: "W",
+    [lCol]: "L",
+    [winPctCol]: "WIN%",
+  };
+
+  const eastHtml = buildTableHtml(eastRows, confLessCols, renameConf, teamCol, wCol, lCol, winPctCol);
+  const westHtml = buildTableHtml(westRows, confLessCols, renameConf, teamCol, wCol, lCol, winPctCol);
 
   const extraHtml = `
     <div class="conf-tables-wrap">
@@ -320,7 +337,7 @@ function renderTable(rows) {
 
   tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
 
-  // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran (ohne Conf-Spalte)
+  // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
   if (currentView === "standings" && plan) {
     appendConferenceTablesUnderStandings(rows, plan);
   }
