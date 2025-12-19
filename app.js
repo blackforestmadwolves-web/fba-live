@@ -68,19 +68,6 @@ function teamLogoPath(teamName) {
   return `./assets/teams/${encodeURIComponent(teamName)}.png`;
 }
 
-// Findet die erste passende Spalte aus einer Kandidatenliste
-function pickCol(rawCols, candidates) {
-  for (const c of candidates) {
-    if (rawCols.includes(c)) return c;
-  }
-  const lower = rawCols.map((c) => c.toLowerCase());
-  for (const cand of candidates) {
-    const idx = lower.indexOf(String(cand).toLowerCase());
-    if (idx !== -1) return rawCols[idx];
-  }
-  return null;
-}
-
 // --- Heuristik: Team-Spalte finden (für andere Views) ---
 function guessTeamColumn(cols) {
   const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
@@ -111,10 +98,68 @@ function getStandingsColumnPlanByIM(rawCols) {
   // Team ist immer die erste Spalte (I)
   const teamCol = cols[0];
 
-  // WIN% ist immer die 5. Spalte (M)
+  // W / L / WIN% sind fix nach Position
+  const wCol = cols[2] || null;
+  const lCol = cols[3] || null;
   const winPctCol = cols[4] || null;
 
-  return { cols, rename, teamCol, winPctCol };
+  return { cols, rename, teamCol, wCol, lCol, winPctCol };
+}
+
+// -----------------------
+// Standings Sortierung (absteigend nach WIN%, dann W, dann L aufsteigend)
+// -----------------------
+function parseWinPct(val) {
+  if (val === null || val === undefined) return NaN;
+  const s = String(val).trim().replace("%", "").replace(",", ".");
+  const n = Number(s);
+  if (Number.isNaN(n)) return NaN;
+  // 0.xx -> Prozent, 50..100 -> schon Prozent
+  return n <= 1 ? n * 100 : n;
+}
+
+function parseNum(val) {
+  const n = Number(String(val ?? "").trim().replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function sortStandingsRows(rows, plan) {
+  const { wCol, lCol, winPctCol } = plan;
+
+  return [...rows].sort((a, b) => {
+    const aPct = winPctCol ? parseWinPct(a[winPctCol]) : NaN;
+    const bPct = winPctCol ? parseWinPct(b[winPctCol]) : NaN;
+
+    // 1) WIN% desc (NaN nach hinten)
+    const aPctOk = Number.isFinite(aPct);
+    const bPctOk = Number.isFinite(bPct);
+    if (aPctOk && bPctOk && aPct !== bPct) return bPct - aPct;
+    if (aPctOk && !bPctOk) return -1;
+    if (!aPctOk && bPctOk) return 1;
+
+    // 2) W desc
+    const aW = wCol ? parseNum(a[wCol]) : NaN;
+    const bW = wCol ? parseNum(b[wCol]) : NaN;
+    const aWOk = Number.isFinite(aW);
+    const bWOk = Number.isFinite(bW);
+    if (aWOk && bWOk && aW !== bW) return bW - aW;
+    if (aWOk && !bWOk) return -1;
+    if (!aWOk && bWOk) return 1;
+
+    // 3) L asc (weniger Niederlagen besser)
+    const aL = lCol ? parseNum(a[lCol]) : NaN;
+    const bL = lCol ? parseNum(b[lCol]) : NaN;
+    const aLOk = Number.isFinite(aL);
+    const bLOk = Number.isFinite(bL);
+    if (aLOk && bLOk && aL !== bL) return aL - bL;
+    if (aLOk && !bLOk) return -1;
+    if (!aLOk && bLOk) return 1;
+
+    // 4) stabiler Fallback: Teamname
+    const aT = String(a[plan.teamCol] ?? "");
+    const bT = String(b[plan.teamCol] ?? "");
+    return aT.localeCompare(bT);
+  });
 }
 
 // -----------------------
@@ -129,15 +174,17 @@ function renderTable(rows) {
   const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
   let cols = rawCols;
   let rename = {};
-  let winPctCol = null;
+  let plan = null;
 
   if (currentView === "standings") {
-    const plan = getStandingsColumnPlanByIM(rawCols);
+    plan = getStandingsColumnPlanByIM(rawCols);
 
     cols = plan.cols;
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
-    winPctCol = plan.winPctCol || null;
+
+    // Sortierung hier sicherstellen (auch bei Filter-Render)
+    rows = sortStandingsRows(rows, plan);
   } else {
     teamColGuess = guessTeamColumn(cols);
   }
@@ -166,13 +213,10 @@ function renderTable(rows) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // Standings: WIN% hübscher formatieren
-          if (currentView === "standings" && winPctCol && c === winPctCol) {
-            const num = Number(val);
-            if (!Number.isNaN(num) && Number.isFinite(num)) {
-              const pct = num <= 1 ? num * 100 : num;
-              return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
-            }
+          // Standings: WIN% hübscher formatieren (fixe Spalte M)
+          if (currentView === "standings" && plan && plan.winPctCol && c === plan.winPctCol) {
+            const pct = parseWinPct(val);
+            if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
           }
 
           return `<td>${escapeHtml(val)}</td>`;
@@ -225,7 +269,15 @@ async function loadView(viewKey) {
   tableWrap.innerHTML = "";
 
   try {
-    const rows = await fetchCsv(url);
+    let rows = await fetchCsv(url);
+
+    // Standings schon beim Laden sortieren (damit currentRows auch sortiert ist)
+    if (viewKey === "standings" && rows.length) {
+      const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
+      const plan = getStandingsColumnPlanByIM(rawCols);
+      rows = sortStandingsRows(rows, plan);
+    }
+
     currentRows = rows;
 
     renderTable(rows);
