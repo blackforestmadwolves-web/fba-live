@@ -152,6 +152,7 @@ function sortStandingsRows(rows, plan) {
 
 // -----------------------
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
+// + Team-Spalte schmaler (Ellipsis)
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -172,18 +173,50 @@ function ensureMobileTableStyles() {
       padding: 8px 4px 0;
     }
 
+    /* Wichtig: fixed layout, damit Spaltenbreiten (insb. Team) wirklich greifen */
     .table-scroll table {
       width: 100%;
       min-width: 520px;
+      table-layout: fixed;
+    }
+
+    /* Team-Spalte generell begrenzen (auch Desktop) */
+    .table-scroll table th:first-child,
+    .table-scroll table td:first-child {
+      width: 200px;
+      max-width: 200px;
+    }
+
+    /* Team-Cell: Text darf nicht die Spalte aufziehen */
+    .table-scroll .cell-team { min-width: 0; }
+    .table-scroll .cell-team span {
+      display: inline-block;
+      min-width: 0;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: bottom;
     }
 
     @media (max-width: 520px) {
       .scroll-hint { display: block; }
       table th, table td { padding: 8px 10px; font-size: 13px; }
-      .cell-team span { font-size: 13px; }
 
-      table th:first-child,
-      table td:first-child {
+      /* Team-Spalte am Handy nochmal schmaler */
+      .table-scroll table th:first-child,
+      .table-scroll table td:first-child {
+        width: 160px;
+        max-width: 160px;
+      }
+
+      .table-scroll .cell-team span {
+        max-width: 110px;
+      }
+
+      /* Sticky erste Spalte */
+      .table-scroll table th:first-child,
+      .table-scroll table td:first-child {
         position: sticky;
         left: 0;
         z-index: 3;
@@ -191,7 +224,7 @@ function ensureMobileTableStyles() {
         box-shadow: 8px 0 12px rgba(0,0,0,0.25);
       }
 
-      table thead th:first-child {
+      .table-scroll table thead th:first-child {
         z-index: 4;
       }
     }
@@ -382,7 +415,7 @@ function renderTable(rows) {
       .join("")
   }</tbody>`;
 
-  // Mobile-Styles aktivieren + Tabellen in Scroll-Wrapper packen
+  // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
   tableWrap.innerHTML = `
