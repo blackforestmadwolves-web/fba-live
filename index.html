@@ -9,15 +9,22 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   </head>
   <body>
-    <header>
-      <h1>FBA Live</h1>
-      <nav>
-        <button data-view="standings">Standings</button>
-        <button data-view="pr">Power Ranking</button>
-        <button data-view="prp">Power Ranking+</button>
-        <button data-view="matchups">Matchups</button>
-      </nav>
-    </header>
+    <header class="topbar">
+  <div class="brand">
+    <img class="brand__logo" src="./assets/fba-logo.png" alt="FBA Logo" />
+    <div class="brand__text">
+      <div class="brand__title">FBA Live</div>
+      <div class="brand__sub">Standings • Power Ranking • Matchups</div>
+    </div>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab is-active" data-view="standings">Standings</button>
+    <button class="tab" data-view="pr">Power Ranking</button>
+    <button class="tab" data-view="prp">Power Ranking+</button>
+    <button class="tab" data-view="matchups">Matchups</button>
+  </nav>
+</header>
 
     <main>
       <div id="status">Lade Daten…</div>
