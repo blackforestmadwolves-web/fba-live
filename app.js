@@ -163,6 +163,109 @@ function sortStandingsRows(rows, plan) {
 }
 
 // -----------------------
+// Zusatz: East/West Tabellen UNTER dem bestehenden Standings-Table
+// -----------------------
+function ensureConfTablesStyles() {
+  if (document.getElementById("confTablesStyles")) return;
+  const style = document.createElement("style");
+  style.id = "confTablesStyles";
+  style.textContent = `
+    .conf-tables-wrap { margin-top: 16px; }
+    .conf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .conf-panel { border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02); }
+    .conf-panel-title { padding: 10px 12px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .conf-panel-body { padding: 0; }
+    @media (max-width: 900px) { .conf-grid { grid-template-columns: 1fr; } }
+  `;
+  document.head.appendChild(style);
+}
+
+function normalizeConf(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return "";
+  if (s === "e" || s.includes("east") || s.includes("ost")) return "east";
+  if (s === "w" || s.includes("west") || s.includes("westen")) return "west";
+  return s;
+}
+
+function buildTableHtml(rows, cols, rename, teamCol, winPctCol) {
+  const displayName = (c) => rename[c] || c;
+
+  const thead = `<thead><tr>${cols
+    .map((c) => `<th>${escapeHtml(displayName(c))}</th>`)
+    .join("")}</tr></thead>`;
+
+  const tbody = `<tbody>${
+    rows
+      .map((r) => {
+        const tds = cols.map((c) => {
+          const val = r[c];
+
+          // Teamzelle: Logo + Name
+          if (teamCol && c === teamCol) {
+            const name = String(val ?? "").trim();
+            const src = teamLogoPath(name);
+            const logoHtml = name
+              ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
+              : "";
+            return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
+          }
+
+          // WIN% hübscher formatieren
+          if (winPctCol && c === winPctCol) {
+            const pct = parseWinPct(val);
+            if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
+          }
+
+          return `<td>${escapeHtml(val)}</td>`;
+        });
+
+        return `<tr>${tds.join("")}</tr>`;
+      })
+      .join("")
+  }</tbody>`;
+
+  return `<table>${thead}${tbody}</table>`;
+}
+
+function appendConferenceTablesUnderStandings(rows, plan) {
+  ensureConfTablesStyles();
+
+  const cols = plan.cols;
+  const rename = plan.rename;
+  const teamCol = plan.teamCol;
+  const winPctCol = plan.winPctCol;
+
+  // Conf steht bei dir als angezeigte Spalte "Conf" in Spalte J (2. Spalte im Plan)
+  // -> wir nutzen genau diese zweite Spalte, damit es 100% passt.
+  const confCol = cols[1];
+
+  const eastRows = rows.filter((r) => normalizeConf(r[confCol]) === "east");
+  const westRows = rows.filter((r) => normalizeConf(r[confCol]) === "west");
+
+  // Falls Conf-Werte nicht sauber sind, trotzdem nichts kaputt machen
+  const eastHtml = buildTableHtml(eastRows, cols, rename, teamCol, winPctCol);
+  const westHtml = buildTableHtml(westRows, cols, rename, teamCol, winPctCol);
+
+  const extraHtml = `
+    <div class="conf-tables-wrap">
+      <div class="conf-grid">
+        <div class="conf-panel">
+          <div class="conf-panel-title">East</div>
+          <div class="conf-panel-body">${eastHtml}</div>
+        </div>
+        <div class="conf-panel">
+          <div class="conf-panel-title">West</div>
+          <div class="conf-panel-body">${westHtml}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  tableWrap.insertAdjacentHTML("beforeend", extraHtml);
+}
+
+// -----------------------
 // Table render
 // -----------------------
 function renderTable(rows) {
@@ -228,6 +331,11 @@ function renderTable(rows) {
   }</tbody>`;
 
   tableWrap.innerHTML = `<table>${thead}${tbody}</table>`;
+
+  // >>> HIER: Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
+  if (currentView === "standings" && plan) {
+    appendConferenceTablesUnderStandings(rows, plan);
+  }
 }
 
 // -----------------------
