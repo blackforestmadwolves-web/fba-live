@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FBA Live</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <!-- CSV Parser (PapaParse) -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>FBA Live</h1>
+      <nav>
+        <button data-view="standings">Standings</button>
+        <button data-view="pr">Power Ranking</button>
+        <button data-view="prp">Power Ranking+</button>
+        <button data-view="matchups">Matchups</button>
+      </nav>
+    </header>
+
+    <main>
+      <div id="status">Lade Daten…</div>
+      <div id="tableWrap"></div>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
