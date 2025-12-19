@@ -98,13 +98,12 @@ function getStandingsColumnPlanByIM(rawCols) {
   // Team ist immer die erste Spalte (I)
   const teamCol = cols[0];
 
-  // Conf/W/L/WIN% sind fix nach Position
-  const confCol = cols[1] || null;
+  // W / L / WIN% sind fix nach Position
   const wCol = cols[2] || null;
   const lCol = cols[3] || null;
   const winPctCol = cols[4] || null;
 
-  return { cols, rename, teamCol, confCol, wCol, lCol, winPctCol };
+  return { cols, rename, teamCol, wCol, lCol, winPctCol };
 }
 
 // -----------------------
@@ -115,6 +114,7 @@ function parseWinPct(val) {
   const s = String(val).trim().replace("%", "").replace(",", ".");
   const n = Number(s);
   if (Number.isNaN(n)) return NaN;
+  // 0.xx -> Prozent, 50..100 -> schon Prozent
   return n <= 1 ? n * 100 : n;
 }
 
@@ -146,7 +146,7 @@ function sortStandingsRows(rows, plan) {
     if (aWOk && !bWOk) return -1;
     if (!aWOk && bWOk) return 1;
 
-    // 3) L asc
+    // 3) L asc (weniger Niederlagen besser)
     const aL = lCol ? parseNum(a[lCol]) : NaN;
     const bL = lCol ? parseNum(b[lCol]) : NaN;
     const aLOk = Number.isFinite(aL);
@@ -155,117 +155,11 @@ function sortStandingsRows(rows, plan) {
     if (aLOk && !bLOk) return -1;
     if (!aLOk && bLOk) return 1;
 
-    // 4) Fallback: Teamname
+    // 4) stabiler Fallback: Teamname
     const aT = String(a[plan.teamCol] ?? "");
     const bT = String(b[plan.teamCol] ?? "");
     return aT.localeCompare(bT);
   });
-}
-
-// -----------------------
-// Standings: East/West Split + 2 Tabellen
-// -----------------------
-function ensureStandingsGridStyles() {
-  if (document.getElementById("standings-grid-styles")) return;
-
-  const style = document.createElement("style");
-  style.id = "standings-grid-styles";
-  style.textContent = `
-    .standings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-    .standings-panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
-    .standings-panel .panel-title { padding: 10px 12px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); }
-    .standings-panel .panel-body { padding: 0; }
-    .standings-panel table { width: 100%; }
-    .standings-panel thead th { position: sticky; top: 0; backdrop-filter: blur(6px); }
-    @media (max-width: 900px) { .standings-grid { grid-template-columns: 1fr; } }
-  `;
-  document.head.appendChild(style);
-}
-
-function normalizeConf(v) {
-  const s = String(v ?? "").trim().toLowerCase();
-  if (!s) return "";
-  // akzeptiere "East", "E", "Ost" etc.
-  if (s === "e" || s.includes("east") || s.includes("ost")) return "east";
-  if (s === "w" || s.includes("west") || s.includes("westen")) return "west";
-  return s; // falls du mal andere Labels hast
-}
-
-function buildTableHtml(rows, cols, rename, teamCol, winPctCol) {
-  const displayName = (c) => rename[c] || c;
-
-  const thead = `<thead><tr>${cols
-    .map((c) => `<th>${escapeHtml(displayName(c))}</th>`)
-    .join("")}</tr></thead>`;
-
-  const tbody = `<tbody>${
-    rows
-      .map((r) => {
-        const tds = cols.map((c) => {
-          const val = r[c];
-
-          if (teamCol && c === teamCol) {
-            const name = String(val ?? "").trim();
-            const src = teamLogoPath(name);
-            const logoHtml = name
-              ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
-              : "";
-            return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
-          }
-
-          if (winPctCol && c === winPctCol) {
-            const pct = parseWinPct(val);
-            if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
-          }
-
-          return `<td>${escapeHtml(val)}</td>`;
-        });
-
-        return `<tr>${tds.join("")}</tr>`;
-      })
-      .join("")
-  }</tbody>`;
-
-  return `<table>${thead}${tbody}</table>`;
-}
-
-function renderStandingsTwoConferences(rows, plan) {
-  ensureStandingsGridStyles();
-
-  const cols = plan.cols;
-  const rename = plan.rename;
-  const teamCol = plan.teamCol;
-  const winPctCol = plan.winPctCol;
-  const confCol = plan.confCol;
-
-  // wenn confCol fehlt -> fallback: eine Tabelle
-  if (!confCol) {
-    tableWrap.innerHTML = buildTableHtml(rows, cols, rename, teamCol, winPctCol);
-    return;
-  }
-
-  const eastRows = rows.filter((r) => normalizeConf(r[confCol]) === "east");
-  const westRows = rows.filter((r) => normalizeConf(r[confCol]) === "west");
-
-  // fallback: wenn nicht sauber erkannt wird -> zeig trotzdem alles links und leer rechts
-  const leftRows = eastRows.length ? eastRows : rows.filter((r) => String(r[confCol] ?? "").toLowerCase().includes("east"));
-  const rightRows = westRows.length ? westRows : rows.filter((r) => String(r[confCol] ?? "").toLowerCase().includes("west"));
-
-  const eastHtml = buildTableHtml(leftRows, cols, rename, teamCol, winPctCol);
-  const westHtml = buildTableHtml(rightRows, cols, rename, teamCol, winPctCol);
-
-  tableWrap.innerHTML = `
-    <div class="standings-grid">
-      <div class="standings-panel">
-        <div class="panel-title">East</div>
-        <div class="panel-body">${eastHtml}</div>
-      </div>
-      <div class="standings-panel">
-        <div class="panel-title">West</div>
-        <div class="panel-body">${westHtml}</div>
-      </div>
-    </div>
-  `;
 }
 
 // -----------------------
@@ -289,12 +183,8 @@ function renderTable(rows) {
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
 
-    // Sortierung sicherstellen
+    // Sortierung hier sicherstellen (auch bei Filter-Render)
     rows = sortStandingsRows(rows, plan);
-
-    // -> Zwei Tabellen East/West
-    renderStandingsTwoConferences(rows, plan);
-    return; // wichtig: wir rendern hier bereits
   } else {
     teamColGuess = guessTeamColumn(cols);
   }
@@ -313,6 +203,7 @@ function renderTable(rows) {
         const tds = cols.map((c) => {
           const val = r[c];
 
+          // Teamzelle: Logo + Name
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
@@ -320,6 +211,12 @@ function renderTable(rows) {
               ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
               : "";
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
+          }
+
+          // Standings: WIN% hübscher formatieren (fixe Spalte M)
+          if (currentView === "standings" && plan && plan.winPctCol && c === plan.winPctCol) {
+            const pct = parseWinPct(val);
+            if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
           }
 
           return `<td>${escapeHtml(val)}</td>`;
@@ -374,7 +271,7 @@ async function loadView(viewKey) {
   try {
     let rows = await fetchCsv(url);
 
-    // Standings: schon beim Laden sortieren (damit currentRows sortiert ist)
+    // Standings schon beim Laden sortieren (damit currentRows auch sortiert ist)
     if (viewKey === "standings" && rows.length) {
       const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
       const plan = getStandingsColumnPlanByIM(rawCols);
