@@ -70,7 +70,7 @@ function teamLogoPath(teamName) {
 
 // --- Heuristik: Team-Spalte finden (für andere Views) ---
 function guessTeamColumn(cols) {
-  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname"];
+  const preferred = ["team", "Team", "team_name", "team_sorted", "team_name_conf", "Teamname", "Away", "Home"];
   for (const p of preferred) {
     if (cols.includes(p)) return p;
   }
@@ -154,20 +154,50 @@ function sortStandingsRows(rows, plan) {
 // PR/PR+: Spalten umbenennen (Rank, Team, Score)
 // -----------------------
 function getPrColumnPlan(rawCols) {
-  // wir nehmen die ersten 3 Spalten aus dem CSV (typisch: Rank, Team, Score)
   const cols = rawCols.slice(0, 3);
 
-  // Fallback: wenn weniger als 3 da sind, trotzdem robust bleiben
   const fixedLabels = ["Rank", "Team", "Score"];
   const rename = {};
   cols.forEach((c, idx) => {
     rename[c] = fixedLabels[idx] || c;
   });
 
-  // Team-Spalte explizit setzen, damit Logo/Cell-Team greift
   const teamCol = cols[1] || guessTeamColumn(rawCols);
-
   return { cols, rename, teamCol };
+}
+
+// -----------------------
+// Matchups: nur Away, Score, Home, Projection
+// -----------------------
+function getMatchupsColumnPlan(rawCols) {
+  // Robust: wir suchen "ähnliche" Spaltennamen, falls das Sheet minimal abweicht
+  const findCol = (cands) =>
+    rawCols.find((c) => cands.some((x) => String(c).trim().toLowerCase() === x.toLowerCase())) ||
+    rawCols.find((c) => cands.some((x) => String(c).trim().toLowerCase().includes(x.toLowerCase()))) ||
+    null;
+
+  const awayCol = findCol(["Away", "Away Team", "away", "away_team", "visitor"]);
+  const scoreCol = findCol(["Score", "Current", "score", "result"]);
+  const homeCol = findCol(["Home", "Home Team", "home", "home_team", "host"]);
+  const projCol = findCol(["Projection", "Proj", "projection", "projected", "proj_score"]);
+
+  // Falls nichts gefunden: nimm einfach die ersten 4 Spalten, damit es zumindest nicht kaputt geht
+  const cols = [awayCol, scoreCol, homeCol, projCol].filter(Boolean);
+  const finalCols = cols.length ? cols : rawCols.slice(0, 4);
+
+  const rename = {};
+  // Die Benennung soll exakt so sein wie gewünscht
+  if (finalCols[0]) rename[finalCols[0]] = "Away";
+  if (finalCols[1]) rename[finalCols[1]] = "Score";
+  if (finalCols[2]) rename[finalCols[2]] = "Home";
+  if (finalCols[3]) rename[finalCols[3]] = "Projection";
+
+  return {
+    cols: finalCols,
+    rename,
+    awayCol: finalCols[0] || null,
+    homeCol: finalCols[2] || null,
+  };
 }
 
 // -----------------------
@@ -220,14 +250,29 @@ function ensureMobileTableStyles() {
       vertical-align: bottom;
     }
 
-    /* --- Rank-Spalte schmaler (PR & PR+) ---
-       Wir setzen das über einen Klassen-Hook auf dem Wrapper (siehe renderTable).
-       Rank ist dann immer Spalte 1.
-    */
+    /* --- Rank-Spalte schmaler (PR & PR+) --- */
     .table-scroll.is-pr table th:first-child,
     .table-scroll.is-pr table td:first-child {
       width: 64px;
       max-width: 64px;
+      text-align: center;
+    }
+
+    /* --- Matchups Hook: Away/Home wie "Team" behandeln, Score/Projection kompakt --- */
+    .table-scroll.is-matchups table th:nth-child(1),
+    .table-scroll.is-matchups table td:nth-child(1),
+    .table-scroll.is-matchups table th:nth-child(3),
+    .table-scroll.is-matchups table td:nth-child(3) {
+      width: 210px;
+      max-width: 210px;
+    }
+
+    .table-scroll.is-matchups table th:nth-child(2),
+    .table-scroll.is-matchups table td:nth-child(2),
+    .table-scroll.is-matchups table th:nth-child(4),
+    .table-scroll.is-matchups table td:nth-child(4) {
+      width: 110px;
+      max-width: 110px;
       text-align: center;
     }
 
@@ -253,7 +298,28 @@ function ensureMobileTableStyles() {
         max-width: 52px;
       }
 
-      /* Sticky erste Spalte (wenn sinnvoll) */
+      /* Matchups am Handy */
+      .table-scroll.is-matchups table {
+        min-width: 520px;
+      }
+
+      .table-scroll.is-matchups table th:nth-child(1),
+      .table-scroll.is-matchups table td:nth-child(1),
+      .table-scroll.is-matchups table th:nth-child(3),
+      .table-scroll.is-matchups table td:nth-child(3) {
+        width: 170px;
+        max-width: 170px;
+      }
+
+      .table-scroll.is-matchups table th:nth-child(2),
+      .table-scroll.is-matchups table td:nth-child(2),
+      .table-scroll.is-matchups table th:nth-child(4),
+      .table-scroll.is-matchups table td:nth-child(4) {
+        width: 90px;
+        max-width: 90px;
+      }
+
+      /* Sticky erste Spalte */
       .table-scroll table th:first-child,
       .table-scroll table td:first-child {
         position: sticky;
@@ -406,6 +472,9 @@ function renderTable(rows) {
   let rename = {};
   let plan = null;
 
+  // Zusatz-Plan für Matchups (Away/Home als Team-Cells rendern)
+  let matchupsPlan = null;
+
   if (currentView === "standings") {
     plan = getStandingsColumnPlanByIM(rawCols);
     cols = plan.cols;
@@ -413,11 +482,16 @@ function renderTable(rows) {
     teamColGuess = plan.teamCol || null;
     rows = sortStandingsRows(rows, plan);
   } else if (currentView === "pr" || currentView === "prp") {
-    // PR/PR+: nur 3 Spalten zeigen + Umbenennung erzwingen
     const prPlan = getPrColumnPlan(rawCols);
     cols = prPlan.cols;
     rename = prPlan.rename || {};
     teamColGuess = prPlan.teamCol || guessTeamColumn(cols);
+  } else if (currentView === "matchups") {
+    matchupsPlan = getMatchupsColumnPlan(rawCols);
+    cols = matchupsPlan.cols;
+    rename = matchupsPlan.rename || {};
+    // teamColGuess nicht global nutzen, wir rendern Away/Home separat
+    teamColGuess = null;
   } else {
     teamColGuess = guessTeamColumn(cols);
   }
@@ -436,6 +510,19 @@ function renderTable(rows) {
         const tds = cols.map((c) => {
           const val = r[c];
 
+          // --- Matchups: Away/Home als Team-Cell mit Logo ---
+          if (currentView === "matchups" && matchupsPlan) {
+            if (c === matchupsPlan.awayCol || c === matchupsPlan.homeCol) {
+              const name = String(val ?? "").trim();
+              const src = teamLogoPath(name);
+              const logoHtml = name
+                ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
+                : "";
+              return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
+            }
+          }
+
+          // --- Standard: Team-Spalte (z.B. PR/Standings/andere Views) ---
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
@@ -445,6 +532,7 @@ function renderTable(rows) {
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
+          // --- Standings: WIN% hübscher formatieren ---
           if (currentView === "standings" && plan && plan.winPctCol && c === plan.winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -461,8 +549,13 @@ function renderTable(rows) {
   // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
-  // PR/PR+ Hook: .is-pr => Rank-Spalte wird schmal
-  const wrapClass = currentView === "pr" || currentView === "prp" ? "table-scroll is-pr" : "table-scroll";
+  // Wrapper-Hooks
+  const wrapClass =
+    currentView === "pr" || currentView === "prp"
+      ? "table-scroll is-pr"
+      : currentView === "matchups"
+      ? "table-scroll is-matchups"
+      : "table-scroll";
 
   tableWrap.innerHTML = `
     <div class="scroll-hint">Tipp: Seitlich wischen für mehr Spalten</div>
@@ -471,7 +564,6 @@ function renderTable(rows) {
     </div>
   `;
 
-  // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
   if (currentView === "standings" && plan) {
     appendConferenceTablesUnderStandings(rows, plan);
   }
