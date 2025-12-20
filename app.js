@@ -246,7 +246,7 @@ function cleanMatchupsRows(rows) {
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
 // + Team-Spalte schmaler (Ellipsis)
 // + Rank-Spalte bei PR/PR+ schmaler
-// + Matchups: Abstand Away <-> Score verringern
+// + Matchups: Abstände (Away<->Score & Home<->Projection) kleiner
 // + PR+: Delta kompakt
 // -----------------------
 function ensureMobileTableStyles() {
@@ -310,31 +310,32 @@ function ensureMobileTableStyles() {
       text-align: center;
     }
 
-    /* --- Matchups: engeres Spacing + Away/Score dichter --- */
+    /* --- Matchups: Abstände kleiner (Away/Score & Home/Projection) --- */
     .table-scroll.is-matchups table th,
     .table-scroll.is-matchups table td {
-      padding-left: 8px;
-      padding-right: 8px;
+      padding-left: 4px;
+      padding-right: 4px;
     }
+
+    .table-scroll.is-matchups .cell-team img { margin-right: 6px; }
+    .table-scroll.is-matchups .cell-team span { max-width: 125px; }
 
     .table-scroll.is-matchups table th:nth-child(1),
     .table-scroll.is-matchups table td:nth-child(1),
     .table-scroll.is-matchups table th:nth-child(3),
     .table-scroll.is-matchups table td:nth-child(3) {
-      width: 185px;
-      max-width: 185px;
+      width: 175px;
+      max-width: 175px;
     }
 
     .table-scroll.is-matchups table th:nth-child(2),
     .table-scroll.is-matchups table td:nth-child(2),
     .table-scroll.is-matchups table th:nth-child(4),
     .table-scroll.is-matchups table td:nth-child(4) {
-      width: 95px;
-      max-width: 95px;
+      width: 80px;
+      max-width: 80px;
       text-align: center;
     }
-
-    .table-scroll.is-matchups .cell-team span { max-width: 125px; }
 
     @media (max-width: 520px) {
       .scroll-hint { display: block; }
@@ -370,16 +371,16 @@ function ensureMobileTableStyles() {
       .table-scroll.is-matchups table td:nth-child(1),
       .table-scroll.is-matchups table th:nth-child(3),
       .table-scroll.is-matchups table td:nth-child(3) {
-        width: 165px;
-        max-width: 165px;
+        width: 155px;
+        max-width: 155px;
       }
 
       .table-scroll.is-matchups table th:nth-child(2),
       .table-scroll.is-matchups table td:nth-child(2),
       .table-scroll.is-matchups table th:nth-child(4),
       .table-scroll.is-matchups table td:nth-child(4) {
-        width: 85px;
-        max-width: 85px;
+        width: 75px;
+        max-width: 75px;
       }
 
       .table-scroll.is-matchups .cell-team span { max-width: 105px; }
