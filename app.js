@@ -17,8 +17,8 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
-// ✅ Matchups: nur die ersten 4 Zeilen anzeigen
-const MATCHUPS_MAX_ROWS = 4;
+// ✅ Matchups: nur die ersten 5 Zeilen anzeigen
+const MATCHUPS_MAX_ROWS = 5;
 
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
@@ -204,7 +204,6 @@ function getMatchupsColumnPlan(rawCols) {
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
 // + Team-Spalte schmaler (Ellipsis)
 // + Rank-Spalte bei PR/PR+ schmaler
-// + Matchups: engerer Abstand Away <-> Score
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -259,35 +258,22 @@ function ensureMobileTableStyles() {
       text-align: center;
     }
 
-    /* --- Matchups: engeres Layout (Away/Score Abstand reduzieren) --- */
-    .table-scroll.is-matchups table th,
-    .table-scroll.is-matchups table td {
-      padding-left: 8px;
-      padding-right: 8px;
-    }
-
-    /* Away/Home etwas schmaler => Score rückt näher */
+    /* --- Matchups Hook: Away/Home wie "Team" behandeln, Score/Projection kompakt --- */
     .table-scroll.is-matchups table th:nth-child(1),
     .table-scroll.is-matchups table td:nth-child(1),
     .table-scroll.is-matchups table th:nth-child(3),
     .table-scroll.is-matchups table td:nth-child(3) {
-      width: 190px;
-      max-width: 190px;
+      width: 210px;
+      max-width: 210px;
     }
 
-    /* Score/Projection kompakt */
     .table-scroll.is-matchups table th:nth-child(2),
     .table-scroll.is-matchups table td:nth-child(2),
     .table-scroll.is-matchups table th:nth-child(4),
     .table-scroll.is-matchups table td:nth-child(4) {
-      width: 100px;
-      max-width: 100px;
+      width: 110px;
+      max-width: 110px;
       text-align: center;
-    }
-
-    /* Name in Matchups etwas kürzer */
-    .table-scroll.is-matchups .cell-team span {
-      max-width: 125px;
     }
 
     @media (max-width: 520px) {
@@ -321,20 +307,16 @@ function ensureMobileTableStyles() {
       .table-scroll.is-matchups table td:nth-child(1),
       .table-scroll.is-matchups table th:nth-child(3),
       .table-scroll.is-matchups table td:nth-child(3) {
-        width: 165px;
-        max-width: 165px;
+        width: 170px;
+        max-width: 170px;
       }
 
       .table-scroll.is-matchups table th:nth-child(2),
       .table-scroll.is-matchups table td:nth-child(2),
       .table-scroll.is-matchups table th:nth-child(4),
       .table-scroll.is-matchups table td:nth-child(4) {
-        width: 85px;
-        max-width: 85px;
-      }
-
-      .table-scroll.is-matchups .cell-team span {
-        max-width: 105px;
+        width: 90px;
+        max-width: 90px;
       }
 
       /* Sticky erste Spalte */
@@ -504,7 +486,6 @@ function renderTable(rows) {
     matchupsPlan = getMatchupsColumnPlan(rawCols);
     cols = matchupsPlan.cols;
     rename = matchupsPlan.rename || {};
-    // teamColGuess nicht global nutzen, wir rendern Away/Home separat
     teamColGuess = null;
   } else {
     teamColGuess = guessTeamColumn(cols);
@@ -560,10 +541,8 @@ function renderTable(rows) {
       .join("")
   }</tbody>`;
 
-  // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
-  // Wrapper-Hooks
   const wrapClass =
     currentView === "pr" || currentView === "prp"
       ? "table-scroll is-pr"
@@ -578,7 +557,6 @@ function renderTable(rows) {
     </div>
   `;
 
-  // Standings bleibt unberührt, wir hängen nur zusätzliche East/West-Tabellen dran
   if (currentView === "standings" && plan) {
     appendConferenceTablesUnderStandings(rows, plan);
   }
@@ -607,7 +585,7 @@ function applySearch() {
 // -----------------------
 function setActiveTab(viewKey) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.remove("is-active"));
-  const btn = document.querySelector(\`.tab[data-view="\${viewKey}"]\`);
+  const btn = document.querySelector(`.tab[data-view="${viewKey}"]`);
   if (btn) btn.classList.add("is-active");
 }
 
@@ -619,13 +597,13 @@ async function loadView(viewKey) {
   setActiveTab(viewKey);
   titleEl.textContent = VIEW_TITLES[viewKey] || "FBA Live";
 
-  setStatus(\`Lade \${VIEW_TITLES[viewKey]}…\`);
+  setStatus(`Lade ${VIEW_TITLES[viewKey]}…`);
   tableWrap.innerHTML = "";
 
   try {
     let rows = await fetchCsv(url);
 
-    // ✅ Matchups: nur die ersten 4 Zeilen anzeigen
+    // ✅ Matchups: nur die ersten 5 Zeilen anzeigen
     if (viewKey === "matchups") {
       rows = rows.slice(0, MATCHUPS_MAX_ROWS);
     }
@@ -640,12 +618,12 @@ async function loadView(viewKey) {
 
     renderTable(rows);
 
-    setStatus(\`OK: \${VIEW_TITLES[viewKey]} geladen (\${rows.length} Zeilen).\`);
+    setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
 
     if (searchEl) searchEl.value = "";
   } catch (e) {
     console.error(e);
-    setStatus(\`Fehler: \${e.message}\`);
+    setStatus(`Fehler: ${e.message}`);
     tableWrap.innerHTML =
       "<div style='padding:12px;'>Fehler beim Laden. Prüfe, ob das Sheet weiterhin „im Web veröffentlicht“ ist.</div>";
   }
