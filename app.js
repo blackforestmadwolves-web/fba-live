@@ -36,62 +36,117 @@ let currentCols = [];
 let teamColGuess = null;
 
 // -----------------------
-// Podcast Embed (DOM + Styles)
+// Header / Footer UI Fixes
+// - Podcast rechts in die Kopfzeile
+// - Lila Balken unten (Footer-Optik) entfernen
 // -----------------------
-function ensurePodcastStyles() {
-  if (document.getElementById("podcastEmbedStyles")) return;
+function ensureHeaderPodcastAndFooterFixStyles() {
+  if (document.getElementById("headerPodcastFooterFixStyles")) return;
 
   const style = document.createElement("style");
-  style.id = "podcastEmbedStyles";
+  style.id = "headerPodcastFooterFixStyles";
   style.textContent = `
-    .podcast-wrap {
-      margin: 12px 0 14px;
-      padding: 0;
+    /* 1) Podcast rechts in die Kopfzeile (Title-Zeile wird zum Flex-Container) */
+    #title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    .podcast-title {
+
+    /* Podcast Container im Header */
+    .podcast-inline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+      max-width: 420px;
+    }
+
+    .podcast-inline-label {
       font-weight: 700;
-      margin: 0 0 8px;
-      font-size: 14px;
-      opacity: 0.9;
+      font-size: 12px;
+      opacity: 0.85;
+      white-space: nowrap;
     }
-    .podcast-frame {
-      width: 100%;
+
+    .podcast-inline iframe {
       border: 0;
       border-radius: 12px;
       overflow: hidden;
+      width: 320px;
+      height: 80px; /* kompakt in der Kopfzeile */
       background: rgba(255,255,255,0.02);
+    }
+
+    @media (max-width: 800px) {
+      .podcast-inline {
+        width: 100%;
+        max-width: 100%;
+      }
+      .podcast-inline iframe {
+        width: 100%;
+        height: 96px;
+      }
+    }
+
+    /* 2) Lila Balken unten entfernen:
+       - Wir kennen dein HTML/CSS nicht exakt.
+       - Deshalb: defensiv "Footer/Bottom-Bar" typische Elemente ausblenden.
+       Passe die Selektoren an, falls dein Element anders heißt. */
+    footer,
+    .footer,
+    #footer,
+    .bottom-bar,
+    #bottomBar,
+    .purple-bar,
+    .footer-accent,
+    .accent-bar-bottom {
+      display: none !important;
+    }
+
+    /* Falls es ein ::after/::before Akzent am Body/Main ist */
+    body::after,
+    body::before,
+    main::after,
+    main::before {
+      /* Nur falls dort wirklich ein Balken gemalt wird, sonst harmless */
+      background: transparent !important;
+      box-shadow: none !important;
     }
   `;
   document.head.appendChild(style);
 }
 
-function ensurePodcastEmbed() {
-  ensurePodcastStyles();
+// -----------------------
+// Podcast Embed (im Header rechts)
+// -----------------------
+function ensurePodcastEmbedInHeader() {
+  ensureHeaderPodcastAndFooterFixStyles();
 
-  if (document.getElementById("podcastWrap")) return;
+  // schon vorhanden?
+  if (document.getElementById("podcastInline")) return;
 
-  const wrap = document.createElement("div");
-  wrap.id = "podcastWrap";
-  wrap.className = "podcast-wrap";
-  wrap.innerHTML = `
-    <div class="podcast-title">Aktuelle Podcast-Folge</div>
+  const inline = document.createElement("div");
+  inline.id = "podcastInline";
+  inline.className = "podcast-inline";
+  inline.innerHTML = `
+    <div class="podcast-inline-label">Podcast</div>
     <iframe
-      class="podcast-frame"
       src="${PODCAST_EMBED_URL}"
-      height="152"
       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
       loading="lazy"
       title="Spotify Podcast Player"
     ></iframe>
   `;
 
-  // "oben": direkt unter dem Title platzieren (außerhalb tableWrap, damit loadView() es nicht wegcleart)
-  if (titleEl && titleEl.insertAdjacentElement) {
-    titleEl.insertAdjacentElement("afterend", wrap);
-  } else if (tableWrap && tableWrap.parentElement) {
-    tableWrap.parentElement.insertBefore(wrap, tableWrap);
+  // in #title rechts anhängen
+  if (titleEl && titleEl.appendChild) {
+    titleEl.appendChild(inline);
   } else {
-    document.body.prepend(wrap);
+    // Fallback
+    document.body.prepend(inline);
   }
 }
 
@@ -780,5 +835,5 @@ refreshBtn?.addEventListener("click", () => loadView(currentView));
 searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
-ensurePodcastEmbed();
+ensurePodcastEmbedInHeader();
 loadView("standings");
