@@ -21,6 +21,9 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
+// ✅ Gewünschte Reihenfolge: Matchups -> Standings -> PR -> PR+
+const VIEW_ORDER = ["matchups", "standings", "pr", "prp"];
+
 // ✅ Matchups: nur die 4 Matchup-Zeilen anzeigen
 const MATCHUPS_MAX_ROWS = 4;
 
@@ -30,7 +33,8 @@ const tableWrap = document.getElementById("tableWrap");
 const searchEl = document.getElementById("search");
 const refreshBtn = document.getElementById("refreshBtn");
 
-let currentView = "standings";
+// ✅ Start-View: Matchups
+let currentView = "matchups";
 let currentRows = [];
 let currentCols = [];
 let teamColGuess = null;
@@ -178,6 +182,31 @@ function ensurePodcastEmbedInHeader() {
   } else {
     document.body.prepend(inline);
   }
+}
+
+// -----------------------
+// Nav-Reihenfolge im DOM anpassen (Matchups -> Standings -> PR -> PR+)
+// -----------------------
+function reorderNavButtons() {
+  const nav = document.querySelector("nav");
+  if (!nav) return;
+
+  const buttons = Array.from(nav.querySelectorAll("button"));
+  if (!buttons.length) return;
+
+  const indexOf = (view) => {
+    const idx = VIEW_ORDER.indexOf(view);
+    return idx === -1 ? 999 : idx;
+  };
+
+  buttons.sort((a, b) => {
+    const av = a.dataset.view || "";
+    const bv = b.dataset.view || "";
+    return indexOf(av) - indexOf(bv);
+  });
+
+  // umhängen in sortierter Reihenfolge
+  buttons.forEach((btn) => nav.appendChild(btn));
 }
 
 // -----------------------
@@ -743,7 +772,7 @@ function renderTable(rows) {
             const src = teamLogoPath(name);
             const logoHtml = name
               ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
-                : "";
+              : "";
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
@@ -851,7 +880,7 @@ async function loadView(viewKey) {
   }
 }
 
-// --- Events ---
+// --- Events (Listener) ---
 document.querySelectorAll("nav button").forEach((btn) => {
   btn.addEventListener("click", () => loadView(btn.dataset.view));
 });
@@ -860,6 +889,7 @@ refreshBtn?.addEventListener("click", () => loadView(currentView));
 searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
+reorderNavButtons();
 ensureTitleTextContainer();
 ensurePodcastEmbedInHeader();
-loadView("standings");
+loadView("matchups");
