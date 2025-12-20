@@ -69,7 +69,6 @@ function removeSearchField() {
 // - Podcast rechts in die Kopfzeile
 // - Lila Balken unten (Footer-Optik) entfernen
 // - Suchfeld ausblenden (defensiv)
-// - Podcast "Emblem" (Label) größer + Player etwas größer
 // -----------------------
 function ensureHeaderPodcastAndFooterFixStyles() {
   if (document.getElementById("headerPodcastFooterFixStyles")) return;
@@ -97,25 +96,23 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       align-items: center;
       gap: 10px;
       margin-left: auto;
-      max-width: 520px; /* etwas mehr Luft, da Player größer */
+      max-width: 420px;
     }
 
-    /* ✅ Podcast "Emblem" / Label größer */
     .podcast-inline-label {
       font-weight: 800;
-      font-size: 16px;     /* vorher 12px */
+      font-size: 16px;
       letter-spacing: 0.2px;
       opacity: 0.95;
       white-space: nowrap;
     }
 
-    /* ✅ Player etwas größer, damit es stimmig wirkt */
     .podcast-inline iframe {
       border: 0;
       border-radius: 12px;
       overflow: hidden;
-      width: 360px;        /* vorher 320px */
-      height: 92px;        /* vorher 80px */
+      width: 360px;
+      height: 92px; /* kompakt in der Kopfzeile */
       background: rgba(255,255,255,0.02);
     }
 
@@ -126,7 +123,7 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       }
       .podcast-inline iframe {
         width: 100%;
-        height: 110px;     /* vorher 96px */
+        height: 110px;
       }
     }
 
@@ -852,7 +849,7 @@ function renderTable(rows) {
 // -----------------------
 function setActiveTab(viewKey) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.remove("is-active"));
-  const btn = document.querySelector(\`.tab[data-view="\${viewKey}"]\`);
+  const btn = document.querySelector(`.tab[data-view="${viewKey}"]`);
   if (btn) btn.classList.add("is-active");
 }
 
