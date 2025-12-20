@@ -17,8 +17,8 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
-// ✅ Matchups: nur die ersten 5 Zeilen anzeigen
-const MATCHUPS_MAX_ROWS = 5;
+// ✅ Matchups: nur die 4 Matchup-Zeilen anzeigen
+const MATCHUPS_MAX_ROWS = 4;
 
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
@@ -36,6 +36,10 @@ let teamColGuess = null;
 // -----------------------
 function setStatus(msg) {
   statusEl.textContent = msg;
+}
+
+function isNonEmpty(v) {
+  return String(v ?? "").trim() !== "";
 }
 
 async function fetchCsv(url) {
@@ -200,10 +204,27 @@ function getMatchupsColumnPlan(rawCols) {
   };
 }
 
+// ✅ Matchups: Zusatzzeilen (z.B. Notes/Leere) entfernen => nur echte Matchups
+function cleanMatchupsRows(rows) {
+  if (!rows || !rows.length) return [];
+  const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
+  const plan = getMatchupsColumnPlan(rawCols);
+
+  // Wenn wir Away/Home sauber identifizieren konnten: nur Zeilen mit beidem behalten
+  if (plan.awayCol && plan.homeCol) {
+    return rows.filter((r) => isNonEmpty(r[plan.awayCol]) && isNonEmpty(r[plan.homeCol]));
+  }
+
+  // Fallback: nur Zeilen behalten, die in den ersten 4 Spalten mindestens 2 Werte haben
+  const cols = rawCols.slice(0, 4);
+  return rows.filter((r) => cols.reduce((acc, c) => acc + (isNonEmpty(r[c]) ? 1 : 0), 0) >= 2);
+}
+
 // -----------------------
 // Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
 // + Team-Spalte schmaler (Ellipsis)
 // + Rank-Spalte bei PR/PR+ schmaler
+// + Matchups: Abstand Away <-> Score verringern
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -258,23 +279,31 @@ function ensureMobileTableStyles() {
       text-align: center;
     }
 
-    /* --- Matchups Hook: Away/Home wie "Team" behandeln, Score/Projection kompakt --- */
+    /* --- Matchups: engeres Spacing + Away/Score dichter --- */
+    .table-scroll.is-matchups table th,
+    .table-scroll.is-matchups table td {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
     .table-scroll.is-matchups table th:nth-child(1),
     .table-scroll.is-matchups table td:nth-child(1),
     .table-scroll.is-matchups table th:nth-child(3),
     .table-scroll.is-matchups table td:nth-child(3) {
-      width: 210px;
-      max-width: 210px;
+      width: 185px;
+      max-width: 185px;
     }
 
     .table-scroll.is-matchups table th:nth-child(2),
     .table-scroll.is-matchups table td:nth-child(2),
     .table-scroll.is-matchups table th:nth-child(4),
     .table-scroll.is-matchups table td:nth-child(4) {
-      width: 110px;
-      max-width: 110px;
+      width: 95px;
+      max-width: 95px;
       text-align: center;
     }
+
+    .table-scroll.is-matchups .cell-team span { max-width: 125px; }
 
     @media (max-width: 520px) {
       .scroll-hint { display: block; }
@@ -299,25 +328,25 @@ function ensureMobileTableStyles() {
       }
 
       /* Matchups am Handy */
-      .table-scroll.is-matchups table {
-        min-width: 520px;
-      }
+      .table-scroll.is-matchups table { min-width: 520px; }
 
       .table-scroll.is-matchups table th:nth-child(1),
       .table-scroll.is-matchups table td:nth-child(1),
       .table-scroll.is-matchups table th:nth-child(3),
       .table-scroll.is-matchups table td:nth-child(3) {
-        width: 170px;
-        max-width: 170px;
+        width: 165px;
+        max-width: 165px;
       }
 
       .table-scroll.is-matchups table th:nth-child(2),
       .table-scroll.is-matchups table td:nth-child(2),
       .table-scroll.is-matchups table th:nth-child(4),
       .table-scroll.is-matchups table td:nth-child(4) {
-        width: 90px;
-        max-width: 90px;
+        width: 85px;
+        max-width: 85px;
       }
+
+      .table-scroll.is-matchups .cell-team span { max-width: 105px; }
 
       /* Sticky erste Spalte */
       .table-scroll table th:first-child,
@@ -603,9 +632,9 @@ async function loadView(viewKey) {
   try {
     let rows = await fetchCsv(url);
 
-    // ✅ Matchups: nur die ersten 5 Zeilen anzeigen
+    // ✅ Matchups: (1) Zusatzzeilen entfernen (2) dann exakt 4 Matchups nehmen
     if (viewKey === "matchups") {
-      rows = rows.slice(0, MATCHUPS_MAX_ROWS);
+      rows = cleanMatchupsRows(rows).slice(0, MATCHUPS_MAX_ROWS);
     }
 
     if (viewKey === "standings" && rows.length) {
