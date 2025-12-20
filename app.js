@@ -30,7 +30,10 @@ const MATCHUPS_MAX_ROWS = 4;
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
+
+// ✅ Refresh Button komplett entfernen (UI + Event)
 const refreshBtn = document.getElementById("refreshBtn");
+if (refreshBtn) refreshBtn.remove();
 
 // ✅ Start-View: Matchups
 let currentView = "matchups";
@@ -69,6 +72,7 @@ function removeSearchField() {
 // - Podcast rechts in die Kopfzeile
 // - Lila Balken unten (Footer-Optik) entfernen
 // - Suchfeld ausblenden (defensiv)
+// - Refresh Button ausblenden (defensiv)
 // -----------------------
 function ensureHeaderPodcastAndFooterFixStyles() {
   if (document.getElementById("headerPodcastFooterFixStyles")) return;
@@ -96,7 +100,7 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       align-items: center;
       gap: 10px;
       margin-left: auto;
-      max-width: 420px;
+      max-width: 520px;
     }
 
     .podcast-inline-label {
@@ -112,7 +116,7 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       border-radius: 12px;
       overflow: hidden;
       width: 360px;
-      height: 92px; /* kompakt in der Kopfzeile */
+      height: 92px;
       background: rgba(255,255,255,0.02);
     }
 
@@ -130,6 +134,13 @@ function ensureHeaderPodcastAndFooterFixStyles() {
     /* 1b) Suchfeld (defensiv) ausblenden */
     #search,
     label[for="search"] {
+      display: none !important;
+    }
+
+    /* ✅ Refresh Button ausblenden (defensiv, falls er doch noch irgendwo auftaucht) */
+    #refreshBtn,
+    .refresh,
+    .refresh-btn {
       display: none !important;
     }
 
@@ -849,7 +860,7 @@ function renderTable(rows) {
 // -----------------------
 function setActiveTab(viewKey) {
   document.querySelectorAll(".tab").forEach((b) => b.classList.remove("is-active"));
-  const btn = document.querySelector(`.tab[data-view="${viewKey}"]`);
+  const btn = document.querySelector(\`.tab[data-view="\${viewKey}"]\`);
   if (btn) btn.classList.add("is-active");
 }
 
@@ -897,8 +908,6 @@ async function loadView(viewKey) {
 document.querySelectorAll("nav button").forEach((btn) => {
   btn.addEventListener("click", () => loadView(btn.dataset.view));
 });
-
-refreshBtn?.addEventListener("click", () => loadView(currentView));
 
 // --- Start ---
 removeSearchField();
