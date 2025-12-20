@@ -31,10 +31,6 @@ const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
 
-// ✅ Refresh Button komplett entfernen (UI + Event)
-const refreshBtn = document.getElementById("refreshBtn");
-if (refreshBtn) refreshBtn.remove();
-
 // ✅ Start-View: Matchups
 let currentView = "matchups";
 let currentRows = [];
@@ -72,7 +68,7 @@ function removeSearchField() {
 // - Podcast rechts in die Kopfzeile
 // - Lila Balken unten (Footer-Optik) entfernen
 // - Suchfeld ausblenden (defensiv)
-// - Refresh Button ausblenden (defensiv)
+// - Podcast "Emblem" (Label) größer + Player etwas größer
 // -----------------------
 function ensureHeaderPodcastAndFooterFixStyles() {
   if (document.getElementById("headerPodcastFooterFixStyles")) return;
@@ -100,23 +96,25 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       align-items: center;
       gap: 10px;
       margin-left: auto;
-      max-width: 520px;
+      max-width: 520px; /* etwas mehr Luft, da Player größer */
     }
 
+    /* ✅ Podcast "Emblem" / Label größer */
     .podcast-inline-label {
       font-weight: 800;
-      font-size: 16px;
+      font-size: 16px;     /* vorher 12px */
       letter-spacing: 0.2px;
       opacity: 0.95;
       white-space: nowrap;
     }
 
+    /* ✅ Player etwas größer, damit es stimmig wirkt */
     .podcast-inline iframe {
       border: 0;
       border-radius: 12px;
       overflow: hidden;
-      width: 360px;
-      height: 92px;
+      width: 360px;        /* vorher 320px */
+      height: 92px;        /* vorher 80px */
       background: rgba(255,255,255,0.02);
     }
 
@@ -127,20 +125,13 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       }
       .podcast-inline iframe {
         width: 100%;
-        height: 110px;
+        height: 110px;     /* vorher 96px */
       }
     }
 
     /* 1b) Suchfeld (defensiv) ausblenden */
     #search,
     label[for="search"] {
-      display: none !important;
-    }
-
-    /* ✅ Refresh Button ausblenden (defensiv, falls er doch noch irgendwo auftaucht) */
-    #refreshBtn,
-    .refresh,
-    .refresh-btn {
       display: none !important;
     }
 
