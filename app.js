@@ -30,7 +30,6 @@ const MATCHUPS_MAX_ROWS = 4;
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
-const searchEl = document.getElementById("search");
 const refreshBtn = document.getElementById("refreshBtn");
 
 // ✅ Start-View: Matchups
@@ -40,9 +39,36 @@ let currentCols = [];
 let teamColGuess = null;
 
 // -----------------------
+// Suche entfernen (UI + ggf. Wrapper)
+// -----------------------
+function removeSearchField() {
+  const search = document.getElementById("search");
+  if (!search) return;
+
+  const parent = search.parentElement;
+  const label = document.querySelector('label[for="search"]');
+
+  // Input entfernen
+  search.remove();
+  // passendes Label entfernen
+  if (label) label.remove();
+
+  // Falls der Wrapper jetzt leer ist (oder nur noch Whitespace enthält), ebenfalls entfernen
+  if (parent) {
+    const hasMeaningfulChildren = Array.from(parent.childNodes).some((n) => {
+      if (n.nodeType === Node.ELEMENT_NODE) return true;
+      if (n.nodeType === Node.TEXT_NODE) return n.textContent.trim().length > 0;
+      return false;
+    });
+    if (!hasMeaningfulChildren) parent.remove();
+  }
+}
+
+// -----------------------
 // Header / Footer UI Fixes
 // - Podcast rechts in die Kopfzeile
 // - Lila Balken unten (Footer-Optik) entfernen
+// - Suchfeld ausblenden (defensiv)
 // -----------------------
 function ensureHeaderPodcastAndFooterFixStyles() {
   if (document.getElementById("headerPodcastFooterFixStyles")) return;
@@ -98,6 +124,12 @@ function ensureHeaderPodcastAndFooterFixStyles() {
         width: 100%;
         height: 96px;
       }
+    }
+
+    /* 1b) Suchfeld (defensiv) ausblenden */
+    #search,
+    label[for="search"] {
+      display: none !important;
     }
 
     /* 2) Lila Balken unten entfernen (defensiv) */
@@ -812,24 +844,6 @@ function renderTable(rows) {
 }
 
 // -----------------------
-// Suche/Filter
-// -----------------------
-function applySearch() {
-  const q = (searchEl?.value || "").trim().toLowerCase();
-  if (!q) {
-    renderTable(currentRows);
-    return;
-  }
-
-  const filtered = currentRows.filter((r) =>
-    Object.values(r).some((v) => String(v ?? "").toLowerCase().includes(q))
-  );
-
-  renderTable(filtered);
-  setStatus(`OK: ${VIEW_TITLES[currentView]} (${filtered.length}/${currentRows.length} Zeilen, gefiltert).`);
-}
-
-// -----------------------
 // Tabs / Load
 // -----------------------
 function setActiveTab(viewKey) {
@@ -870,8 +884,6 @@ async function loadView(viewKey) {
     renderTable(rows);
 
     setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
-
-    if (searchEl) searchEl.value = "";
   } catch (e) {
     console.error(e);
     setStatus(`Fehler: ${e.message}`);
@@ -886,9 +898,9 @@ document.querySelectorAll("nav button").forEach((btn) => {
 });
 
 refreshBtn?.addEventListener("click", () => loadView(currentView));
-searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
+removeSearchField();
 reorderNavButtons();
 ensureTitleTextContainer();
 ensurePodcastEmbedInHeader();
