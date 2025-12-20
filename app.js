@@ -55,6 +55,11 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       flex-wrap: wrap;
     }
 
+    #title .title-text {
+      display: inline-block;
+      min-width: 160px;
+    }
+
     /* Podcast Container im Header */
     .podcast-inline {
       display: flex;
@@ -91,10 +96,7 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       }
     }
 
-    /* 2) Lila Balken unten entfernen:
-       - Wir kennen dein HTML/CSS nicht exakt.
-       - Deshalb: defensiv "Footer/Bottom-Bar" typische Elemente ausblenden.
-       Passe die Selektoren an, falls dein Element anders heißt. */
+    /* 2) Lila Balken unten entfernen (defensiv) */
     footer,
     .footer,
     #footer,
@@ -111,7 +113,6 @@ function ensureHeaderPodcastAndFooterFixStyles() {
     body::before,
     main::after,
     main::before {
-      /* Nur falls dort wirklich ein Balken gemalt wird, sonst harmless */
       background: transparent !important;
       box-shadow: none !important;
     }
@@ -120,10 +121,40 @@ function ensureHeaderPodcastAndFooterFixStyles() {
 }
 
 // -----------------------
+// Title-Span Container (wichtig: damit titleEl.textContent NICHT den Podcast löscht)
+// -----------------------
+function ensureTitleTextContainer() {
+  if (!titleEl) return null;
+
+  let span = document.getElementById("titleText");
+  if (span) return span;
+
+  span = document.createElement("span");
+  span.id = "titleText";
+  span.className = "title-text";
+
+  // bestehenden reinen Text im Title übernehmen (ohne Kinder zu löschen)
+  const firstTextNode = Array.from(titleEl.childNodes).find(
+    (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+  );
+
+  if (firstTextNode) {
+    span.textContent = firstTextNode.textContent.trim();
+    firstTextNode.textContent = "";
+  } else {
+    span.textContent = titleEl.textContent.trim() || "FBA Live";
+  }
+
+  titleEl.insertBefore(span, titleEl.firstChild);
+  return span;
+}
+
+// -----------------------
 // Podcast Embed (im Header rechts)
 // -----------------------
 function ensurePodcastEmbedInHeader() {
   ensureHeaderPodcastAndFooterFixStyles();
+  ensureTitleTextContainer();
 
   // schon vorhanden?
   if (document.getElementById("podcastInline")) return;
@@ -145,7 +176,6 @@ function ensurePodcastEmbedInHeader() {
   if (titleEl && titleEl.appendChild) {
     titleEl.appendChild(inline);
   } else {
-    // Fallback
     document.body.prepend(inline);
   }
 }
@@ -362,11 +392,7 @@ function cleanMatchupsRows(rows) {
 }
 
 // -----------------------
-// Mobile Tabellen-Optimierung: Scroll-Wrapper + Sticky Team-Spalte
-// + Team-Spalte schmaler (Ellipsis)
-// + Rank-Spalte bei PR/PR+ schmaler
-// + Matchups: Abstände (Away<->Score & Home<->Projection) kleiner
-// + PR+: Delta kompakt
+// Mobile Tabellen-Optimierung
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -651,10 +677,7 @@ function renderTable(rows) {
   let rename = {};
   let plan = null;
 
-  // Zusatz-Plan für Matchups (Away/Home als Team-Cells rendern)
   let matchupsPlan = null;
-
-  // Zusatz-Plan für PR+ Delta
   let prDeltaCol = null;
 
   if (currentView === "standings") {
@@ -697,7 +720,7 @@ function renderTable(rows) {
         const tds = cols.map((c) => {
           const val = r[c];
 
-          // --- Matchups: Away/Home als Team-Cell mit Logo ---
+          // Matchups: Away/Home als Team-Cell mit Logo
           if (currentView === "matchups" && matchupsPlan) {
             if (c === matchupsPlan.awayCol || c === matchupsPlan.homeCol) {
               const name = String(val ?? "").trim();
@@ -709,22 +732,22 @@ function renderTable(rows) {
             }
           }
 
-          // --- PR+: Delta schöner (+/-) ---
+          // PR+: Delta schöner (+/-)
           if (currentView === "prp" && prDeltaCol && c === prDeltaCol) {
             return `<td>${escapeHtml(formatDelta(val))}</td>`;
           }
 
-          // --- Standard: Team-Spalte ---
+          // Standard: Team-Spalte
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
             const logoHtml = name
               ? `<img class="team-logo" src="${src}" alt="${escapeHtml(name)}" onerror="this.style.display='none'">`
-              : "";
+                : "";
             return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
           }
 
-          // --- Standings: WIN% hübscher formatieren ---
+          // Standings: WIN% hübscher
           if (currentView === "standings" && plan && plan.winPctCol && c === plan.winPctCol) {
             const pct = parseWinPct(val);
             if (Number.isFinite(pct)) return `<td>${escapeHtml(pct.toFixed(1))}%</td>`;
@@ -792,7 +815,11 @@ async function loadView(viewKey) {
 
   currentView = viewKey;
   setActiveTab(viewKey);
-  titleEl.textContent = VIEW_TITLES[viewKey] || "FBA Live";
+
+  // WICHTIG: NICHT titleEl.textContent setzen, sonst verschwindet der Podcast
+  const titleSpan = ensureTitleTextContainer();
+  if (titleSpan) titleSpan.textContent = VIEW_TITLES[viewKey] || "FBA Live";
+  ensurePodcastEmbedInHeader();
 
   setStatus(`Lade ${VIEW_TITLES[viewKey]}…`);
   tableWrap.innerHTML = "";
@@ -800,7 +827,6 @@ async function loadView(viewKey) {
   try {
     let rows = await fetchCsv(url);
 
-    // ✅ Matchups: (1) Zusatzzeilen entfernen (2) dann exakt 4 Matchups nehmen
     if (viewKey === "matchups") {
       rows = cleanMatchupsRows(rows).slice(0, MATCHUPS_MAX_ROWS);
     }
@@ -812,7 +838,6 @@ async function loadView(viewKey) {
     }
 
     currentRows = rows;
-
     renderTable(rows);
 
     setStatus(`OK: ${VIEW_TITLES[viewKey]} geladen (${rows.length} Zeilen).`);
@@ -835,5 +860,6 @@ refreshBtn?.addEventListener("click", () => loadView(currentView));
 searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
+ensureTitleTextContainer();
 ensurePodcastEmbedInHeader();
 loadView("standings");
