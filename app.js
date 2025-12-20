@@ -17,6 +17,9 @@ const VIEW_TITLES = {
   matchups: "Matchups",
 };
 
+// ✅ Matchups: nur die ersten 5 Zeilen anzeigen
+const MATCHUPS_MAX_ROWS = 5;
+
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
@@ -170,7 +173,6 @@ function getPrColumnPlan(rawCols) {
 // Matchups: nur Away, Score, Home, Projection
 // -----------------------
 function getMatchupsColumnPlan(rawCols) {
-  // Robust: wir suchen "ähnliche" Spaltennamen, falls das Sheet minimal abweicht
   const findCol = (cands) =>
     rawCols.find((c) => cands.some((x) => String(c).trim().toLowerCase() === x.toLowerCase())) ||
     rawCols.find((c) => cands.some((x) => String(c).trim().toLowerCase().includes(x.toLowerCase()))) ||
@@ -181,12 +183,10 @@ function getMatchupsColumnPlan(rawCols) {
   const homeCol = findCol(["Home", "Home Team", "home", "home_team", "host"]);
   const projCol = findCol(["Projection", "Proj", "projection", "projected", "proj_score"]);
 
-  // Falls nichts gefunden: nimm einfach die ersten 4 Spalten, damit es zumindest nicht kaputt geht
   const cols = [awayCol, scoreCol, homeCol, projCol].filter(Boolean);
   const finalCols = cols.length ? cols : rawCols.slice(0, 4);
 
   const rename = {};
-  // Die Benennung soll exakt so sein wie gewünscht
   if (finalCols[0]) rename[finalCols[0]] = "Away";
   if (finalCols[1]) rename[finalCols[1]] = "Score";
   if (finalCols[2]) rename[finalCols[2]] = "Home";
@@ -363,10 +363,6 @@ function normalizeConf(v) {
   return s;
 }
 
-/**
- * Baut eine Tabelle als HTML-String und wrapp't sie in .table-scroll (mobile-friendly).
- * colsToUse sind echte CSV-Header-Keys.
- */
 function buildTableHtml(rows, colsToUse, rename, teamCol, wCol, lCol, winPctCol) {
   const displayName = (c) => rename[c] || c;
 
@@ -490,7 +486,6 @@ function renderTable(rows) {
     matchupsPlan = getMatchupsColumnPlan(rawCols);
     cols = matchupsPlan.cols;
     rename = matchupsPlan.rename || {};
-    // teamColGuess nicht global nutzen, wir rendern Away/Home separat
     teamColGuess = null;
   } else {
     teamColGuess = guessTeamColumn(cols);
@@ -522,7 +517,7 @@ function renderTable(rows) {
             }
           }
 
-          // --- Standard: Team-Spalte (z.B. PR/Standings/andere Views) ---
+          // --- Standard: Team-Spalte ---
           if (teamColGuess && c === teamColGuess) {
             const name = String(val ?? "").trim();
             const src = teamLogoPath(name);
@@ -546,10 +541,8 @@ function renderTable(rows) {
       .join("")
   }</tbody>`;
 
-  // Styles aktivieren + Tabellen in Scroll-Wrapper packen
   ensureMobileTableStyles();
 
-  // Wrapper-Hooks
   const wrapClass =
     currentView === "pr" || currentView === "prp"
       ? "table-scroll is-pr"
@@ -609,6 +602,11 @@ async function loadView(viewKey) {
 
   try {
     let rows = await fetchCsv(url);
+
+    // ✅ Matchups: nur die ersten 5 Zeilen anzeigen
+    if (viewKey === "matchups") {
+      rows = rows.slice(0, MATCHUPS_MAX_ROWS);
+    }
 
     if (viewKey === "standings" && rows.length) {
       const rawCols = Object.keys(rows[0]).filter((c) => c && c.trim() !== "");
