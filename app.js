@@ -30,6 +30,7 @@ const MATCHUPS_MAX_ROWS = 4;
 const statusEl = document.getElementById("status");
 const titleEl = document.getElementById("title");
 const tableWrap = document.getElementById("tableWrap");
+const refreshBtn = document.getElementById("refreshBtn");
 
 // ✅ Start-View: Matchups
 let currentView = "matchups";
@@ -899,6 +900,8 @@ async function loadView(viewKey) {
 document.querySelectorAll("nav button").forEach((btn) => {
   btn.addEventListener("click", () => loadView(btn.dataset.view));
 });
+
+refreshBtn?.addEventListener("click", () => loadView(currentView));
 
 // --- Start ---
 removeSearchField();
