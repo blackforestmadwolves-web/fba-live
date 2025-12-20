@@ -1,3 +1,7 @@
+// --- Spotify Podcast Embed (oben auf der Seite) ---
+const PODCAST_EMBED_URL =
+  "https://open.spotify.com/embed/episode/1bAjmdy5kmOiO9yzGitSxg?utm_source=generator";
+
 // --- CSV URLs (dein neues Google Sheet, per gid) ---
 const URLS = {
   matchups:
@@ -30,6 +34,66 @@ let currentView = "standings";
 let currentRows = [];
 let currentCols = [];
 let teamColGuess = null;
+
+// -----------------------
+// Podcast Embed (DOM + Styles)
+// -----------------------
+function ensurePodcastStyles() {
+  if (document.getElementById("podcastEmbedStyles")) return;
+
+  const style = document.createElement("style");
+  style.id = "podcastEmbedStyles";
+  style.textContent = `
+    .podcast-wrap {
+      margin: 12px 0 14px;
+      padding: 0;
+    }
+    .podcast-title {
+      font-weight: 700;
+      margin: 0 0 8px;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .podcast-frame {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.02);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function ensurePodcastEmbed() {
+  ensurePodcastStyles();
+
+  if (document.getElementById("podcastWrap")) return;
+
+  const wrap = document.createElement("div");
+  wrap.id = "podcastWrap";
+  wrap.className = "podcast-wrap";
+  wrap.innerHTML = `
+    <div class="podcast-title">Aktuelle Podcast-Folge</div>
+    <iframe
+      class="podcast-frame"
+      src="${PODCAST_EMBED_URL}"
+      height="152"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+      loading="lazy"
+      title="Spotify Podcast Player"
+    ></iframe>
+  `;
+
+  // "oben": direkt unter dem Title platzieren (außerhalb tableWrap, damit loadView() es nicht wegcleart)
+  if (titleEl && titleEl.insertAdjacentElement) {
+    titleEl.insertAdjacentElement("afterend", wrap);
+  } else if (tableWrap && tableWrap.parentElement) {
+    tableWrap.parentElement.insertBefore(wrap, tableWrap);
+  } else {
+    document.body.prepend(wrap);
+  }
+}
 
 // -----------------------
 // Helpers
@@ -716,4 +780,5 @@ refreshBtn?.addEventListener("click", () => loadView(currentView));
 searchEl?.addEventListener("input", () => applySearch());
 
 // --- Start ---
+ensurePodcastEmbed();
 loadView("standings");
