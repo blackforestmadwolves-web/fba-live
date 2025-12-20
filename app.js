@@ -275,26 +275,26 @@ function ensureMobileTableStyles() {
       table-layout: fixed;
     }
 
-    /* --- Team-Cell: Text darf nicht die Spalte aufziehen --- */
+    /* --- Team-Spalte generell begrenzen (auch Desktop) --- */
+    .table-scroll table th:first-child,
+    .table-scroll table td:first-child {
+      width: 200px;
+      max-width: 200px;
+    }
+
+    /* Team-Cell: Text darf nicht die Spalte aufziehen */
     .table-scroll .cell-team { min-width: 0; }
     .table-scroll .cell-team span {
       display: inline-block;
       min-width: 0;
+      max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: bottom;
-      max-width: 150px;
     }
 
-    /* --- PR/PR+: generelles Spacing enger (damit Score/Delta dichter wirken) --- */
-    .table-scroll.is-pr table th,
-    .table-scroll.is-pr table td {
-      padding-left: 6px;
-      padding-right: 6px;
-    }
-
-    /* Rank-Spalte (PR & PR+) */
+    /* --- Rank-Spalte schmaler (PR & PR+) --- */
     .table-scroll.is-pr table th:first-child,
     .table-scroll.is-pr table td:first-child {
       width: 64px;
@@ -302,115 +302,84 @@ function ensureMobileTableStyles() {
       text-align: center;
     }
 
-    /* Team-Spalte in PR/PR+ (2. Spalte) */
-    .table-scroll.is-pr table th:nth-child(2),
-    .table-scroll.is-pr table td:nth-child(2) {
-      width: 230px;
-      max-width: 230px;
-    }
-
-    /* Score-Spalte in PR/PR+ (3. Spalte) */
-    .table-scroll.is-pr table th:nth-child(3),
-    .table-scroll.is-pr table td:nth-child(3) {
-      width: 110px;
-      max-width: 110px;
-      text-align: center;
-    }
-
-    /* Delta-Spalte in PR+ (4. Spalte) */
+    /* --- PR+: Delta-Spalte kompakt (4. Spalte) --- */
     .table-scroll.is-pr table th:nth-child(4),
     .table-scroll.is-pr table td:nth-child(4) {
-      width: 70px;
-      max-width: 70px;
+      width: 80px;
+      max-width: 80px;
       text-align: center;
     }
 
-    /* --- Matchups: Abstände zwischen Away/Score und Home/Projection kleiner --- */
+    /* --- Matchups: engeres Spacing + Away/Score dichter --- */
     .table-scroll.is-matchups table th,
     .table-scroll.is-matchups table td {
-      padding-left: 4px;
-      padding-right: 4px;
+      padding-left: 8px;
+      padding-right: 8px;
     }
-
-    /* Team-Zellen in Matchups etwas kompakter (inkl. Logo-Abstand) */
-    .table-scroll.is-matchups .cell-team span { max-width: 120px; }
-    .table-scroll.is-matchups .cell-team img { margin-right: 6px; }
 
     .table-scroll.is-matchups table th:nth-child(1),
     .table-scroll.is-matchups table td:nth-child(1),
     .table-scroll.is-matchups table th:nth-child(3),
     .table-scroll.is-matchups table td:nth-child(3) {
-      width: 175px;
-      max-width: 175px;
+      width: 185px;
+      max-width: 185px;
     }
 
     .table-scroll.is-matchups table th:nth-child(2),
     .table-scroll.is-matchups table td:nth-child(2),
     .table-scroll.is-matchups table th:nth-child(4),
     .table-scroll.is-matchups table td:nth-child(4) {
-      width: 80px;
-      max-width: 80px;
+      width: 95px;
+      max-width: 95px;
       text-align: center;
     }
+
+    .table-scroll.is-matchups .cell-team span { max-width: 125px; }
 
     @media (max-width: 520px) {
       .scroll-hint { display: block; }
       table th, table td { padding: 8px 10px; font-size: 13px; }
 
-      /* PR/PR+: enger am Handy */
-      .table-scroll.is-pr table th,
-      .table-scroll.is-pr table td {
-        padding-left: 6px;
-        padding-right: 6px;
+      /* Team-Spalte am Handy nochmal schmaler */
+      .table-scroll table th:first-child,
+      .table-scroll table td:first-child {
+        width: 160px;
+        max-width: 160px;
       }
 
+      .table-scroll .cell-team span { max-width: 110px; }
+
+      /* PR/PR+: Rank am Handy extra schmal */
       .table-scroll.is-pr table th:first-child,
       .table-scroll.is-pr table td:first-child {
         width: 52px;
         max-width: 52px;
       }
 
-      .table-scroll.is-pr table th:nth-child(2),
-      .table-scroll.is-pr table td:nth-child(2) {
-        width: 200px;
-        max-width: 200px;
-      }
-
-      .table-scroll.is-pr table th:nth-child(3),
-      .table-scroll.is-pr table td:nth-child(3) {
-        width: 95px;
-        max-width: 95px;
-      }
-
+      /* PR+: Delta am Handy noch kompakter */
       .table-scroll.is-pr table th:nth-child(4),
       .table-scroll.is-pr table td:nth-child(4) {
-        width: 65px;
-        max-width: 65px;
+        width: 70px;
+        max-width: 70px;
       }
 
-      /* Matchups am Handy: noch kompaktere Breiten */
+      /* Matchups am Handy */
       .table-scroll.is-matchups table { min-width: 520px; }
-
-      .table-scroll.is-matchups table th,
-      .table-scroll.is-matchups table td {
-        padding-left: 4px;
-        padding-right: 4px;
-      }
 
       .table-scroll.is-matchups table th:nth-child(1),
       .table-scroll.is-matchups table td:nth-child(1),
       .table-scroll.is-matchups table th:nth-child(3),
       .table-scroll.is-matchups table td:nth-child(3) {
-        width: 155px;
-        max-width: 155px;
+        width: 165px;
+        max-width: 165px;
       }
 
       .table-scroll.is-matchups table th:nth-child(2),
       .table-scroll.is-matchups table td:nth-child(2),
       .table-scroll.is-matchups table th:nth-child(4),
       .table-scroll.is-matchups table td:nth-child(4) {
-        width: 75px;
-        max-width: 75px;
+        width: 85px;
+        max-width: 85px;
       }
 
       .table-scroll.is-matchups .cell-team span { max-width: 105px; }
