@@ -42,6 +42,18 @@ function isNonEmpty(v) {
   return String(v ?? "").trim() !== "";
 }
 
+function parseNum(val) {
+  const n = Number(String(val ?? "").trim().replace(",", "."));
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function formatDelta(val) {
+  const n = parseNum(val);
+  if (!Number.isFinite(n)) return String(val ?? "");
+  if (n > 0) return `+${n}`;
+  return `${n}`;
+}
+
 async function fetchCsv(url) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
@@ -117,11 +129,6 @@ function parseWinPct(val) {
   return n <= 1 ? n * 100 : n;
 }
 
-function parseNum(val) {
-  const n = Number(String(val ?? "").trim().replace(",", "."));
-  return Number.isFinite(n) ? n : NaN;
-}
-
 function sortStandingsRows(rows, plan) {
   const { wCol, lCol, winPctCol } = plan;
 
@@ -158,19 +165,34 @@ function sortStandingsRows(rows, plan) {
 }
 
 // -----------------------
-// PR/PR+: Spalten umbenennen (Rank, Team, Score)
+// PR: Spalten umbenennen (Rank, Team, Score)
+// PR+: zusätzlich Delta
 // -----------------------
-function getPrColumnPlan(rawCols) {
-  const cols = rawCols.slice(0, 3);
+function getPrColumnPlan(rawCols, includeDelta = false) {
+  const findDeltaCol = () =>
+    rawCols.find((c) => String(c).trim().toLowerCase() === "delta") ||
+    rawCols.find((c) => String(c).trim().toLowerCase().includes("delta")) ||
+    null;
 
-  const fixedLabels = ["Rank", "Team", "Score"];
+  const rankCol = rawCols[0] || null;
+  const teamCol = rawCols[1] || guessTeamColumn(rawCols) || null;
+  const scoreCol = rawCols[2] || null;
+
+  let cols = [rankCol, teamCol, scoreCol].filter(Boolean);
+
+  let deltaCol = null;
+  if (includeDelta) {
+    deltaCol = findDeltaCol() || rawCols[3] || null;
+    if (deltaCol) cols = [rankCol, teamCol, scoreCol, deltaCol].filter(Boolean);
+  }
+
   const rename = {};
-  cols.forEach((c, idx) => {
-    rename[c] = fixedLabels[idx] || c;
-  });
+  if (rankCol) rename[rankCol] = "Rank";
+  if (teamCol) rename[teamCol] = "Team";
+  if (scoreCol) rename[scoreCol] = "Score";
+  if (includeDelta && deltaCol) rename[deltaCol] = "Delta";
 
-  const teamCol = cols[1] || guessTeamColumn(rawCols);
-  return { cols, rename, teamCol };
+  return { cols, rename, teamCol, deltaCol };
 }
 
 // -----------------------
@@ -225,6 +247,7 @@ function cleanMatchupsRows(rows) {
 // + Team-Spalte schmaler (Ellipsis)
 // + Rank-Spalte bei PR/PR+ schmaler
 // + Matchups: Abstand Away <-> Score verringern
+// + PR+: Delta kompakt
 // -----------------------
 function ensureMobileTableStyles() {
   if (document.getElementById("mobileTableStyles")) return;
@@ -279,6 +302,14 @@ function ensureMobileTableStyles() {
       text-align: center;
     }
 
+    /* --- PR+: Delta-Spalte kompakt (4. Spalte) --- */
+    .table-scroll.is-pr table th:nth-child(4),
+    .table-scroll.is-pr table td:nth-child(4) {
+      width: 80px;
+      max-width: 80px;
+      text-align: center;
+    }
+
     /* --- Matchups: engeres Spacing + Away/Score dichter --- */
     .table-scroll.is-matchups table th,
     .table-scroll.is-matchups table td {
@@ -316,15 +347,20 @@ function ensureMobileTableStyles() {
         max-width: 160px;
       }
 
-      .table-scroll .cell-team span {
-        max-width: 110px;
-      }
+      .table-scroll .cell-team span { max-width: 110px; }
 
       /* PR/PR+: Rank am Handy extra schmal */
       .table-scroll.is-pr table th:first-child,
       .table-scroll.is-pr table td:first-child {
         width: 52px;
         max-width: 52px;
+      }
+
+      /* PR+: Delta am Handy noch kompakter */
+      .table-scroll.is-pr table th:nth-child(4),
+      .table-scroll.is-pr table td:nth-child(4) {
+        width: 70px;
+        max-width: 70px;
       }
 
       /* Matchups am Handy */
@@ -358,9 +394,7 @@ function ensureMobileTableStyles() {
         box-shadow: 8px 0 12px rgba(0,0,0,0.25);
       }
 
-      .table-scroll table thead th:first-child {
-        z-index: 4;
-      }
+      .table-scroll table thead th:first-child { z-index: 4; }
     }
   `;
   document.head.appendChild(style);
@@ -500,17 +534,26 @@ function renderTable(rows) {
   // Zusatz-Plan für Matchups (Away/Home als Team-Cells rendern)
   let matchupsPlan = null;
 
+  // Zusatz-Plan für PR+ Delta
+  let prDeltaCol = null;
+
   if (currentView === "standings") {
     plan = getStandingsColumnPlanByIM(rawCols);
     cols = plan.cols;
     rename = plan.rename || {};
     teamColGuess = plan.teamCol || null;
     rows = sortStandingsRows(rows, plan);
-  } else if (currentView === "pr" || currentView === "prp") {
-    const prPlan = getPrColumnPlan(rawCols);
+  } else if (currentView === "pr") {
+    const prPlan = getPrColumnPlan(rawCols, false);
     cols = prPlan.cols;
     rename = prPlan.rename || {};
     teamColGuess = prPlan.teamCol || guessTeamColumn(cols);
+  } else if (currentView === "prp") {
+    const prpPlan = getPrColumnPlan(rawCols, true);
+    cols = prpPlan.cols;
+    rename = prpPlan.rename || {};
+    teamColGuess = prpPlan.teamCol || guessTeamColumn(cols);
+    prDeltaCol = prpPlan.deltaCol || null;
   } else if (currentView === "matchups") {
     matchupsPlan = getMatchupsColumnPlan(rawCols);
     cols = matchupsPlan.cols;
@@ -544,6 +587,11 @@ function renderTable(rows) {
                 : "";
               return `<td><div class="cell-team">${logoHtml}<span>${escapeHtml(name)}</span></div></td>`;
             }
+          }
+
+          // --- PR+: Delta schöner (+/-) ---
+          if (currentView === "prp" && prDeltaCol && c === prDeltaCol) {
+            return `<td>${escapeHtml(formatDelta(val))}</td>`;
           }
 
           // --- Standard: Team-Spalte ---
