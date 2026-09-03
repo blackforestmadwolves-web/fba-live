@@ -131,6 +131,7 @@ function logoSizes() {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
+  if (p.monster) return matchupMonsterResponseV28_(p);
   if (p.raw) {
     return ContentService.createTextOutput(HtmlService.createHtmlOutputFromFile('Index').getContent())
       .setMimeType(ContentService.MimeType.TEXT);
@@ -306,6 +307,8 @@ function onOpen() {
     .addItem('ESPN jetzt synchronisieren', 'syncEspnData')
     .addItem('ESPN-Automatik installieren', 'installEspnSync')
     .addItem('ESPN-Syncstatus anzeigen', 'showEspnSyncStatus')
+    .addSeparator()
+    .addItem('Matchup Monster: Einmal-PIN', 'createMatchupMonsterPin')
     .addToUi();
 }
 function testData() {
@@ -2189,6 +2192,119 @@ function buildDraftTop10V5_() {
     {rank:9,id:'4431678',name:'Tyrese Maxey',nba:'PHI',score:74,adp:'16,6',reason:'Punkte, Dreier, Elite-FT% und Steals – aber neues Star-Gedränge in Philadelphia.',report:'Maxey lieferte zuletzt 28,3 Punkte, 6,6 Assists, 1,9 Steals und 89,2 % FT. Mit LeBron James und Jaylen Brown erwartet RotoWire jedoch weniger Ballbesitz und eventuell weniger Minuten; deshalb bleibt sein Potenzial erstklassig, aber seine Rolle weniger sicher.',strengths:'Punkte · FT% · Dreier · Steals · Assists',risk:'Deutlich mehr Konkurrenz um Würfe und Spielmacher-Anteile in Philadelphia.',fit:'Sehr sauberer Guard-Baustein am Ende der ersten Runde.',active:true},
     {rank:10,id:'4701230',name:'Jalen Johnson',nba:'ATL',score:72,adp:'32,3',reason:'Allround-Breakout mit fast 23/10/8 – starke Rebounds, Assists und FG%.',report:'Johnson spielte 72 Partien und kam laut ESPN auf 22,5 Punkte, 10,3 Rebounds und 7,9 Assists bei 48,9 % FG. RotoWire sieht diese Entwicklung als nachhaltig und Atlanta klar als sein Team; der extrem späte ESPN-ADP macht ihn zugleich zum auffälligsten Value-Namen des Radars.',strengths:'Rebounds · Assists · Punkte · FG% · Steals',risk:'Der Markt ist noch uneins (ESPN-ADP 32,3); FT% und defensive Zahlen sind nicht auf Top-10-Niveau.',fit:'Der mögliche Value-Steal der ersten Runde.',active:true}
   ];
+}
+
+/* ================= MATCHUP MONSTER v28 =================
+ * Privater, kurzlebiger Gerätezugang. Der Einmal-PIN wird ausschließlich
+ * einem Tabellen-Editor im Apps-Script-Menü angezeigt. Weder PIN noch
+ * Sitzungsschlüssel werden in einem Tabellenblatt oder im Frontend gespeichert.
+ */
+var MATCHUP_MONSTER_V28 = {
+  pinCacheKey: 'FBA_MONSTER_PIN_V28',
+  sessionPrefix: 'FBA_MONSTER_SESSION_V28_',
+  pinSeconds: 600,
+  sessionSeconds: 21600,
+  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V28'
+};
+
+function monsterHashV28_(value) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value || ''), Utilities.Charset.UTF_8)
+    .map(function (b) { var n=(b+256)%256; return ('0'+n.toString(16)).slice(-2); }).join('');
+}
+
+function createMatchupMonsterPin() {
+  var pin=String(Math.floor(100000+Math.random()*900000));
+  CacheService.getScriptCache().put(MATCHUP_MONSTER_V28.pinCacheKey,monsterHashV28_(pin),MATCHUP_MONSTER_V28.pinSeconds);
+  SpreadsheetApp.getUi().alert('Matchup Monster',
+    'Dein Einmal-PIN lautet: '+pin+'\n\nEr gilt 10 Minuten und kann genau einmal verwendet werden. Die Gerätesitzung bleibt danach 6 Stunden aktiv.',
+    SpreadsheetApp.getUi().ButtonSet.OK);
+  return true;
+}
+
+function monsterJsonResponseV28_(payload, callback) {
+  var json=JSON.stringify(payload),cb=String(callback||'');
+  if (cb && /^[A-Za-z_$][0-9A-Za-z_$]{0,80}$/.test(cb)) {
+    return ContentService.createTextOutput(cb+'('+json+');').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
+function createMonsterSessionV28_(pin) {
+  var cache=CacheService.getScriptCache(),expected=cache.get(MATCHUP_MONSTER_V28.pinCacheKey);
+  if (!expected || expected !== monsterHashV28_(pin)) return null;
+  cache.remove(MATCHUP_MONSTER_V28.pinCacheKey);
+  var token=Utilities.getUuid()+Utilities.getUuid();
+  cache.put(MATCHUP_MONSTER_V28.sessionPrefix+monsterHashV28_(token),'1',MATCHUP_MONSTER_V28.sessionSeconds);
+  return token;
+}
+
+function validMonsterSessionV28_(token) {
+  if (!token || String(token).length < 40) return false;
+  return CacheService.getScriptCache().get(MATCHUP_MONSTER_V28.sessionPrefix+monsterHashV28_(token)) === '1';
+}
+
+function nbaWeekScheduleV28_() {
+  var cache=CacheService.getScriptCache(),cached=cache.get(MATCHUP_MONSTER_V28.scheduleCacheKey);
+  if (cached) { try { return JSON.parse(cached); } catch (e) {} }
+  var tz=ESPN_PLAYER_HUB_V2.nbaTimezone,now=new Date(),weekday=Number(Utilities.formatDate(now,tz,'u')),
+    monday=new Date(now.getTime()-(weekday-1)*86400000),games=[],requests=[];
+  for (var i=0;i<8;i++) {
+    var day=new Date(monday.getTime()+i*86400000),dateKey=Utilities.formatDate(day,tz,'yyyyMMdd');
+    requests.push({url:nbaScoreboardUrlV2_(dateKey),method:'get',headers:{Accept:'application/json'},muteHttpExceptions:true,followRedirects:true});
+  }
+  UrlFetchApp.fetchAll(requests).forEach(function(response){
+    if(response.getResponseCode()!==200)return;var board;
+    try{board=JSON.parse(response.getContentText());}catch(parseErr){return;}
+    (board.events||[]).forEach(function (event) {
+      var comp=(event.competitions||[])[0]||{},teams=(comp.competitors||[]).map(function (c) {
+        return String(((c.team||{}).abbreviation)||((c.team||{}).shortDisplayName)||'');
+      }).filter(Boolean);
+      if (teams.length===2) games.push({id:String(event.id||''),date:Utilities.formatDate(new Date(comp.date||event.date),tz,'yyyy-MM-dd'),teams:teams,status:String((((event.status||{}).type||{}).name)||'')});
+    });
+  });
+  var byTeam={};games.forEach(function(g){g.teams.forEach(function(t){(byTeam[t]||(byTeam[t]=[])).push(g.date);});});
+  var backToBack=[];Object.keys(byTeam).sort().forEach(function(team){
+    var dates=byTeam[team].filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
+    for(var j=1;j<dates.length;j++){
+      var delta=(new Date(dates[j]+'T12:00:00Z')-new Date(dates[j-1]+'T12:00:00Z'))/86400000;
+      if(delta===1)backToBack.push({team:team,first:dates[j-1],second:dates[j],crossWeek:(new Date(dates[j-1]+'T12:00:00Z').getUTCDay()===0)});
+    }
+  });
+  var out={generated:new Date().toISOString(),rangeStart:Utilities.formatDate(monday,tz,'yyyy-MM-dd'),rangeEnd:Utilities.formatDate(new Date(monday.getTime()+7*86400000),tz,'yyyy-MM-dd'),games:games,backToBack:backToBack};
+  try { cache.put(MATCHUP_MONSTER_V28.scheduleCacheKey,JSON.stringify(out),21600); } catch(e2) {}
+  return out;
+}
+
+function buildMonsterPayloadV28_() {
+  var players=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet),roster=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.rosterSheet),playerMap={};
+  players.forEach(function(p){playerMap[String(p.player_id||'')]=p;});
+  var compactRoster=roster.map(function(r){var p=playerMap[String(r.player_id||'')]||{};return {
+    team:String(r.team||''),teamId:String(r.team_id||''),playerId:String(r.player_id||''),name:String(r.player_name||p.full_name||''),
+    nbaTeam:nbaAbbreviationV3_(p.nba_team_id),slot:Number(r.lineup_slot_id),active:r.active_lineup===true||String(r.active_lineup).toUpperCase()==='TRUE',
+    injuryStatus:String(p.injury_status||''),photo:String(r.headshot_url||p.headshot_url||espnHeadshotV2_(r.player_id))
+  };}).filter(function(r){return r.team&&r.playerId;});
+  var schedule=sheetObjectsV2_(ESPN_SYNC_V1.scheduleSheet).map(function(r){return {week:Number(r.week),mu:String(r.matchup_id||''),away:String(r.away_team||''),home:String(r.home_team||''),start:String(r.date_start||''),end:String(r.date_end||'')};});
+  return {
+    ok:true,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaWeekScheduleV28_(),
+    sourceStatus:[
+      {id:'espn',label:'ESPN Liga, Kader, Spielplan und Spielerstatus',active:true},
+      {id:'fantasypros',label:'FantasyPros Projektionen – Adapter bereit, Lizenz/API-Schlüssel fehlt',active:false},
+      {id:'hashtag',label:'Hashtag Basketball – Adapter bereit, Premium-Export fehlt',active:false}
+    ]
+  };
+}
+
+function matchupMonsterResponseV28_(p) {
+  var action=String(p.monster||'');
+  if(action==='login'){
+    var token=createMonsterSessionV28_(p.pin||'');
+    return monsterJsonResponseV28_(token?{ok:true,token:token,expiresIn:MATCHUP_MONSTER_V28.sessionSeconds}:{ok:false,error:'PIN ungültig oder abgelaufen.'},p.callback);
+  }
+  if(action==='data'){
+    if(!validMonsterSessionV28_(p.token||''))return monsterJsonResponseV28_({ok:false,error:'Sitzung abgelaufen.',locked:true},p.callback);
+    try{return monsterJsonResponseV28_(buildMonsterPayloadV28_(),p.callback);}catch(err){return monsterJsonResponseV28_({ok:false,error:String(err)},p.callback);}
+  }
+  return monsterJsonResponseV28_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
 
 function espnSyncIntervalMinutesV2_() {
