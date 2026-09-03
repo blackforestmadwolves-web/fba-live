@@ -131,7 +131,7 @@ function logoSizes() {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  if (p.monster) return matchupMonsterResponseV29_(p);
+  if (p.monster) return matchupMonsterResponseV30_(p);
   if (p.raw) {
     return ContentService.createTextOutput(HtmlService.createHtmlOutputFromFile('Index').getContent())
       .setMimeType(ContentService.MimeType.TEXT);
@@ -1521,7 +1521,7 @@ function buildEspnScheduleRowsV1_(league) {
         ESPN_SYNC_V1.seasonLabel,
         week,
         'W' + week + '-' + (index + 1),
-        null,
+        fantasyWeekWindowV30_(week).start,
         null,
         names[String(game.away.teamId)] || ('ESPN Team ' + game.away.teamId),
         names[String(game.home.teamId)] || ('ESPN Team ' + game.home.teamId)
@@ -2360,6 +2360,161 @@ function matchupMonsterResponseV29_(p) {
   if(action==='data'){
     if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
     try{return monsterJsonResponseV29_(buildMonsterPayloadV29_(p.week),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err)},p.callback);}
+  }
+  return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
+}
+
+/* ================= MATCHUP MONSTER v30 =================
+ * ESPN Fantasy bezeichnet die Liga-Saison als 2027, die normale NBA-
+ * Schedule-Schnittstelle dieselbe Spielzeit jedoch als 2026. v30 trennt
+ * diese beiden IDs ausdrücklich. Die FBA-Zeiträume sind feste Matchup-
+ * Fenster; niemals wird das heutige Datum als stiller Ersatz verwendet.
+ */
+var MATCHUP_MONSTER_V30 = {
+  nbaSiteSeasons: [2026,2027],
+  firstWeekStart: '2026-10-20',
+  firstWeekEnd: '2026-10-25',
+  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V30_',
+  maxWeek: 20,
+  nbaTeamSlugs: ['atl','bos','bkn','cha','chi','cle','dal','den','det','gs','hou','ind','lac','lal','mem','mia','mil','min','no','ny','okc','orl','phi','phx','por','sac','sa','tor','utah','wsh']
+};
+
+function isoDateV30_(date) {
+  return Utilities.formatDate(new Date(date), 'UTC', 'yyyy-MM-dd');
+}
+
+function fantasyWeekWindowV30_(requestedWeek) {
+  var week=Math.max(1,Math.min(MATCHUP_MONSTER_V30.maxWeek,Number(requestedWeek)||1));
+  if (week===1) {
+    return {week:1,start:MATCHUP_MONSTER_V30.firstWeekStart,end:MATCHUP_MONSTER_V30.firstWeekEnd,lookaheadEnd:'2026-10-26'};
+  }
+  var start=new Date('2026-10-26T12:00:00Z');
+  start=new Date(start.getTime()+(week-2)*7*86400000);
+  var end=new Date(start.getTime()+6*86400000),lookahead=new Date(start.getTime()+7*86400000);
+  return {week:week,start:isoDateV30_(start),end:isoDateV30_(end),lookaheadEnd:isoDateV30_(lookahead)};
+}
+
+function monsterDateCellV30_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return isoDateV30_(value);
+  var raw=String(value==null?'':value).trim(),match=raw.match(/^\d{4}-\d{2}-\d{2}/);
+  if (match) return match[0];
+  var parsed=new Date(raw);return raw&&!isNaN(parsed.getTime())?isoDateV30_(parsed):'';
+}
+
+function monsterFbaScheduleV30_() {
+  return monsterFbaScheduleV29_().map(function(row){
+    var window=fantasyWeekWindowV30_(row.week);
+    row.start=monsterDateCellV30_(row.start)||window.start;
+    row.end=monsterDateCellV30_(row.end)||window.end;
+    return row;
+  });
+}
+
+function normalizeNbaAbbreviationV30_(value) {
+  var raw=String(value||'').toUpperCase().replace(/[^A-Z]/g,''),aliases={GS:'GSW',GSW:'GSW',WSH:'WAS',WAS:'WAS',SA:'SAS',SAS:'SAS',NO:'NOP',NOP:'NOP',NY:'NYK',NYK:'NYK',UTAH:'UTA'};
+  return aliases[raw]||raw;
+}
+
+function espnGameV30_(event) {
+  var comp=(event&&event.competitions||[])[0]||{},date=new Date(comp.date||event.date||0);
+  if (isNaN(date.getTime())) return null;
+  var teams=(comp.competitors||[]).map(function(c){
+    var team=c.team||{};return normalizeNbaAbbreviationV30_(team.abbreviation||team.shortDisplayName||'');
+  }).filter(Boolean);
+  if (teams.length!==2) return null;
+  return {id:String(event.id||comp.id||''),date:Utilities.formatDate(date,ESPN_PLAYER_HUB_V2.nbaTimezone,'yyyy-MM-dd'),teams:teams,status:String((((event.status||comp.status||{}).type||{}).name)||'')};
+}
+
+function dedupeNbaGamesV30_(games) {
+  var seen={};return (games||[]).filter(function(game){
+    if(!game)return false;var key=game.id||[game.date].concat(game.teams.slice().sort()).join(':');
+    if(seen[key])return false;seen[key]=true;return true;
+  }).sort(function(a,b){return a.date.localeCompare(b.date)||a.id.localeCompare(b.id);});
+}
+
+function parseEspnGamesV30_(responses,window) {
+  var games=[];(responses||[]).forEach(function(response){
+    if(!response||response.getResponseCode()!==200)return;var parsed;
+    try{parsed=JSON.parse(response.getContentText());}catch(e){return;}
+    (parsed.events||[]).forEach(function(event){
+      var game=espnGameV30_(event);if(game&&game.date>=window.start&&game.date<=window.lookaheadEnd)games.push(game);
+    });
+  });
+  return dedupeNbaGamesV30_(games);
+}
+
+function monsterBackToBackV30_(games,rangeEnd) {
+  var byTeam={};(games||[]).forEach(function(game){
+    (game.teams||[]).forEach(function(team){(byTeam[team]||(byTeam[team]=[])).push(game.date);});
+  });
+  var rows=[];Object.keys(byTeam).sort().forEach(function(team){
+    var dates=byTeam[team].filter(function(value,index,array){return array.indexOf(value)===index;}).sort();
+    for(var i=1;i<dates.length;i++){
+      var delta=(new Date(dates[i]+'T12:00:00Z')-new Date(dates[i-1]+'T12:00:00Z'))/86400000;
+      if(delta===1&&dates[i-1]<=rangeEnd)rows.push({team:team,first:dates[i-1],second:dates[i],crossWeek:dates[i]>rangeEnd});
+    }
+  });
+  return rows;
+}
+
+function espnScoreboardGamesV30_(window) {
+  var requests=[],cursor=new Date(window.start+'T12:00:00Z'),last=new Date(window.lookaheadEnd+'T12:00:00Z');
+  while(cursor<=last){requests.push({url:nbaScoreboardUrlV2_(Utilities.formatDate(cursor,'UTC','yyyyMMdd')),method:'get',headers:{Accept:'application/json'},muteHttpExceptions:true,followRedirects:true});cursor=new Date(cursor.getTime()+86400000);}
+  return parseEspnGamesV30_(UrlFetchApp.fetchAll(requests),window);
+}
+
+function espnTeamScheduleGamesV30_(window,season) {
+  var requests=MATCHUP_MONSTER_V30.nbaTeamSlugs.map(function(team){return {url:'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/'+team+'/schedule?season='+season,method:'get',headers:{Accept:'application/json'},muteHttpExceptions:true,followRedirects:true};});
+  return parseEspnGamesV30_(UrlFetchApp.fetchAll(requests),window);
+}
+
+function nbaWeekScheduleV30_(requestedWeek) {
+  var window=fantasyWeekWindowV30_(requestedWeek),cache=CacheService.getScriptCache(),cacheKey=MATCHUP_MONSTER_V30.scheduleCacheKey+window.week,cached=cache.get(cacheKey);
+  if(cached){try{return JSON.parse(cached);}catch(e){}}
+  var games=[],source='ESPN NBA Scoreboard',errors=[],siteSeason=null;
+  try{games=espnScoreboardGamesV30_(window);}catch(scoreboardErr){errors.push('Scoreboard: '+String(scoreboardErr));}
+  if(!games.length){
+    for(var seasonIndex=0;seasonIndex<MATCHUP_MONSTER_V30.nbaSiteSeasons.length&&!games.length;seasonIndex++){
+      siteSeason=MATCHUP_MONSTER_V30.nbaSiteSeasons[seasonIndex];source='ESPN NBA Team Schedules · '+siteSeason;
+      try{games=espnTeamScheduleGamesV30_(window,siteSeason);}catch(teamErr){errors.push('Team Schedules '+siteSeason+': '+String(teamErr));}
+    }
+  }
+  var inWeekGames=games.filter(function(game){return game.date>=window.start&&game.date<=window.end;}),teamGames={};
+  inWeekGames.forEach(function(game){game.teams.forEach(function(team){teamGames[team]=(teamGames[team]||0)+1;});});
+  var out={generated:new Date().toISOString(),source:source,nbaSiteSeason:siteSeason,matchupWeek:window.week,
+    rangeStart:window.start,rangeEnd:window.end,lookaheadEnd:window.lookaheadEnd,games:games,teamGames:teamGames,
+    backToBack:monsterBackToBackV30_(games,window.end),dataIssue:games.length?'':'ESPN hat für diesen Zeitraum noch keine NBA-Spiele geliefert.',errors:errors};
+  try{cache.put(cacheKey,JSON.stringify(out),21600);}catch(e2){}
+  return out;
+}
+
+function buildMonsterPayloadV30_(requestedWeek) {
+  var players=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet),roster=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.rosterSheet),playerMap={};
+  players.forEach(function(player){playerMap[String(player.player_id||'')]=player;});
+  var compactRoster=roster.map(function(row){var player=playerMap[String(row.player_id||'')]||{};return {
+    team:String(row.team||''),teamId:String(row.team_id||''),playerId:String(row.player_id||''),name:String(row.player_name||player.full_name||''),
+    nbaTeam:nbaAbbreviationV3_(player.nba_team_id),slot:Number(row.lineup_slot_id),active:row.active_lineup===true||String(row.active_lineup).toUpperCase()==='TRUE',
+    injuryStatus:String(player.injury_status||''),photo:String(row.headshot_url||player.headshot_url||espnHeadshotV2_(row.player_id))
+  };}).filter(function(row){return row.team&&row.playerId;});
+  var schedule=monsterFbaScheduleV30_();
+  return {ok:true,version:30,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaWeekScheduleV30_(requestedWeek),
+    scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
+    sourceStatus:[
+      {id:'espn',label:'ESPN Liga, Kader, '+schedule.length+' Matchups und NBA-Spielplan',active:true},
+      {id:'fantasypros',label:'FantasyPros Projektionen – Adapter bereit, Lizenz/API-Schlüssel fehlt',active:false},
+      {id:'hashtag',label:'Hashtag Basketball – Adapter bereit, Premium-Export fehlt',active:false}
+    ]};
+}
+
+function matchupMonsterResponseV30_(p) {
+  var action=String(p.monster||'');
+  if(action==='login'){
+    var token=createMonsterDeviceV29_(p.pin||'');
+    return monsterJsonResponseV29_(token?{ok:true,token:token,persistent:true}:{ok:false,error:'PIN ungültig oder abgelaufen.'},p.callback);
+  }
+  if(action==='data'){
+    if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
+    try{return monsterJsonResponseV29_(buildMonsterPayloadV30_(p.week),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err)},p.callback);}
   }
   return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
