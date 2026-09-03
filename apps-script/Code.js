@@ -131,7 +131,7 @@ function logoSizes() {
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
-  if (p.monster) return matchupMonsterResponseV28_(p);
+  if (p.monster) return matchupMonsterResponseV29_(p);
   if (p.raw) {
     return ContentService.createTextOutput(HtmlService.createHtmlOutputFromFile('Index').getContent())
       .setMimeType(ContentService.MimeType.TEXT);
@@ -309,6 +309,7 @@ function onOpen() {
     .addItem('ESPN-Syncstatus anzeigen', 'showEspnSyncStatus')
     .addSeparator()
     .addItem('Matchup Monster: Einmal-PIN', 'createMatchupMonsterPin')
+    .addItem('Matchup Monster: Geräte sperren', 'resetMatchupMonsterDevices')
     .addToUi();
 }
 function testData() {
@@ -2194,35 +2195,52 @@ function buildDraftTop10V5_() {
   ];
 }
 
-/* ================= MATCHUP MONSTER v28 =================
- * Privater, kurzlebiger Gerätezugang. Der Einmal-PIN wird ausschließlich
- * einem Tabellen-Editor im Apps-Script-Menü angezeigt. Weder PIN noch
- * Sitzungsschlüssel werden in einem Tabellenblatt oder im Frontend gespeichert.
- * Dieser Block ist zugleich der v28-Produktivmarker für den Web-App-Deploy.
+/* ================= MATCHUP MONSTER v29 =================
+ * Privater, dauerhafter Gerätezugang. Der Einmal-PIN wird ausschließlich
+ * einem Tabellen-Editor im Apps-Script-Menü angezeigt. Der Browser speichert
+ * den zufälligen Schlüssel lokal; serverseitig liegt nur dessen SHA-256-Hash.
+ * Alle Geräte lassen sich jederzeit gesammelt über das FBA-App-Menü sperren.
  */
-var MATCHUP_MONSTER_V28 = {
-  pinCacheKey: 'FBA_MONSTER_PIN_V28',
-  sessionPrefix: 'FBA_MONSTER_SESSION_V28_',
+var MATCHUP_MONSTER_V29 = {
+  pinCacheKey: 'FBA_MONSTER_PIN_V29',
+  deviceHashesKey: 'FBA_MONSTER_DEVICES_V29',
   pinSeconds: 600,
-  sessionSeconds: 21600,
-  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V28'
+  maxDevices: 8,
+  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V29_',
+  seasonStartCacheKey: 'FBA_MONSTER_NBA_START_V29'
 };
 
-function monsterHashV28_(value) {
+function monsterHashV29_(value) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value || ''), Utilities.Charset.UTF_8)
     .map(function (b) { var n=(b+256)%256; return ('0'+n.toString(16)).slice(-2); }).join('');
 }
 
 function createMatchupMonsterPin() {
   var pin=String(Math.floor(100000+Math.random()*900000));
-  CacheService.getScriptCache().put(MATCHUP_MONSTER_V28.pinCacheKey,monsterHashV28_(pin),MATCHUP_MONSTER_V28.pinSeconds);
+  CacheService.getScriptCache().put(MATCHUP_MONSTER_V29.pinCacheKey,monsterHashV29_(pin),MATCHUP_MONSTER_V29.pinSeconds);
   SpreadsheetApp.getUi().alert('Matchup Monster',
-    'Dein Einmal-PIN lautet: '+pin+'\n\nEr gilt 10 Minuten und kann genau einmal verwendet werden. Die Gerätesitzung bleibt danach 6 Stunden aktiv.',
+    'Dein Einmal-PIN lautet: '+pin+'\n\nEr gilt 10 Minuten und kann genau einmal verwendet werden. Dieses Gerät bleibt danach dauerhaft freigeschaltet, bis du alle Geräte im FBA-App-Menü sperrst.',
     SpreadsheetApp.getUi().ButtonSet.OK);
   return true;
 }
 
-function monsterJsonResponseV28_(payload, callback) {
+function monsterDeviceHashesV29_() {
+  var raw=PropertiesService.getScriptProperties().getProperty(MATCHUP_MONSTER_V29.deviceHashesKey),list=[];
+  try { list=raw?JSON.parse(raw):[]; } catch(e) { list=[]; }
+  return Array.isArray(list)?list.filter(function(x){return typeof x==='string'&&x.length===64;}):[];
+}
+
+function resetMatchupMonsterDevices() {
+  var ui=SpreadsheetApp.getUi(),choice=ui.alert('Matchup Monster',
+    'Wirklich alle dauerhaft freigeschalteten Geräte sperren? Mac und iPhone benötigen danach jeweils einen neuen Einmal-PIN.',
+    ui.ButtonSet.YES_NO);
+  if(choice!==ui.Button.YES)return false;
+  PropertiesService.getScriptProperties().deleteProperty(MATCHUP_MONSTER_V29.deviceHashesKey);
+  ui.alert('Matchup Monster','Alle Geräte wurden gesperrt.',ui.ButtonSet.OK);
+  return true;
+}
+
+function monsterJsonResponseV29_(payload, callback) {
   var json=JSON.stringify(payload),cb=String(callback||'');
   if (cb && /^[A-Za-z_$][0-9A-Za-z_$]{0,80}$/.test(cb)) {
     return ContentService.createTextOutput(cb+'('+json+');').setMimeType(ContentService.MimeType.JAVASCRIPT);
@@ -2230,25 +2248,61 @@ function monsterJsonResponseV28_(payload, callback) {
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
-function createMonsterSessionV28_(pin) {
-  var cache=CacheService.getScriptCache(),expected=cache.get(MATCHUP_MONSTER_V28.pinCacheKey);
-  if (!expected || expected !== monsterHashV28_(pin)) return null;
-  cache.remove(MATCHUP_MONSTER_V28.pinCacheKey);
+function createMonsterDeviceV29_(pin) {
+  var cache=CacheService.getScriptCache(),expected=cache.get(MATCHUP_MONSTER_V29.pinCacheKey);
+  if (!expected || expected !== monsterHashV29_(pin)) return null;
+  cache.remove(MATCHUP_MONSTER_V29.pinCacheKey);
   var token=Utilities.getUuid()+Utilities.getUuid();
-  cache.put(MATCHUP_MONSTER_V28.sessionPrefix+monsterHashV28_(token),'1',MATCHUP_MONSTER_V28.sessionSeconds);
+  var hashes=monsterDeviceHashesV29_(),hash=monsterHashV29_(token);
+  hashes=hashes.filter(function(x){return x!==hash;}).slice(-(MATCHUP_MONSTER_V29.maxDevices-1));
+  hashes.push(hash);
+  PropertiesService.getScriptProperties().setProperty(MATCHUP_MONSTER_V29.deviceHashesKey,JSON.stringify(hashes));
   return token;
 }
 
-function validMonsterSessionV28_(token) {
+function validMonsterDeviceV29_(token) {
   if (!token || String(token).length < 40) return false;
-  return CacheService.getScriptCache().get(MATCHUP_MONSTER_V28.sessionPrefix+monsterHashV28_(token)) === '1';
+  return monsterDeviceHashesV29_().indexOf(monsterHashV29_(token))>=0;
 }
 
-function nbaWeekScheduleV28_() {
-  var cache=CacheService.getScriptCache(),cached=cache.get(MATCHUP_MONSTER_V28.scheduleCacheKey);
+function monsterFbaScheduleV29_() {
+  var sh=book().getSheetByName(ESPN_SYNC_V1.scheduleSheet);if(!sh||sh.getLastRow()<2)return [];
+  var values=sh.getDataRange().getValues(),header=values.shift().map(function(h){
+    return String(h||'').toUpperCase().replace(/[^A-Z0-9%]+/g,'_').replace(/^_|_$/g,'');
+  });
+  function indexOfAny(names,fallback){for(var i=0;i<names.length;i++){var idx=header.indexOf(names[i]);if(idx>=0)return idx;}return fallback;}
+  var iw=indexOfAny(['WOCHE','WEEK'],1),im=indexOfAny(['MATCHUP','MATCHUP_ID'],2),is=indexOfAny(['START','DATE_START'],3),
+    ie=indexOfAny(['ENDE','END','DATE_END'],-1),ist=indexOfAny(['STATUS'],4),ia=indexOfAny(['AWAY','AWAY_TEAM'],5),ih=indexOfAny(['HOME','HOME_TEAM'],6);
+  return values.map(function(r){return {week:Number(r[iw]||0),mu:String(r[im]||''),away:String(r[ia]||''),home:String(r[ih]||''),
+    start:is>=0?String(r[is]||''):'',end:ie>=0?String(r[ie]||''):'',status:ist>=0?String(r[ist]||''):''};})
+    .filter(function(r){return r.week&&r.away&&r.home;});
+}
+
+function nbaSeasonStartV29_() {
+  var cache=CacheService.getScriptCache(),cached=cache.get(MATCHUP_MONSTER_V29.seasonStartCacheKey);
+  if(cached)return cached;
+  var url='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/bos/schedule?season='+ESPN_SYNC_V1.seasonId,
+    response=UrlFetchApp.fetch(url,{method:'get',headers:{Accept:'application/json'},muteHttpExceptions:true,followRedirects:true});
+  if(response.getResponseCode()!==200)return '';
+  var parsed;try{parsed=JSON.parse(response.getContentText());}catch(e){return '';}
+  var dates=(parsed.events||[]).filter(function(event){
+    var st=event.seasonType||{},type=Number(st.type||st.id||0),d=new Date(event.date||0),m=d.getUTCMonth();
+    return !isNaN(d.getTime())&&(type===2||(!type&&(m>=9||m<=5)));
+  }).map(function(event){return new Date(event.date);}).sort(function(a,b){return a-b;});
+  if(!dates.length)return '';
+  var iso=Utilities.formatDate(dates[0],ESPN_PLAYER_HUB_V2.nbaTimezone,'yyyy-MM-dd');
+  try{cache.put(MATCHUP_MONSTER_V29.seasonStartCacheKey,iso,21600);}catch(e2){}
+  return iso;
+}
+
+function nbaWeekScheduleV29_(requestedWeek) {
+  var week=Math.max(1,Math.min(20,Number(requestedWeek)||1)),cache=CacheService.getScriptCache(),
+    cacheKey=MATCHUP_MONSTER_V29.scheduleCacheKey+week,cached=cache.get(cacheKey);
   if (cached) { try { return JSON.parse(cached); } catch (e) {} }
-  var tz=ESPN_PLAYER_HUB_V2.nbaTimezone,now=new Date(),weekday=Number(Utilities.formatDate(now,tz,'u')),
-    monday=new Date(now.getTime()-(weekday-1)*86400000),games=[],requests=[];
+  var tz=ESPN_PLAYER_HUB_V2.nbaTimezone,startIso='';
+  try{startIso=nbaSeasonStartV29_();}catch(startErr){}
+  var anchor=startIso?new Date(startIso+'T12:00:00Z'):new Date(),weekday=Number(Utilities.formatDate(anchor,tz,'u')),
+    monday=new Date(anchor.getTime()-(weekday-1)*86400000+(week-1)*7*86400000),games=[],requests=[];
   for (var i=0;i<8;i++) {
     var day=new Date(monday.getTime()+i*86400000),dateKey=Utilities.formatDate(day,tz,'yyyyMMdd');
     requests.push({url:nbaScoreboardUrlV2_(dateKey),method:'get',headers:{Accept:'application/json'},muteHttpExceptions:true,followRedirects:true});
@@ -2271,12 +2325,13 @@ function nbaWeekScheduleV28_() {
       if(delta===1)backToBack.push({team:team,first:dates[j-1],second:dates[j],crossWeek:(new Date(dates[j-1]+'T12:00:00Z').getUTCDay()===0)});
     }
   });
-  var out={generated:new Date().toISOString(),rangeStart:Utilities.formatDate(monday,tz,'yyyy-MM-dd'),rangeEnd:Utilities.formatDate(new Date(monday.getTime()+7*86400000),tz,'yyyy-MM-dd'),games:games,backToBack:backToBack};
-  try { cache.put(MATCHUP_MONSTER_V28.scheduleCacheKey,JSON.stringify(out),21600); } catch(e2) {}
+  var out={generated:new Date().toISOString(),source:'ESPN NBA Schedule',matchupWeek:week,
+    rangeStart:Utilities.formatDate(monday,tz,'yyyy-MM-dd'),rangeEnd:Utilities.formatDate(new Date(monday.getTime()+7*86400000),tz,'yyyy-MM-dd'),games:games,backToBack:backToBack};
+  try { cache.put(cacheKey,JSON.stringify(out),21600); } catch(e2) {}
   return out;
 }
 
-function buildMonsterPayloadV28_() {
+function buildMonsterPayloadV29_(requestedWeek) {
   var players=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet),roster=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.rosterSheet),playerMap={};
   players.forEach(function(p){playerMap[String(p.player_id||'')]=p;});
   var compactRoster=roster.map(function(r){var p=playerMap[String(r.player_id||'')]||{};return {
@@ -2284,28 +2339,29 @@ function buildMonsterPayloadV28_() {
     nbaTeam:nbaAbbreviationV3_(p.nba_team_id),slot:Number(r.lineup_slot_id),active:r.active_lineup===true||String(r.active_lineup).toUpperCase()==='TRUE',
     injuryStatus:String(p.injury_status||''),photo:String(r.headshot_url||p.headshot_url||espnHeadshotV2_(r.player_id))
   };}).filter(function(r){return r.team&&r.playerId;});
-  var schedule=sheetObjectsV2_(ESPN_SYNC_V1.scheduleSheet).map(function(r){return {week:Number(r.week),mu:String(r.matchup_id||''),away:String(r.away_team||''),home:String(r.home_team||''),start:String(r.date_start||''),end:String(r.date_end||'')};});
+  var schedule=monsterFbaScheduleV29_();
   return {
-    ok:true,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaWeekScheduleV28_(),
+    ok:true,version:29,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaWeekScheduleV29_(requestedWeek),
+    scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(m,r){return Math.max(m,r.week||0);},0)},
     sourceStatus:[
-      {id:'espn',label:'ESPN Liga, Kader, Spielplan und Spielerstatus',active:true},
+      {id:'espn',label:'ESPN Liga, Kader, '+schedule.length+' Matchups und Spielerstatus',active:true},
       {id:'fantasypros',label:'FantasyPros Projektionen – Adapter bereit, Lizenz/API-Schlüssel fehlt',active:false},
       {id:'hashtag',label:'Hashtag Basketball – Adapter bereit, Premium-Export fehlt',active:false}
     ]
   };
 }
 
-function matchupMonsterResponseV28_(p) {
+function matchupMonsterResponseV29_(p) {
   var action=String(p.monster||'');
   if(action==='login'){
-    var token=createMonsterSessionV28_(p.pin||'');
-    return monsterJsonResponseV28_(token?{ok:true,token:token,expiresIn:MATCHUP_MONSTER_V28.sessionSeconds}:{ok:false,error:'PIN ungültig oder abgelaufen.'},p.callback);
+    var token=createMonsterDeviceV29_(p.pin||'');
+    return monsterJsonResponseV29_(token?{ok:true,token:token,persistent:true}:{ok:false,error:'PIN ungültig oder abgelaufen.'},p.callback);
   }
   if(action==='data'){
-    if(!validMonsterSessionV28_(p.token||''))return monsterJsonResponseV28_({ok:false,error:'Sitzung abgelaufen.',locked:true},p.callback);
-    try{return monsterJsonResponseV28_(buildMonsterPayloadV28_(),p.callback);}catch(err){return monsterJsonResponseV28_({ok:false,error:String(err)},p.callback);}
+    if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
+    try{return monsterJsonResponseV29_(buildMonsterPayloadV29_(p.week),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err)},p.callback);}
   }
-  return monsterJsonResponseV28_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
+  return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
 
 function espnSyncIntervalMinutesV2_() {
