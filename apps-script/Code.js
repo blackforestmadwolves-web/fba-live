@@ -2169,7 +2169,18 @@ function enhancePayloadPhaseV1(data, cfg) {
   data.espnSync = getEspnSyncStatus_();
   data.playerHub = buildPlayerHubPayloadV2_();
   data.draftPredictions = buildDraftPredictionsV3_();
+  data.draftTop3 = buildDraftTop3V4_();
   return data;
+}
+
+/* Aktueller externer Draft-Konsens. Bewusst getrennt von Maiks persönlicher
+ * Acht-Pick-Prognose. score = transparenter Heat-Index, keine Wahrscheinlichkeit. */
+function buildDraftTop3V4_() {
+  return [
+    {rank:1,id:'3112335',name:'Nikola Jokić',nba:'DEN',score:99,adp:'1,8',reason:'Sicherster Allrounder: Elite bei Punkten, Rebounds, Assists und Quoten.',active:true},
+    {rank:2,id:'5104157',name:'Victor Wembanyama',nba:'SAS',score:97,adp:'2,9',reason:'Einzigartiger Blocks-Vorteil plus Dreier und starke Quoten; realer 1.01-Kandidat.',active:true},
+    {rank:3,id:'4278073',name:'Shai Gilgeous-Alexander',nba:'OKC',score:91,adp:'3,1',reason:'Elite-Scoring und Effizienz ohne echte Schwäche im FBA-Profil.',active:true}
+  ];
 }
 
 function espnSyncIntervalMinutesV2_() {
