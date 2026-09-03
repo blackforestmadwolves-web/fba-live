@@ -1,0 +1,45 @@
+name: Apps Script Connection Check
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/apps-script-connection-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Restore clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+        run: |
+          test -n "$CLASPRC_JSON"
+          test -n "$CLASP_JSON"
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          mkdir -p .clasp-check
+          printf '%s' "$CLASP_JSON" > .clasp-check/.clasp.json
+
+      - name: Read Apps Script project
+        working-directory: .clasp-check
+        run: npx --yes @google/clasp@latest pull
+
+      - name: Verify expected project files
+        run: |
+          test -f .clasp-check/Code.js
+          test -f .clasp-check/Index.html
+          test -f .clasp-check/appsscript.json
+          echo "Apps Script connection verified."
