@@ -98,11 +98,12 @@ jobs:
         env:
           DEPLOYMENT_ID: AKfycby02oSRlkddDZfq1od7DXtKkPVgGScoJBa9x-Jsj50LF1sHUYnfIRicV3KTIZRQI9Sh
           VERSION: ${{ steps.version.outputs.number }}
-        run: npx --yes @google/clasp@latest redeploy "$DEPLOYMENT_ID" "$VERSION" "GitHub ${GITHUB_SHA::7}"
+        run: npx --yes @google/clasp@latest redeploy "$DEPLOYMENT_ID" --versionNumber "$VERSION" --description "GitHub ${GITHUB_SHA::7}"
 
       - name: Confirm deployment exists
         if: steps.changes.outputs.changed == 'true'
         working-directory: .clasp-work
         env:
           DEPLOYMENT_ID: AKfycby02oSRlkddDZfq1od7DXtKkPVgGScoJBa9x-Jsj50LF1sHUYnfIRicV3KTIZRQI9Sh
-        run: npx --yes @google/clasp@latest deployments | grep -F "$DEPLOYMENT_ID"
+          VERSION: ${{ steps.version.outputs.number }}
+        run: npx --yes @google/clasp@latest deployments | grep -F "$DEPLOYMENT_ID @${VERSION}"
