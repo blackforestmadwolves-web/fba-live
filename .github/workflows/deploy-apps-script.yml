@@ -1,0 +1,108 @@
+name: Deploy FBA Apps Script
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps-script/Code.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fba-apps-script-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        run: node --check apps-script/Code.js
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Restore clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          CLASP_JSON: ${{ secrets.CLASP_JSON }}
+        run: |
+          test -n "$CLASPRC_JSON"
+          test -n "$CLASP_JSON"
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          mkdir -p .clasp-work
+          printf '%s' "$CLASP_JSON" > .clasp-work/.clasp.json
+
+      - name: Pull complete current Google project
+        working-directory: .clasp-work
+        run: |
+          npx --yes @google/clasp@latest pull
+          test -f Code.js
+          test -f Index.html
+          test -f appsscript.json
+
+      - name: Back up current Google source
+        run: |
+          mkdir -p "$RUNNER_TEMP/apps-script-backup"
+          cp .clasp-work/Code.js "$RUNNER_TEMP/apps-script-backup/Code.js"
+          cp .clasp-work/Index.html "$RUNNER_TEMP/apps-script-backup/Index.html"
+          cp .clasp-work/appsscript.json "$RUNNER_TEMP/apps-script-backup/appsscript.json"
+
+      - name: Upload rollback backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: apps-script-before-${{ github.run_number }}
+          path: ${{ runner.temp }}/apps-script-backup
+          retention-days: 30
+
+      - name: Stage reviewed Code.js
+        id: changes
+        run: |
+          if cmp -s apps-script/Code.js .clasp-work/Code.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Google already has this Code.js; no deployment needed."
+          else
+            cp apps-script/Code.js .clasp-work/Code.js
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push source to Google Apps Script
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: .clasp-work
+        run: npx --yes @google/clasp@latest push --force
+
+      - name: Create immutable Apps Script version
+        if: steps.changes.outputs.changed == 'true'
+        id: version
+        working-directory: .clasp-work
+        run: |
+          DESCRIPTION="GitHub ${GITHUB_SHA::7}"
+          OUTPUT="$(npx --yes @google/clasp@latest version "$DESCRIPTION")"
+          printf '%s\n' "$OUTPUT"
+          VERSION="$(printf '%s\n' "$OUTPUT" | sed -nE 's/.*version[[:space:]]+([0-9]+).*/\1/p' | tail -n 1)"
+          test -n "$VERSION"
+          echo "number=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update existing web-app deployment
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: .clasp-work
+        env:
+          DEPLOYMENT_ID: AKfycby02oSRlkddDZfq1od7DXtKkPVgGScoJBa9x-Jsj50LF1sHUYnfIRicV3KTIZRQI9Sh
+          VERSION: ${{ steps.version.outputs.number }}
+        run: npx --yes @google/clasp@latest redeploy "$DEPLOYMENT_ID" "$VERSION" "GitHub ${GITHUB_SHA::7}"
+
+      - name: Confirm deployment exists
+        if: steps.changes.outputs.changed == 'true'
+        working-directory: .clasp-work
+        env:
+          DEPLOYMENT_ID: AKfycby02oSRlkddDZfq1od7DXtKkPVgGScoJBa9x-Jsj50LF1sHUYnfIRicV3KTIZRQI9Sh
+        run: npx --yes @google/clasp@latest deployments | grep -F "$DEPLOYMENT_ID"
