@@ -2198,6 +2198,7 @@ function buildDraftTop10V5_() {
  * Privater, kurzlebiger Gerätezugang. Der Einmal-PIN wird ausschließlich
  * einem Tabellen-Editor im Apps-Script-Menü angezeigt. Weder PIN noch
  * Sitzungsschlüssel werden in einem Tabellenblatt oder im Frontend gespeichert.
+ * Dieser Block ist zugleich der v28-Produktivmarker für den Web-App-Deploy.
  */
 var MATCHUP_MONSTER_V28 = {
   pinCacheKey: 'FBA_MONSTER_PIN_V28',
