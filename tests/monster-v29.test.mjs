@@ -66,6 +66,41 @@ assert.deepEqual(JSON.parse(JSON.stringify(context.fantasyWeekWindowV30_(2))),{
 assert.deepEqual(JSON.parse(JSON.stringify(context.fantasyWeekWindowV30_(4))),{
   week:4,start:"2026-11-09",end:"2026-11-15",lookaheadEnd:"2026-11-16"
 });
+assert.match(context.espnTeamScheduleGamesV30_.toString(),/seasontype=2/,"ESPN-Team-Schedule muss ausdrücklich die Regular Season anfordern");
+
+let requestedScoreboardUrl="";
+context.UrlFetchApp.fetch=url=>{
+  requestedScoreboardUrl=String(url);
+  return {getResponseCode:()=>200,getContentText:()=>JSON.stringify({events:[{
+    id:"opening-night",date:"2026-10-20T23:00:00Z",competitions:[{date:"2026-10-20T23:00:00Z",competitors:[{team:{abbreviation:"BOS"}},{team:{abbreviation:"DET"}}]}]
+  }]})};
+};
+const liveScoreboard=context.espnScoreboardGamesV30_(context.fantasyWeekWindowV30_(1));
+assert.match(requestedScoreboardUrl,/limit=500&dates=20261020-20261026/,"ESPN-Scoreboard wird als eine vollständige Wochenbereichsabfrage geladen");
+assert.equal(liveScoreboard.length,1,"ESPN-Bereichsantwort wird geparst");
+context.UrlFetchApp={};
+
+const officialWeek1=context.nbaWeekScheduleV30_(1,true);
+assert.equal(officialWeek1.games.length,52,"Woche 1 braucht 43 Spiele plus neun Spiele am Montag-Lookahead");
+assert.equal(officialWeek1.games.filter(game=>game.date<=officialWeek1.rangeEnd).length,43,"NBA-Woche 1 umfasst 43 offizielle Spiele");
+assert.equal(officialWeek1.teamGames.PHI,4,"Philadelphia spielt in Woche 1 viermal");
+assert.equal(officialWeek1.teamGames.BOS,2,"Boston spielt in Woche 1 zweimal");
+assert.equal(officialWeek1.officialFallback,true,"Bei nicht erreichbaren Live-Feeds greift der verifizierte NBA.com-Testplan");
+assert.deepEqual(Array.from(officialWeek1.backToBack.filter(row=>row.crossWeek),row=>row.team),["IND","MEM","MIN","OKC","UTA"],"Sonntag-zu-Montag-B2Bs von Woche 1 stimmen");
+cache.put(context.MATCHUP_MONSTER_V30.scheduleCacheKey+"1",JSON.stringify({games:["alt"]}));
+assert.equal(context.nbaWeekScheduleV30_(1,false).games[0],"alt","Normaler Abruf darf den gültigen Schedule-Cache verwenden");
+assert.equal(context.nbaWeekScheduleV30_(1,true).games.length,52,"Live neu laden umgeht den Schedule-Cache vollständig");
+
+const officialWeek2=context.nbaWeekScheduleV30_(2,true);
+assert.equal(officialWeek2.games.length,64,"Woche 2 braucht 49 Spiele plus 15 Spiele am Montag-Lookahead");
+assert.equal(officialWeek2.games.filter(game=>game.date<=officialWeek2.rangeEnd).length,49,"NBA-Woche 2 umfasst 49 offizielle Spiele");
+assert.equal(officialWeek2.teamGames.PHX,2,"Phoenix spielt in Woche 2 zweimal");
+assert.equal(officialWeek2.teamGames.BOS,4,"Boston spielt in Woche 2 viermal");
+assert.deepEqual(Array.from(officialWeek2.backToBack.filter(row=>row.crossWeek),row=>row.team),["BKN","BOS","GSW","IND","LAC","LAL","ORL","TOR"],"Sonntag-zu-Montag-B2Bs von Woche 2 stimmen");
+const unavailableWeek3=context.nbaWeekScheduleV30_(3,true);
+assert.equal(unavailableWeek3.games.length,0,"Der Zwei-Wochen-Testfallback darf niemals als unvollständiger Spielplan für Woche 3 dienen");
+assert.ok(unavailableWeek3.dataIssue,"Ohne Live-Daten muss eine spätere Woche transparent als nicht verfügbar markiert sein");
+
 const b2b=context.monsterBackToBackV30_([
   {id:"1",date:"2026-10-24",teams:["BOS","NYK"]},
   {id:"2",date:"2026-10-25",teams:["BOS","LAL"]},
@@ -81,4 +116,4 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-console.log("PASS · Matchup Monster v30 backend tests");
+console.log("PASS · Matchup Monster v31 backend tests");
