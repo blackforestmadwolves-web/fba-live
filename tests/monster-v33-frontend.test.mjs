@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v40 regression suite: Monster, Free Agency, live ADP, responsive layout and pickup tools.
+// v41 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v40-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v41-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v40-20260904/,"Produktions-Build muss v40 ausweisen");
+assert.match(html,/war-room-monster-v41-20260904/,"Produktions-Build muss v41 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -106,16 +106,16 @@ assert.match(html,/monsterB2bDate\(group\.first\)[\s\S]* auf [\s\S]*monsterB2bDa
   "Das Radar braucht das kompakte numerische Datum unter dem Tagespaar");
 assert.doesNotMatch(functionSource("monsterB2bMarkup"),/Atlanta Hawks|Chicago Bulls|MONSTER_NBA_NAMES/,
   "Die B2B-Teamzeile darf Kürzel und ausgeschriebenen Namen nicht doppelt zeigen");
-assert.match(html,/\.monster-b2b-player\{[^}]*grid-template-columns:88px[^}]*min-height:104px[^}]*overflow:hidden/,
-  "B2B-Spielerkarten müssen dem Portrait sichtbar mehr Kartenhöhe geben");
-assert.match(html,/\.monster-b2b-player-art img\{[^}]*width:142px[^}]*height:104px[^}]*object-fit:contain[^}]*drop-shadow/,
-  "B2B-Portraits müssen bei gleicher Höhe die vollständige Schulter als 3D-Layer zeigen");
-assert.match(html,/\.monster-b2b-player-copy\{[^}]*z-index:3[^}]*padding-left:36px/,
-  "Der Spielertext muss lesbar vor dem überlappenden Schulter-Layer liegen");
+assert.match(html,/\.monster-b2b-player\{[^}]*grid-template-columns:88px minmax\(0,1fr\) 90px[^}]*min-height:104px[^}]*overflow:hidden/,
+  "B2B-Spielerkarten müssen dem Namen und der festen Rangspalte kontrolliert Platz geben");
+assert.match(html,/\.monster-b2b-player-art img\{[^}]*left:-22px[^}]*width:142px[^}]*height:104px[^}]*object-fit:contain[^}]*drop-shadow/,
+  "Die großen Spielerbilder müssen unverändert hoch bleiben und mit angeschnittener linker Schulter nach links rücken");
+assert.match(html,/\.monster-b2b-player-copy\{[^}]*z-index:3[^}]*padding-left:6px[\s\S]*\.monster-b2b-player-copy>b\{[^}]*white-space:normal[^}]*-webkit-line-clamp:2/,
+  "Der gewonnene Platz muss Spielernamen über maximal zwei Zeilen zugutekommen");
 assert.match(functionSource("monsterPlayer"),/espnFantasyPositions[\s\S]*positionMap\[id\][\s\S]*fantasyPositions/,
   "Auch freie Spieler müssen ihre ligaabhängigen ESPN-Positionen aus dem vollständigen Spielerpool erhalten");
-assert.match(functionSource("monsterB2bPlayersMarkup"),/monsterEspnFantasyPositionLabel[\s\S]*monster-b2b-player-rank[\s\S]*ESPN #[\s\S]*<b>\$\{E\(player\.name\)\}<\/b>[\s\S]*monster-b2b-player-meta[\s\S]*player\.nba[\s\S]*position[\s\S]*vs\./,
-  "B2B-Karten müssen ESPN-Rang, Spielername sowie NBA-Team, ESPN-Position und beide Gegner hierarchisch zeigen");
+assert.match(functionSource("monsterB2bPlayersMarkup"),/<b title="\$\{E\(player\.name\)\}">\$\{E\(player\.name\)\}<\/b>[\s\S]*monster-b2b-player-meta[\s\S]*player\.nba[\s\S]*position[\s\S]*vs\.[\s\S]*monster-b2b-player-value[\s\S]*monster-b2b-player-rank[\s\S]*ESPN #[\s\S]*value\.label[\s\S]*monster-b2b-player-detail[\s\S]*detailParts/,
+  "Name und Gegner müssen links stehen; ESPN-Rang, FBA-Wert und getrennte Detailzeilen rechts");
 const espnPositionLabel=loadFunction("monsterEspnFantasyPositionLabel",{Set});
 assert.equal(espnPositionLabel({fantasyPositions:"SG,PG,UTIL,BE"}),"PG, SG",
   "ESPN-Mehrfachberechtigungen müssen in fester Basketball-Reihenfolge erscheinen; Flex und Bank bleiben draußen");
@@ -147,6 +147,14 @@ assert.doesNotMatch(html,/Wahrscheinlichstes Szenario|Ein Balance-Balken je FBA-
   "Doppelte Meta-Erklärungen müssen aus der kompakten Ansicht entfernt sein");
 assert.match(functionSource("pgMonster"),/monster-projection-score[\s\S]*<i>:<\/i>/,
   "Der neue Matchup-Score trennt beide Teams neutral mit einem Doppelpunkt");
+assert.match(functionSource("pgMonster"),/monster-projection-team home[\s\S]*monster-projection-team-main">\$\{chip\(rightTeam\)\}<span><b>\$\{E\(T\(rightTeam\)\.s\|\|rightTeam\)\}<\/b>/,
+  "Das Heimteam muss wie das Auswärtsteam mit Logo vor Name und GP aufgebaut sein");
+assert.doesNotMatch(functionSource("monsterPointRowsMarkup"),/T\(teamA\)\.c|T\(teamB\)\.c|--monster-left|--monster-right/,
+  "Matchup-Balken dürfen keine Teamfarben mehr aus dem Teamprofil übernehmen");
+assert.match(html,/\.monster-balance-track\.lean-left\{[^}]*rgba\(220,226,236,[\s\S]*\.monster-balance-track\.lean-right\{/,
+  "Die Confidence-Rail muss Favorit und Außenseiter ausschließlich mit neutralem Silber und Graphit unterscheiden");
+assert.match(html,/\.monster-balance-track::after\{[^}]*left:var\(--monster-split\)/,
+  "Der helle Rail-Marker muss den tatsächlichen Prozent-Split statt starr die Mitte anzeigen");
 assert.match(html,/data-testid="monster-season-pickup-impact"/,
   "Ein gewählter Pickup muss einen eigenen Season-Impact-Vergleich erhalten");
 assert.match(functionSource("monsterSeasonProjectionPickupImpact"),/monsterSeasonProjectionCalculate\(monsterSeasonProjectionInputs\(pickup\)\)/,
@@ -291,6 +299,10 @@ assert.match(rightSidePickup,/100<\/strong><small>unverändert/,
   "Der linke Vergleichsgegner muss bei einem Pickup des rechten Analyse-Teams unverändert bleiben");
 assert.match(rightSidePickup,/95<\/strong><small>vorher 80/,
   "Der neue Wert des rechten Analyse-Teams muss seinen eigenen Vorher-Wert zeigen");
+assert.match(rightSidePickup,/monster-balance-track lean-right/,
+  "Die stärkere rechte Seite muss eine neutrale helle Rail-Fläche erhalten");
+assert.match(rightSidePickup,/monster-balance-percent left soft[^>]*>40%/);
+assert.match(rightSidePickup,/monster-balance-percent right strong[^>]*>60%/);
 
 const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
 const requestCalls=[],requestResolvers=[];
@@ -432,24 +444,65 @@ assert.match(html,/FantasyPros[^\n]+Adapter[^\n]+false|FantasyPros API vorbereit
 assert.match(html,/Hashtag[^\n]+Adapter[^\n]+false|Hashtag Export vorbereitet/,
   "Hashtag darf weiterhin nur als vorbereitete Quelle erscheinen");
 
-assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Upside[\s\S]*B2B Edge/,
-  "Free Agency braucht Hot Zone, Upside und B2B Edge");
+assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Rest-of-Season[\s\S]*Upside/,
+  "Free Agency braucht eine echte ROS-Hot-Zone und Upside ohne Wochen-B2B-Fokus");
+assert.doesNotMatch(functionSource("freeAgencyZones"),/B2B Edge|Wochen-Impact/,
+  "Das allgemeine Free-Agent-Board darf keinen B2B- oder Wochenfokus mehr haben");
 assert.match(functionSource("pgFreeAgency"),/Free-Agent Board/,
   "Free Agency braucht das lange Spieler-Board");
 assert.match(functionSource("pgFreeAgency"),/ESPN-Position[\s\S]*NBA-Team[\s\S]*Sortierung/,
   "Die 100er-Liste muss nach ESPN-Position und NBA-Team filter- sowie mehrfach sortierbar sein");
-assert.match(functionSource("freeAgencyRows"),/owned\.has\(id\)/,
+assert.match(functionSource("pgFreeAgency"),/fa-card-list[\s\S]*Rest-of-Season-Projektionen/,
+  "Das Board muss als lesbare ROS-Kartenliste statt als breite Mobil-Tabelle rendern");
+assert.doesNotMatch(functionSource("pgFreeAgency"),/Rest-GP|<th>B2B<\/th>|Live-Fenster/,
+  "Rest-GP, B2B und aktuelles Wochenfenster gehören nicht ins allgemeine Free-Agent-Scouting");
+assert.match(html,/\.fa-player-art img\{[^}]*width:104px[\s\S]*\.fa-stat b\{[^}]*font-size:15px/,
+  "Spielerbilder und Projektionszahlen müssen auf dem Free-Agent-Board deutlich lesbar sein");
+assert.match(functionSource("freeAgencyRows"),/owned\.has\(String\(row\.player\.id\)\)/,
   "Aktuell gerosterte Spieler dürfen nie in der Free-Agency-Liste erscheinen");
 assert.match(functionSource("freeAgencyFilteredRows"),/slice\(0,100\)/,
   "Das Free-Agent Board muss hart auf 100 Spieler begrenzt sein");
-const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"hot"};
+const projectionStats=["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"];
+const rosBase={PTS:25,REB:12,AST:4,"3PM":2,STL:1,BLK:3,FGM:9,FGA:18,FTM:5,FTA:6};
+const rosActual={PTS:10,REB:10,AST:2,"3PM":1,STL:1,BLK:2,FGM:4,FGA:15,FTM:1,FTA:2};
+const rosRecord={id:"wemby",projectedGp:70,base:rosBase,actual:{gp:1,totals:rosActual}};
+const seasonFinish=loadFunction("monsterProjectionSeasonFinish",{
+  monsterProjectionRecordIssue:()=>"",monsterProjectionBase:record=>record.base,MONSTER_PROJECTION_STATS:projectionStats,Number,Math
+});
+const rosProjection=loadFunction("freeAgencyRosProjection",{
+  monsterProjectionEngineState:()=>({ready:true,engine:{}}),MONSTER_STATE:{data:{}},monsterProjectionPlayerRecord:()=>rosRecord,
+  monsterProjectionRecordIssue:()=>"",monsterProjectionSeasonFinish:seasonFinish,MONSTER_PROJECTION_STATS:projectionStats,Number
+})({id:"wemby"},{ready:true,engine:{}});
+assert.equal(rosProjection.actualGp,1);
+assert.equal(rosProjection.remainingGp,69);
+assert.equal(rosProjection.totals.PTS,1735);
+assert.ok(Math.abs(rosProjection.perGame.PTS-24.785714285714285)<1e-12,
+  "Das Free-Agent-Board muss 10 Ist-Punkte plus 69 mal 25 Projection exakt als 24,785714 ROS ausgeben");
+assert.ok(Math.abs(rosProjection.perGame["FG%"]-(4+69*9)/(15+69*18))<1e-12,
+  "ROS-FG% muss aus summierten Treffern und Versuchen entstehen");
+const relevantStatus=loadFunction("freeAgencyInjuryStatus",{String});
+assert.equal(relevantStatus({injuryStatus:"ACTIVE"}),"","Gesunde Spieler dürfen kein ACTIVE-Label bekommen");
+assert.equal(relevantStatus({injuryStatus:"DAY_TO_DAY"}),"DTD");
+assert.equal(relevantStatus({injuryStatus:"OUT"}),"OUT");
+const freeAgentCard=loadFunction("freeAgencyPlayerRow",{
+  freeAgencyInjuryStatus:relevantStatus,draftNormalize:value=>String(value||"").toLowerCase(),de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),
+  DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],freeAgencyProjectionValue:(cat,value)=>cat.includes("%")?`${(value*100).toFixed(1)}%`:Number(value).toFixed(1),
+  freeAgencyZ:value=>`${value} z`,freeAgencySigned:value=>String(value),E:value=>String(value),espnPlayerHeadshot:id=>`photo-${id}`,imageFallbackAttr:()=>"",String,Number
+})({player:{id:"kpj",name:"Kevin Porter Jr.",nba:"MIL",injuryStatus:"ACTIVE",photo:"kpj.png"},positions:"SG",espnRank:93.4,fbaRank:20,upside:73,profile:{best:"AST",worst:"FT%",z:{AST:1.2,"FT%":-1.1}},projection:{basis:"IST + REST",detail:"1 echtes Spiel · 69 ESPN-Projektionsspiele",perGame:{PTS:24.7857,REB:5,AST:6,"3PM":2,STL:1,BLK:.4,"FG%":.48,"FT%":.75}}},0);
+assert.equal((freeAgentCard.match(/class="fa-stat"/g)||[]).length,8,"Jede Karte muss alle acht großen ROS-Projektionen zeigen");
+assert.equal((freeAgentCard.match(/MIL/g)||[]).length,1,"NBA-Team darf auf der Spielerkarte nicht doppelt erscheinen");
+assert.match(freeAgentCard,/Kevin Porter Jr\.[\s\S]*MIL · SG/,
+  "ESPN-Position muss direkt unter dem Spielernamen neben dem NBA-Team stehen");
+assert.doesNotMatch(freeAgentCard,/ACTIVE|B2B|Rest-GP/,
+  "Gesunde Spieler und Wochenfelder dürfen die ROS-Karte nicht vermüllen");
+const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"ros"};
 const filterFreeAgents=loadFunction("freeAgencyFilteredRows",{
   FREE_AGENCY_STATE:freeAgencyFilterState,
   monsterNbaKey:value=>String(value||"").toUpperCase(),
-  draftNormalize:value=>String(value||"").toLowerCase(),
+  draftNormalize:value=>String(value||"").toLowerCase(),DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],
   String,Number
 });
-const filterRows=Array.from({length:130},(_,index)=>({hotRank:index+1,fbaRank:index+1,espnRank:130-index,upside:index,games:index%5,positions:index%2?"PG, SG":"C",player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL"}}));
+const filterRows=Array.from({length:130},(_,index)=>({fbaRank:index+1,espnRank:130-index,upside:index,positions:index%2?"PG, SG":"C",projection:{perGame:{PTS:index}},player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL"}}));
 assert.equal(filterFreeAgents(filterRows.slice()).length,100,"Auch ein großer ESPN-Pool darf maximal 100 Free Agents rendern");
 freeAgencyFilterState.position="C";
 assert.equal(filterFreeAgents(filterRows.slice()).length,65,"ESPN-Positionsfilter müssen Mehrfachberechtigungen exakt berücksichtigen");
@@ -481,4 +534,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v40 frontend regression tests");
+console.log("PASS · Matchup Monster v41 frontend regression tests");

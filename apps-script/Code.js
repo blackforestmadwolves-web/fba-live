@@ -3987,7 +3987,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
   var projectionEngine=buildProjectionEnginePayloadV36_(nbaSchedule,nbaSeasonSchedule),projectionWaiting=projectionEngine.baseline.feedStatus==='WAITING_ESPN_PROJECTIONS';
   overlayProjectionEventStatusV36_(nbaSchedule,nbaSeasonSchedule,projectionEngine);
-  return {ok:true,version:40,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,espnPlayerPool:espnPlayerPool,adpTrend:adpPayload,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
+  return {ok:true,version:41,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,espnPlayerPool:espnPlayerPool,adpTrend:adpPayload,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -4010,7 +4010,7 @@ function refreshMonsterEspnV35_(requestedWeek) {
   if (!season || season.persistedFallback) throw new Error('Der NBA-Spielplan konnte nicht frisch bestätigt werden. Der letzte gültige Stand bleibt geschützt erhalten.');
   var dailyStatus = sync.dailyStatus || (sync.playerStatus === 'OK' ? 'READY' : 'PARTIAL');
   var fullSync = sync.playerStatus === 'OK' && dailyStatus === 'READY';
-  return {ok:true,version:40,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
+  return {ok:true,version:41,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
     lastSuccess:sync.lastSuccess||null,playerLastSuccess:sync.playerLastSuccess||null,playerStatus:sync.playerStatus||null,
     projectionStatus:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS',profileStatus:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES',
     rosterCount:Number(sync.rosterCount||0),playerCount:Number(sync.playerCount||0),scheduleGames:Number(season.gameCount||(season.games||[]).length||0),
