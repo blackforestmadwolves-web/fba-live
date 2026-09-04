@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v32-20260904">
+<meta name="fba-build" content="war-room-monster-v33-20260904">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1004,6 +1004,50 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
   .page-monster .monster-row b{font-size:12px}.page-monster .monster-row span{font-size:10px}.page-monster .monster-private-note{font-size:10px}
 }
 @media(max-width:390px){.monster-scoreboard-v30{grid-template-columns:minmax(65px,1fr) auto 28px auto minmax(65px,1fr);gap:4px}.monster-scoreboard-v30 .monster-team .chip{width:52px;height:52px}.monster-scoreboard-v30 .monster-team b{font-size:12px}.monster-score-v30{font-size:27px}.monster-score-before,.monster-score-delta{font-size:7px}.monster-vs-v30{width:28px;height:28px}.monster-point-v30{grid-template-columns:55px minmax(0,1fr) 49px}.monster-point-value{font-size:11px}.monster-point-labels span{display:none}.monster-point-labels{grid-template-columns:1fr;justify-items:center}.monster-balance-percent.left{left:7px}.monster-balance-percent.right{right:7px}.monster-b2b-player{grid-template-columns:38px minmax(0,1fr)}.monster-b2b-player img{width:38px;height:50px}.monster-b2b-player-value{grid-column:2;text-align:left}}
+
+/* v33: private Saison-/Conference-Prognose. */
+.monster-season-card{position:relative;overflow:hidden}.monster-season-card::before{content:"";position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,#f4712c,#7557ff,#22c98a)}
+.monster-season-head{display:flex;align-items:center;justify-content:space-between;gap:16px}.monster-season-head-copy{max-width:860px}.monster-season-head-copy p{margin:6px 0 0;color:var(--dim);font-size:11px;line-height:1.55}
+.monster-season-secret{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;border:1px solid rgba(244,113,44,.2);background:rgba(244,113,44,.08);color:#ffad70;font-size:8px;font-weight:950;letter-spacing:.75px;text-transform:uppercase;white-space:nowrap}
+.monster-season-model{margin:12px 0 0;padding:10px 12px;border-radius:13px;background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.06);color:#aeb7cb;font-size:10px;font-weight:800;line-height:1.5}
+.monster-season-action{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:15px;padding:14px;border-radius:16px;background:linear-gradient(115deg,rgba(244,113,44,.08),rgba(91,124,250,.06));border:1px solid rgba(255,255,255,.065)}.monster-season-action span{color:#c1c9da;font-size:11px;line-height:1.5}.monster-season-action button{min-height:48px;padding:0 20px;border-radius:14px;white-space:nowrap}
+.monster-season-error{margin-top:15px;padding:13px 14px;border-radius:15px;border:1px solid rgba(255,89,104,.24);background:rgba(255,73,91,.075);color:#ff9aa3;font-size:11px;font-weight:800;line-height:1.55}.monster-season-error b{display:block;margin-bottom:3px;color:#ffd6da;font-size:12px}
+.monster-season-coverage{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:15px;padding:11px 13px;border-radius:14px;border:1px solid rgba(255,179,71,.23);background:rgba(255,161,54,.075);color:#ffd19b;font-size:10px;font-weight:900;line-height:1.45}.monster-season-coverage span:last-child{color:#9da7bc;font-size:9px;text-align:right}
+.monster-season-summary{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}.monster-season-summary span{display:inline-flex;padding:6px 9px;border-radius:999px;background:rgba(34,201,138,.07);border:1px solid rgba(34,201,138,.15);color:#82e8c1;font-size:9px;font-weight:900}
+.monster-season-tables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:15px}.monster-season-conference{min-width:0;padding:13px;border-radius:18px;background:rgba(4,6,10,.24);border:1px solid rgba(255,255,255,.06)}.monster-season-conference h3{margin:0 0 10px;color:#fff;font-size:16px}.monster-season-table-wrap{overflow-x:auto}.monster-season-table{width:100%;min-width:620px;border-collapse:collapse;font-variant-numeric:tabular-nums}.monster-season-table th{padding:7px 6px;color:#778198;font-size:7.5px;font-weight:950;letter-spacing:.55px;text-align:right;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.075)}.monster-season-table th:nth-child(2){text-align:left}.monster-season-table td{padding:9px 6px;color:#dfe4ef;font-size:10px;font-weight:800;text-align:right;border-bottom:1px solid rgba(255,255,255,.045)}.monster-season-table tr:last-child td{border-bottom:0}.monster-season-table td:first-child{width:22px;color:#7d879c}.monster-season-table td:nth-child(2){text-align:left}.monster-season-team{display:flex;align-items:center;gap:7px;min-width:160px}.monster-season-team .chip{width:27px;height:27px;margin:0;flex:0 0 auto}.monster-season-team b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}.monster-season-positive{color:#70e1b5!important}.monster-season-negative{color:#ff8d98!important}
+@media(max-width:1100px){.monster-season-tables{grid-template-columns:1fr}}
+@media(max-width:720px){.monster-season-head{align-items:flex-start}.monster-season-secret{margin-top:2px}.monster-season-action{display:grid}.monster-season-action button{width:100%}.monster-season-coverage{display:grid}.monster-season-coverage span:last-child{text-align:left}.monster-season-conference{padding:10px}.monster-season-table{min-width:570px}}
+/* v33: kompakte Desktop-Dichte; bestehende Mobile-Darstellung bleibt unveraendert. */
+@media(min-width:1101px){
+  .page-monster .monster-hero{display:flex;align-items:center;min-height:64px;padding:14px 20px;border-radius:20px}
+  .page-monster .monster-hero .draft-kicker,.page-monster .monster-hero p{display:none}
+  .page-monster .monster-hero h1{margin:0;font-size:31px;line-height:1;letter-spacing:-1px}
+  .page-monster .monster-lock-state{top:50%;right:20px;transform:translateY(-50%)}
+  .page-monster .draft-source-strip{margin-top:8px;gap:6px}.page-monster .source-chip{padding:5px 8px;font-size:8px}
+  .page-monster .monster-controls{gap:8px;margin:10px 0 12px}
+  .monster-control-field{gap:4px}.monster-control-field>span{font-size:8px}
+  .page-monster .monster-controls select,.page-monster .monster-controls button{min-height:46px;padding:0 13px;border-radius:13px;font-size:13px}
+  .page-monster .monster-card{padding:16px;border-radius:20px}.page-monster .monster-card h2{font-size:22px;letter-spacing:-.4px}
+  .page-monster .monster-card-head{margin-bottom:10px}.monster-week-badge{min-height:24px;padding:4px 8px;font-size:8px}
+  .monster-scenario-banner{margin-bottom:8px;padding:7px 10px;border-radius:11px;font-size:10px}.monster-scenario-banner span{display:none}
+  .monster-scoreboard-v30{grid-template-columns:minmax(100px,1fr) auto 32px auto minmax(100px,1fr);gap:12px;margin:0 0 10px;padding:11px 14px;border-radius:16px}
+  .monster-scoreboard-v30 .monster-team{gap:3px}.monster-scoreboard-v30 .monster-team .chip{width:58px;height:58px}
+  .monster-scoreboard-v30 .monster-team b{font-size:16px}.monster-scoreboard-v30 .monster-team span{font-size:9px}
+  .monster-score-v30{font-size:36px;letter-spacing:-1.5px}.monster-score-stack{gap:2px}.monster-score-delta{padding:2px 5px;font-size:8px}
+  .monster-vs-v30{width:32px;height:32px;font-size:9px}
+  .monster-data-issue{margin-bottom:8px;padding:8px 10px;font-size:10px}
+  .monster-point-v30{grid-template-columns:64px minmax(0,1fr) 58px;gap:8px;padding:7px 9px;border-radius:12px}
+  .monster-point-value{font-size:14px}.monster-point-value-stack small{font-size:7px}
+  .monster-point-labels{gap:6px;margin-bottom:3px;font-size:8px}.monster-point-labels b{font-size:11px}
+  .monster-point-impact{min-height:14px;gap:4px;margin:-1px 0 3px;font-size:8px}.monster-point-impact b{padding:2px 4px;font-size:8px}
+  .monster-balance-track{height:22px}.monster-balance-percent{font-size:10px}.monster-balance-percent.left{left:8px}.monster-balance-percent.right{right:8px}
+  .monster-grid>.monster-card>.monster-private-note{display:none}
+  .monster-grid>div .monster-hunt{flex-wrap:wrap;overflow:visible;gap:5px}
+  .monster-grid>div .monster-hunt button{min-width:42px;min-height:34px;padding:0 9px;font-size:9px}
+}
+@media(min-width:1280px){
+  .monster-points-v30{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,auto);grid-auto-flow:column;gap:7px}
+}
 </style>
 </head>
 <body>
@@ -1872,11 +1916,11 @@ function pgDraft(){
   return `${draftHero()}${panel}<div class="note" style="margin-top:12px">Draft-Picks und Hunt/Punt bleiben in diesem Test auf deinem Gerät. Der Spielerpool umfasst 500 ESPN-Spieler; 381 besitzen bereits eine verwertbare Statistikbasis. Tiefere Spieler ohne Projektion bleiben suchbar, werden aber ausdrücklich als „noch ohne Projektion“ markiert.</div>`;
 }
 
-/* ===================== MATCHUP MONSTER v32 ===================== */
+/* ===================== MATCHUP MONSTER v33 ===================== */
 const MONSTER_SESSION_KEY="fba_monster_device_v29";
 const MONSTER_TEAM_KEY="fba_monster_analysis_team_v32";
 function storedMonsterTeam(){try{return localStorage.getItem(MONSTER_TEAM_KEY)||null}catch(e){return null}}
-const MONSTER_STATE={data:null,loading:false,error:null,teamA:storedMonsterTeam(),teamB:null,week:1,hunt:null,dropId:"",addId:"",b2bHunt:null,b2bOpen:""};
+const MONSTER_STATE={data:null,dataWeek:null,loading:false,error:null,teamA:storedMonsterTeam(),teamB:null,week:1,hunt:null,dropId:"",addId:"",b2bHunt:null,b2bOpen:"",requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false};
 function monsterToken(){try{return localStorage.getItem(MONSTER_SESSION_KEY)||""}catch(e){return ""}}
 function monsterUnlocked(){return Boolean(monsterToken())}
 function monsterJsonp(params){
@@ -1886,20 +1930,49 @@ function openMonsterGate(){
   if(monsterUnlocked()){CUR="monster";render();loadMonsterData(false);return}
   const gate=document.getElementById("monsterGate"),err=document.getElementById("monsterGateError"),pin=document.getElementById("monsterPin");if(err)err.textContent="";if(pin)pin.value="";gate.classList.add("on");setTimeout(()=>pin&&pin.focus(),80);
 }
+function navigatePage(key){
+  if(key==="monster"){openMonsterGate();return}
+  CUR=key;render();
+}
 async function unlockMonster(){
   const pin=document.getElementById("monsterPin"),err=document.getElementById("monsterGateError"),button=document.getElementById("monsterUnlock"),value=String(pin&&pin.value||"").trim();if(!/^\d{6}$/.test(value)){err.textContent="Bitte den 6-stelligen Einmal-PIN eingeben.";return}
   button.disabled=true;err.textContent="Prüfe PIN …";
-  try{const result=await monsterJsonp({monster:"login",pin:value});if(!result||!result.ok)throw new Error(result&&result.error||"PIN abgelehnt.");localStorage.setItem(MONSTER_SESSION_KEY,result.token);document.getElementById("monsterGate").classList.remove("on");CUR="monster";MONSTER_STATE.data=null;MONSTER_STATE.error=null;render();await loadMonsterData(true)}catch(e){err.textContent=e.message||String(e)}finally{button.disabled=false}
+  try{const result=await monsterJsonp({monster:"login",pin:value});if(!result||!result.ok)throw new Error(result&&result.error||"PIN abgelehnt.");localStorage.setItem(MONSTER_SESSION_KEY,result.token);document.getElementById("monsterGate").classList.remove("on");CUR="monster";MONSTER_STATE.data=null;MONSTER_STATE.dataWeek=null;MONSTER_STATE.error=null;render();await loadMonsterData(true)}catch(e){err.textContent=e.message||String(e)}finally{button.disabled=false}
 }
 async function loadMonsterData(force){
-  if(MONSTER_STATE.loading||(!force&&MONSTER_STATE.data))return;const token=monsterToken();if(!token){openMonsterGate();return}MONSTER_STATE.loading=true;MONSTER_STATE.error=null;if(CUR==="monster")render();
-  try{const params={monster:"data",token,week:MONSTER_STATE.week||1};if(force)params.refresh=1;const result=await monsterJsonp(params);if(!result||!result.ok){if(result&&result.locked){localStorage.removeItem(MONSTER_SESSION_KEY);throw new Error("Gerät ist nicht mehr freigeschaltet – bitte neuen Einmal-PIN erzeugen.")}throw new Error(result&&result.error||"Monster-Daten fehlen.")}MONSTER_STATE.data=result;monsterEnsureTeams()}catch(e){MONSTER_STATE.error=e.message||String(e)}finally{MONSTER_STATE.loading=false;if(CUR==="monster")render()}
+  const requestedWeek=Math.max(1,Math.min(20,Number(MONSTER_STATE.week)||1)),requestedForce=Boolean(force);
+  if(MONSTER_STATE.loading){MONSTER_STATE.queuedWeek=requestedWeek;MONSTER_STATE.queuedForce=MONSTER_STATE.queuedForce||requestedForce;return}
+  const loadedWeek=Number(MONSTER_STATE.dataWeek||(MONSTER_STATE.data&&MONSTER_STATE.data.nbaSchedule&&MONSTER_STATE.data.nbaSchedule.matchupWeek)||0);
+  if(!requestedForce&&MONSTER_STATE.data&&loadedWeek===requestedWeek)return;
+  const token=monsterToken();if(!token){openMonsterGate();return}
+  const requestId=++MONSTER_STATE.requestSeq;MONSTER_STATE.activeRequest=requestId;MONSTER_STATE.loading=true;MONSTER_STATE.error=null;if(CUR==="monster")render();
+  let followup=false,followupForce=false;
+  try{
+    const params={monster:"data",token,week:requestedWeek};if(requestedForce)params.refresh=1;const result=await monsterJsonp(params);
+    if(!result||!result.ok){if(result&&result.locked){localStorage.removeItem(MONSTER_SESSION_KEY);throw new Error("Gerät ist nicht mehr freigeschaltet – bitte neuen Einmal-PIN erzeugen.")}throw new Error(result&&result.error||"Monster-Daten fehlen.")}
+    const currentWeek=Math.max(1,Math.min(20,Number(MONSTER_STATE.week)||1));
+    if(requestId!==MONSTER_STATE.activeRequest||requestedWeek!==currentWeek){MONSTER_STATE.queuedWeek=currentWeek;MONSTER_STATE.queuedForce=true}
+    else{const responseWeek=Number(result.nbaSchedule&&result.nbaSchedule.matchupWeek||0);if(responseWeek!==requestedWeek)throw new Error(`ESPN-Antwort gehört zu FBA-Woche ${responseWeek||"?"} statt ${requestedWeek}.`);MONSTER_STATE.data=result;MONSTER_STATE.dataWeek=requestedWeek;monsterEnsureTeams()}
+  }catch(e){
+    const currentWeek=Math.max(1,Math.min(20,Number(MONSTER_STATE.week)||1));
+    if(requestId!==MONSTER_STATE.activeRequest||requestedWeek!==currentWeek){MONSTER_STATE.queuedWeek=currentWeek;MONSTER_STATE.queuedForce=true}else MONSTER_STATE.error=e.message||String(e);
+  }finally{
+    if(requestId===MONSTER_STATE.activeRequest){
+      MONSTER_STATE.loading=false;MONSTER_STATE.activeRequest=0;
+      const currentWeek=Math.max(1,Math.min(20,Number(MONSTER_STATE.week)||1)),queuedWeek=MONSTER_STATE.queuedWeek,queuedForce=MONSTER_STATE.queuedForce;
+      MONSTER_STATE.queuedWeek=null;MONSTER_STATE.queuedForce=false;
+      followup=queuedWeek!==null&&Number(queuedWeek)===currentWeek&&(queuedForce||Number(MONSTER_STATE.dataWeek||0)!==currentWeek);followupForce=queuedForce;
+      if(CUR==="monster")render();
+    }
+  }
+  if(followup)await loadMonsterData(followupForce);
 }
 function monsterTeams(){return draftTeams()}
 function monsterFallbackWeekDates(week){const n=Math.max(1,Math.min(20,Number(week)||1));if(n===1)return {start:"2026-10-20",end:"2026-10-25"};const start=new Date(Date.UTC(2026,9,26)+(n-2)*7*86400000),end=new Date(start.getTime()+6*86400000);return {start:start.toISOString().slice(0,10),end:end.toISOString().slice(0,10)}}
 function monsterSchedule(){
   const backend=MONSTER_STATE.data&&Array.isArray(MONSTER_STATE.data.schedule)?MONSTER_STATE.data.schedule:[],local=Array.isArray(D.schedule)?D.schedule:[];
-  return (backend.length?backend:local).filter(x=>x&&x.away&&x.home).map(x=>{const dates=monsterFallbackWeekDates(x.week);return Object.assign({},x,{away:canonicalTeamName(x.away),home:canonicalTeamName(x.home),start:x.start||dates.start,end:x.end||dates.end})});
+  const rows=MONSTER_STATE.data?backend:local;
+  return rows.filter(x=>x&&x.away&&x.home).map(x=>{const dates=monsterFallbackWeekDates(x.week);return Object.assign({},x,{away:canonicalTeamName(x.away),home:canonicalTeamName(x.home),start:x.start||dates.start,end:x.end||dates.end})});
 }
 function monsterWeeks(){
   const byWeek=new Map();monsterSchedule().forEach(game=>{const week=Number(game.week)||1;if(!byWeek.has(week)){const dates=monsterFallbackWeekDates(week);byWeek.set(week,{week,start:game.start||dates.start,end:game.end||dates.end})}});
@@ -1941,8 +2014,29 @@ function monsterRoster(){
 function monsterRosterFor(team){return monsterRoster().filter(r=>r.team===team).map(monsterPlayer).filter(p=>p.id)}
 function monsterNbaKey(value){const raw=String(value||"").toUpperCase().replace(/[^A-Z]/g,""),aliases={GS:"GSW",WSH:"WAS",SA:"SAS",NO:"NOP",NY:"NYK",UTAH:"UTA"};return aliases[raw]||raw}
 function monsterNbaGames(player){
-  const nba=((MONSTER_STATE.data||{}).nbaSchedule)||{},games=Array.isArray(nba.games)?nba.games:[],team=monsterNbaKey(player.nba),end=String(nba.rangeEnd||"");
-  return games.filter(g=>String(g.date||"")<=end&&!/FINAL/i.test(String(g.status||""))&&Array.isArray(g.teams)&&g.teams.map(monsterNbaKey).includes(team)).length;
+  const nba=((MONSTER_STATE.data||{}).nbaSchedule)||{},games=Array.isArray(nba.games)?nba.games:[],team=monsterNbaKey(player.nba),start=String(nba.rangeStart||""),end=String(nba.rangeEnd||"");
+  return games.filter(g=>String(g.date||"")>=start&&String(g.date||"")<=end&&!/FINAL|POSTPONED|SUSPENDED|CANCELLED|CANCELED|REMOVED/i.test(String(g.status||""))&&Array.isArray(g.teams)&&g.teams.map(monsterNbaKey).includes(team)).length;
+}
+function monsterScheduledWeekGames(nba){
+  nba=nba||{};const start=String(nba.rangeStart||""),end=String(nba.rangeEnd||"");
+  return (Array.isArray(nba.games)?nba.games:[]).filter(game=>String(game.date||"")>=start&&String(game.date||"")<=end&&!/POSTPONED|SUSPENDED|CANCELLED|CANCELED|REMOVED/i.test(String(game.status||"")));
+}
+function monsterProjectionBasisIssue(nba,rosterA,rosterB){
+  if(Number(nba&&nba.matchupWeek||0)!==Number(MONSTER_STATE.week))return `ESPN-NBA-Spielplan für FBA-Woche ${MONSTER_STATE.week} wird geladen.`;
+  const games=monsterScheduledWeekGames(nba);
+  if(!games.length)return String(nba&&nba.dataIssue||"Für diese FBA-Woche wurde noch kein belastbarer ESPN-NBA-Spielplan geladen.");
+  if(!games.some(game=>!/FINAL/i.test(String(game.status||""))))return `FBA-Woche ${MONSTER_STATE.week} ist bereits abgeschlossen; eine Restspielprognose wird nicht als 0:0 ausgegeben.`;
+  if(rosterA.length!==13||rosterB.length!==13)return `Kaderstand unvollständig: ${MONSTER_STATE.teamA} ${rosterA.length}/13 · ${MONSTER_STATE.teamB} ${rosterB.length}/13 Spieler.`;
+  const hasNumber=value=>typeof value==="number"?Number.isFinite(value):typeof value==="string"&&value.trim()!==""&&Number.isFinite(Number(value));
+  const fields=["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"],missing=rosterA.concat(rosterB).filter(player=>player.projectionReady!==true||fields.some(field=>!hasNumber(player[field]))||!(Number(player.FGA)>0)||!(Number(player.FTA)>0));
+  if(missing.length){const names=missing.slice(0,3).map(player=>player.name).join(", "),more=missing.length>3?` +${missing.length-3} weitere`:"";return `Belastbare ESPN-Statistikbasis fehlt für ${names}${more}.`}
+  const remaining=games.filter(game=>!/FINAL/i.test(String(game.status||""))),gamesByTeam=new Map();
+  remaining.forEach(game=>{const rawTeams=Array.isArray(game.teams)?game.teams:[game.away||game.awayTeam,game.home||game.homeTeam];rawTeams.forEach(raw=>{const value=raw&&typeof raw==="object"?(raw.abbreviation||raw.abbrev||raw.team||raw.name):raw,team=monsterNbaKey(value);if(team)gamesByTeam.set(team,(gamesByTeam.get(team)||0)+1)})});
+  const rosterGames=roster=>roster.reduce((sum,player)=>sum+(gamesByTeam.get(monsterNbaKey(player.nba))||0),0),gamesA=rosterGames(rosterA),gamesB=rosterGames(rosterB);
+  if(!gamesA||!gamesB){const empty=[];if(!gamesA)empty.push(MONSTER_STATE.teamA);if(!gamesB)empty.push(MONSTER_STATE.teamB);return `Keine verbleibenden NBA-Spiele für ${empty.join(" und ")}; eine Nullwert-Prognose wird nicht angezeigt.`}
+  const withoutSchedule=rosterA.concat(rosterB).filter(player=>!gamesByTeam.get(monsterNbaKey(player.nba)));
+  if(withoutSchedule.length){const names=withoutSchedule.slice(0,3).map(player=>`${player.name} (${monsterNbaKey(player.nba)||"NBA-Team fehlt"})`).join(", "),more=withoutSchedule.length>3?` +${withoutSchedule.length-3} weitere`:"";return `Kein bekannter verbleibender ESPN-Termin für ${names}${more}.`}
+  return "";
 }
 function monsterAvailability(player){const s=String(player.injuryStatus||"").toUpperCase();if(/OUT|IR|OFS/.test(s))return 0;if(/DOUBT/.test(s))return .25;if(/QUESTION|GTD|DAY-TO-DAY/.test(s))return .75;return 1}
 function monsterAggregate(players){
@@ -1950,6 +2044,140 @@ function monsterAggregate(players){
 }
 function monsterProbability(cat,a,b){if(!Number.isFinite(a)||!Number.isFinite(b))return .5;const scale=cat.includes("%")?.012:Math.max(1,(Math.abs(a)+Math.abs(b))*.055),z=(a-b)/scale,p=1/(1+Math.exp(-z));return Math.max(.04,Math.min(.96,p))}
 function monsterForecast(playersA,playersB){const a=monsterAggregate(playersA),b=monsterAggregate(playersB),cats=DRAFT_CATS.map(cat=>({cat,a:a[cat],b:b[cat],p:monsterProbability(cat,a[cat],b[cat])}));return {a,b,cats,aExpected:cats.reduce((s,x)=>s+x.p,0),bExpected:cats.reduce((s,x)=>s+1-x.p,0)}}
+
+const MONSTER_SEASON_MODEL="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
+const MONSTER_SEASON_PROJECTION_STATE={status:"idle",result:null,error:"",fingerprint:""};
+function monsterSeasonProjectionCalculate(input){
+  input=input||{};
+  const cats=["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],statFields=["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"],nbaTeams=["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"],nbaSet=new Set(nbaTeams);
+  const fail=message=>{throw new Error(String(message))},asTeam=value=>String(value&&value.team||value||"").trim(),hasNumber=value=>typeof value==="number"?Number.isFinite(value):typeof value==="string"&&value.trim()!==""&&Number.isFinite(Number(value)),formatCount=value=>String(value).replace(/\B(?=(\d{3})+(?!\d))/g,".");
+  function nbaKey(value){const raw=String(value||"").toUpperCase().replace(/[^A-Z]/g,""),aliases={BRK:"BKN",GS:"GSW",GOLDENSTATE:"GSW",NO:"NOP",NEWORLEANS:"NOP",NY:"NYK",PHO:"PHX",SA:"SAS",UTAH:"UTA",WSH:"WAS"};return aliases[raw]||raw}
+  function calendarDate(value){
+    if(value==null||String(value).trim()==="")return "";const raw=String(value).trim(),direct=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);let iso="";
+    if(direct)iso=`${direct[1]}-${direct[2]}-${direct[3]}`;
+    else{let stamp=typeof value==="number"?value:Number(/^\d+$/.test(raw)?raw:NaN);if(Number.isFinite(stamp)&&stamp<100000000000)stamp*=1000;if(!Number.isFinite(stamp)&&!/^\d{4}-\d{2}-\d{2}T/.test(raw))return "";const date=Number.isFinite(stamp)?new Date(stamp):new Date(raw);if(isNaN(date.getTime()))return "";const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date),part=type=>(parts.find(row=>row.type===type)||{}).value||"";iso=`${part("year")}-${part("month")}-${part("day")}`}
+    const parsed=new Date(iso+"T00:00:00Z");if(isNaN(parsed.getTime())||parsed.toISOString().slice(0,10)!==iso||iso<"2026-10-20"||iso>"2027-04-30")return "";return iso;
+  }
+  function weekForDate(iso){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return null;if(iso>="2026-10-20"&&iso<="2026-10-25")return 1;
+    const stamp=Date.parse(iso+"T12:00:00Z"),start=Date.parse("2026-10-26T12:00:00Z"),week=2+Math.floor((stamp-start)/604800000);return week>=2&&week<=18?week:null;
+  }
+  function gameTeam(value){if(value&&typeof value==="object")return nbaKey(value.abbreviation||value.abbrev||value.shortName||value.team||value.name);return nbaKey(value)}
+  function gameTeams(game){
+    if(Array.isArray(game.teams)&&game.teams.length>=2)return [gameTeam(game.teams[0]),gameTeam(game.teams[1])];
+    return [gameTeam(game.away||game.awayTeam||game.awayAbbreviation||game.awayAbbrev),gameTeam(game.home||game.homeTeam||game.homeAbbreviation||game.homeAbbrev)];
+  }
+
+  const teams=(Array.isArray(input.teams)?input.teams:[]).map(asTeam),teamSet=new Set(teams);
+  if(teams.length!==8||teamSet.size!==8||teams.some(team=>!team))fail(`Teamstruktur unvollständig: ${teamSet.size}/8 eindeutige FBA-Teams.`);
+  const conferences={};let conferenceTeams=[];
+  ["East","West"].forEach(conf=>{const list=(input.conferences&&Array.isArray(input.conferences[conf])?input.conferences[conf]:[]).map(asTeam);if(list.length!==4||new Set(list).size!==4)fail(`${conf} Conference unvollständig: ${new Set(list).size}/4 Teams.`);conferences[conf]=list;conferenceTeams=conferenceTeams.concat(list)});
+  if(conferenceTeams.length!==8||new Set(conferenceTeams).size!==8||conferenceTeams.some(team=>!teamSet.has(team)))fail("Conference-Zuordnung passt nicht eindeutig zu den acht FBA-Teams.");
+
+  const rawRoster=Array.isArray(input.roster)?input.roster:[],rosterLabel=input.rosterMode==="testdraft"?"Testdraft":"ESPN-Kader";
+  if(rawRoster.length!==104)fail(`${rosterLabel} unvollständig: ${rawRoster.length}/104 Spieler. Benötigt werden exakt 8 × 13.`);
+  const roster=[],playerIds=new Set(),rosterCounts=new Map(teams.map(team=>[team,0]));
+  rawRoster.forEach((raw,index)=>{
+    const team=asTeam(raw.team),id=String(raw.id||raw.playerId||raw.player_id||"").trim(),name=String(raw.name||raw.playerName||`Spieler ${index+1}`).trim(),nba=nbaKey(raw.nba||raw.nbaTeam),stats=raw.stats&&typeof raw.stats==="object"?raw.stats:raw;
+    if(!teamSet.has(team))fail(`${name}: FBA-Team fehlt oder ist unbekannt.`);if(!id)fail(`${name}: ESPN-Spieler-ID fehlt.`);if(playerIds.has(id))fail(`Doppelter Spieler im Kader: ${name} (${id}).`);playerIds.add(id);
+    if(!nbaSet.has(nba))fail(`${name}: gültiges NBA-Team fehlt (${nba||"ohne Angabe"}).`);
+    if(raw.projectionReady!==true&&raw.statsReliable!==true)fail(`${name}: ESPN-Statistikbasis 2025/26 ist nicht als belastbar markiert.`);
+    const missing=statFields.filter(field=>!hasNumber(stats[field]));if(missing.length)fail(`${name}: belastbare Statistikfelder fehlen (${missing.join(", ")}).`);
+    const values={};statFields.forEach(field=>{values[field]=Number(stats[field]);if(values[field]<0)fail(`${name}: ${field} ist ungültig.`)});
+    if(values.FGM>values.FGA||values.FTM>values.FTA)fail(`${name}: Treffer übersteigen Versuche in der Statistikbasis.`);
+    rosterCounts.set(team,rosterCounts.get(team)+1);roster.push({team,id,name,nba,stats:values});
+  });
+  const wrongRoster=teams.filter(team=>rosterCounts.get(team)!==13);if(wrongRoster.length)fail(`Kaderverteilung unvollständig: ${wrongRoster.map(team=>`${team} ${rosterCounts.get(team)}/13`).join(" · ")}.`);
+
+  const rawMatchups=Array.isArray(input.matchups)?input.matchups:[],matchups=[],seenFba=new Set();
+  rawMatchups.forEach((raw,index)=>{
+    const rawWeek=raw.week||raw.matchupWeek||raw.matchupPeriod,week=hasNumber(rawWeek)?Number(rawWeek):NaN,away=asTeam(raw.away||raw.a),home=asTeam(raw.home||raw.b);if(!Number.isInteger(week)||week<1||week>18)return;
+    if(!teamSet.has(away)||!teamSet.has(home)||away===home)fail(`FBA-Spielplan W${week}: ungültiges Matchup in Zeile ${index+1}.`);
+    const key=`${week}|${[away,home].sort().join("|")}`;if(seenFba.has(key))fail(`FBA-Spielplan W${week}: ${away} gegen ${home} ist doppelt.`);seenFba.add(key);matchups.push({week,away,home});
+  });
+  if(matchups.length!==72)fail(`FBA-Regular-Season-Spielplan unvollständig: ${matchups.length}/72 eindeutige Matchups in W1–18.`);
+  for(let week=1;week<=18;week++){
+    const rows=matchups.filter(game=>game.week===week),appearances=rows.flatMap(game=>[game.away,game.home]);if(rows.length!==4)fail(`FBA-Spielplan W${week}: ${rows.length}/4 Matchups.`);
+    const unique=new Set(appearances);if(appearances.length!==8||unique.size!==8||teams.some(team=>!unique.has(team)))fail(`FBA-Spielplan W${week}: Nicht jedes der acht Teams spielt genau einmal.`);
+  }
+
+  const seasonSchedule=input.nbaSeasonSchedule||input.seasonSchedule||null,rawGames=seasonSchedule&&Array.isArray(seasonSchedule.games)?seasonSchedule.games:[];
+  if(!seasonSchedule||!rawGames.length)fail("ESPN-Saisonspielplan fehlt: nbaSeasonSchedule.games ist leer.");
+  const rawGameIds=new Set(rawGames.map(game=>String(game&&(game.gameId||game.id||game.eventId)||"").trim()).filter(Boolean));
+  if(rawGameIds.size<1200)fail(`ESPN-Saisonspielplan unvollständig: ${formatCount(rawGameIds.size)}/1.200 eindeutige ESPN-Spiel-IDs. Offene oder verschobene Termine werden nicht erfunden.`);
+  const normalizedGames=[],seenNba=new Map(),seenNbaSignatures=new Map(),nbaObserved=new Set();let invalidGames=0;
+  rawGames.forEach((raw,index)=>{
+    const status=String(raw.status||"").toUpperCase();if(/CANCELLED|CANCELED|REMOVED|POSTPONED|SUSPENDED/.test(status))return;
+    const pair=gameTeams(raw),away=pair[0],home=pair[1],rawDate=raw.date!=null&&String(raw.date).trim()!==""?raw.date:raw.startDate!=null&&String(raw.startDate).trim()!==""?raw.startDate:raw.startTime,dateProvided=rawDate!=null&&String(rawDate).trim()!=="",date=calendarDate(rawDate),rawExplicit=raw.fbaWeek!=null&&String(raw.fbaWeek).trim()!==""?raw.fbaWeek:raw.week!=null&&String(raw.week).trim()!==""?raw.week:raw.matchupPeriodId,explicitProvided=rawExplicit!=null&&String(rawExplicit).trim()!=="",explicit=Number(rawExplicit),validExplicit=hasNumber(rawExplicit)&&Number.isInteger(explicit)&&explicit>=1&&explicit<=18,dateWeek=date?weekForDate(date):null;
+    if(dateProvided&&!date){invalidGames++;return}if(explicitProvided&&!validExplicit){invalidGames++;return}if(dateProvided&&explicitProvided&&explicit!==dateWeek)fail(`ESPN-Saisonspielplan enthält widersprüchliche FBA-Woche für Spiel ${String(raw.gameId||raw.id||raw.eventId||index+1)}: Datum ${date} liegt in ${dateWeek?`W${dateWeek}`:"keiner W1–18"}, angegeben ist W${explicit}.`);
+    const week=dateProvided?dateWeek:validExplicit?explicit:null,hasCalendarPosition=Boolean(date)||!dateProvided&&validExplicit;
+    if(!nbaSet.has(away)||!nbaSet.has(home)||away===home||!hasCalendarPosition){invalidGames++;return}
+    const id=String(raw.gameId||raw.id||raw.eventId||"").trim(),signature=`${date||`W${explicit}`}|${away}|${home}`,key=id?`ID:${id}`:`GAME:${signature}`;
+    if(seenNba.has(key)){if(seenNba.get(key)!==signature)fail(`ESPN-Saisonspielplan enthält widersprüchliche Daten für Spiel ${id||index+1}.`);return}
+    if(date&&seenNbaSignatures.has(signature)){const firstId=seenNbaSignatures.get(signature);if(id&&firstId&&id!==firstId)fail(`ESPN-Saisonspielplan enthält denselben Termin ${signature} unter verschiedenen Event-IDs (${firstId}, ${id}).`);return}
+    seenNba.set(key,signature);if(date)seenNbaSignatures.set(signature,id);nbaObserved.add(away);nbaObserved.add(home);normalizedGames.push({id,date,week,away,home});
+  });
+  if(invalidGames)fail(`ESPN-Saisonspielplan enthält ${invalidGames} unvollständige Spielzeile${invalidGames===1?"":"n"}.`);
+  if(normalizedGames.length<1000)fail(`ESPN-Saisonspielplan zu klein: ${formatCount(normalizedGames.length)} eindeutige Spiele; mindestens 1.000 bekannte Termine sind erforderlich.`);
+  if(normalizedGames.length>1230)fail(`ESPN-Saisonspielplan unplausibel: ${formatCount(normalizedGames.length)} eindeutige Spiele statt maximal 1.230.`);
+  const missingNba=nbaTeams.filter(team=>!nbaObserved.has(team));if(missingNba.length)fail(`ESPN-Saisonspielplan deckt nur ${30-missingNba.length}/30 NBA-Teams ab. Fehlend: ${missingNba.join(", ")}.`);
+  const weekCoverage=new Set(normalizedGames.filter(game=>game.week).map(game=>game.week)),missingWeeks=Array.from({length:18},(_,index)=>index+1).filter(week=>!weekCoverage.has(week));if(missingWeeks.length)fail(`ESPN-Saisonspielplan hat keine bekannten Spiele für FBA-Woche${missingWeeks.length===1?"":"n"} ${missingWeeks.join(", ")}.`);
+
+  const gamesByWeekTeam=new Map();normalizedGames.forEach(game=>{if(!game.week)return;[game.away,game.home].forEach(team=>{const key=`${game.week}|${team}`;gamesByWeekTeam.set(key,(gamesByWeekTeam.get(key)||0)+1)})});
+  const rosterNba=[...new Set(roster.map(player=>player.nba))],openTeamWeeks=[];for(let week=1;week<=18;week++){const missing=rosterNba.filter(team=>!gamesByWeekTeam.get(`${week}|${team}`));if(missing.length)openTeamWeeks.push({week,teams:missing})}
+
+  const rosterByTeam=new Map(teams.map(team=>[team,roster.filter(player=>player.team===team)])),weekly={};
+  teams.forEach(team=>{weekly[team]={};for(let week=1;week<=18;week++){
+    const total={games:0,PTS:0,REB:0,AST:0,"3PM":0,STL:0,BLK:0,FGM:0,FGA:0,FTM:0,FTA:0};
+    rosterByTeam.get(team).forEach(player=>{const games=gamesByWeekTeam.get(`${week}|${player.nba}`)||0;total.games+=games;statFields.forEach(field=>total[field]+=player.stats[field]*games)});
+    if(!total.games)fail(`${team} W${week}: keine belastbaren NBA-Spiele.`);if(!(total.FGA>0)||!(total.FTA>0))fail(`${team} W${week}: FG-/FT-Volumen fehlt; Quoten werden nicht erfunden.`);
+    total["FG%"]=total.FGM/total.FGA;total["FT%"]=total.FTM/total.FTA;weekly[team][week]=total;
+  }});
+  function score(left,right,homeGetsExactTie){let leftPoints=0,rightPoints=0;cats.forEach(cat=>{if(left[cat]>right[cat])leftPoints++;else if(left[cat]<right[cat])rightPoints++;else if(homeGetsExactTie)rightPoints++;else{leftPoints+=.5;rightPoints+=.5}});return {leftPoints,rightPoints}}
+  const standings=new Map(teams.map(team=>[team,{team,w:0,l:0,t:0,fbaFor:0,fbaAgainst:0,diff:0,winPct:0,allPlayW:0,allPlayL:0,allPlayT:0,allPlayFor:0,allPlayAgainst:0,allPlayPct:0}])),matchupResults=[];
+  matchups.slice().sort((a,b)=>a.week-b.week||a.away.localeCompare(b.away)).forEach(game=>{
+    const result=score(weekly[game.away][game.week],weekly[game.home][game.week],true),away=standings.get(game.away),home=standings.get(game.home);away.fbaFor+=result.leftPoints;away.fbaAgainst+=result.rightPoints;home.fbaFor+=result.rightPoints;home.fbaAgainst+=result.leftPoints;
+    if(result.leftPoints>result.rightPoints){away.w++;home.l++}else if(result.leftPoints<result.rightPoints){away.l++;home.w++}else{away.t++;home.t++}matchupResults.push({week:game.week,away:game.away,home:game.home,awayPoints:result.leftPoints,homePoints:result.rightPoints});
+  });
+  for(let week=1;week<=18;week++)for(let leftIndex=0;leftIndex<teams.length;leftIndex++)for(let rightIndex=leftIndex+1;rightIndex<teams.length;rightIndex++){
+    const left=standings.get(teams[leftIndex]),right=standings.get(teams[rightIndex]),result=score(weekly[left.team][week],weekly[right.team][week],false);left.allPlayFor+=result.leftPoints;left.allPlayAgainst+=result.rightPoints;right.allPlayFor+=result.rightPoints;right.allPlayAgainst+=result.leftPoints;
+    if(result.leftPoints>result.rightPoints){left.allPlayW++;right.allPlayL++}else if(result.leftPoints<result.rightPoints){left.allPlayL++;right.allPlayW++}else{left.allPlayT++;right.allPlayT++}
+  }
+  const rows=teams.map(team=>{const row=standings.get(team);row.diff=row.fbaFor-row.fbaAgainst;row.winPct=(row.w+row.t*.5)/18;row.allPlayPct=(row.allPlayW+row.allPlayT*.5)/126;return row});
+  function rankConference(conf){return conferences[conf].map(team=>rows.find(row=>row.team===team)).sort((a,b)=>b.fbaFor-a.fbaFor||b.winPct-a.winPct||b.diff-a.diff||a.team.localeCompare(b.team)).map((row,index)=>Object.assign({rank:index+1},row))}
+  const known=normalizedGames.length,coverageLabel=known===1200?"Kalenderabdeckung 1.200/1.230 · 30 NBA-Cup-Flexspiele noch offen und nicht erfunden":known===1230?"Kalenderabdeckung 1.230/1.230 · alle Regular-Season-Spiele terminiert":`Kalenderabdeckung ${formatCount(known)}/1.230 · ${formatCount(1230-known)} Termine noch offen und nicht erfunden`;
+  const scheduleGapsLabel=openTeamWeeks.length?`Offene Team-Slots: ${openTeamWeeks.map(row=>`W${row.week} ${row.teams.join(", ")}`).join(" · ")}. Bis ESPN terminiert, werden für diese Spieler keine Spiele ergänzt.`:"Alle Kader-NBA-Teams haben in W1–18 mindestens einen bekannten Termin.";
+  return {modelLabel:MONSTER_SEASON_MODEL,rosterMode:input.rosterMode==="testdraft"?"Testdraft 104/104":"ESPN-Kader 8 × 13",calendarGames:known,calendarExpected:1230,coverageLabel,scheduleGaps:openTeamWeeks,scheduleGapsLabel,matchupCount:matchups.length,weeks:18,weekly,matchupResults,rows,conferences:{East:rankConference("East"),West:rankConference("West")}};
+}
+function monsterSeasonProjectionInputs(){
+  const data=MONSTER_STATE.data||{},seasonSchedule=data.nbaSeasonSchedule||data.seasonSchedule||null,teams=draftTeams(),draftRows=D&&D.draft&&Array.isArray(D.draft.teams)?D.draft.teams:[],conferences={East:draftRows.filter(row=>row&&row.conference==="East").map(row=>String(canonicalTeamName(row.team))),West:draftRows.filter(row=>row&&row.conference==="West").map(row=>String(canonicalTeamName(row.team)))};
+  const roster=monsterRoster().map(row=>{const player=monsterPlayer(row),stats={};["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"].forEach(field=>{const nested=row.stats&&typeof row.stats==="object"?row.stats[field]:undefined;stats[field]=player[field]!=null?player[field]:row[field]!=null?row[field]:nested});return {team:String(canonicalTeamName(row.team)),id:String(player.id||""),name:player.name,nba:player.nba,projectionReady:player.projectionReady===true||row.projectionReady===true,statsReliable:row.statsReliable===true,stats}});
+  return {teams,conferences,roster,rosterMode:DRAFT_STATE.picks.length?"testdraft":"espn",matchups:monsterSchedule(),nbaSeasonSchedule:seasonSchedule};
+}
+function monsterSeasonProjectionLifecycle(){
+  const data=MONSTER_STATE.data||{},season=data.nbaSeasonSchedule||data.seasonSchedule||{},games=Array.isArray(season.games)?season.games:[],livePhase=typeof activePhase==="function"?activePhase():"",rawPhase=String(data.seasonPhase||data.phase||(data.lifecycle&&data.lifecycle.phase)||livePhase||PHASE_SNAPSHOT_CONFIG.effectivePhase||PHASE_SNAPSHOT_CONFIG.phase||"").trim().toUpperCase(),phase=rawPhase||"UNBEKANNT",seasonRunning=games.some(game=>/FINAL|IN[_ -]?PROGRESS/i.test(String(game&&game.status||""))),allowed=(phase==="PRESEASON"||phase==="DRAFT")&&!seasonRunning;
+  return {phase,seasonRunning,allowed};
+}
+function monsterSeasonProjectionFingerprint(){
+  const input=monsterSeasonProjectionInputs(),lifecycle=monsterSeasonProjectionLifecycle(),season=input.nbaSeasonSchedule||{},games=Array.isArray(season.games)?season.games:[];return JSON.stringify({lifecycle:[lifecycle.phase,lifecycle.seasonRunning,lifecycle.allowed],mode:input.rosterMode,roster:input.roster.map(row=>[row.team,row.id,row.nba]),matchups:input.matchups.filter(row=>Number(row.week)>=1&&Number(row.week)<=18).map(row=>[row.week,row.away,row.home]),games:games.map(row=>[row.gameId||row.id||"",row.date||"",row.away||"",row.home||"",row.status||""])});
+}
+function runMonsterSeasonProjection(){
+  const lifecycle=monsterSeasonProjectionLifecycle();if(!lifecycle.allowed){MONSTER_SEASON_PROJECTION_STATE.status="idle";MONSTER_SEASON_PROJECTION_STATE.result=null;MONSTER_SEASON_PROJECTION_STATE.error="";MONSTER_SEASON_PROJECTION_STATE.fingerprint="";render();return}
+  MONSTER_SEASON_PROJECTION_STATE.status="loading";MONSTER_SEASON_PROJECTION_STATE.result=null;MONSTER_SEASON_PROJECTION_STATE.error="";render();
+  try{const input=monsterSeasonProjectionInputs(),result=monsterSeasonProjectionCalculate(input);MONSTER_SEASON_PROJECTION_STATE.status="ready";MONSTER_SEASON_PROJECTION_STATE.result=result;MONSTER_SEASON_PROJECTION_STATE.fingerprint=monsterSeasonProjectionFingerprint()}catch(error){MONSTER_SEASON_PROJECTION_STATE.status="error";MONSTER_SEASON_PROJECTION_STATE.error=error&&error.message?error.message:String(error);MONSTER_SEASON_PROJECTION_STATE.fingerprint=""}render();
+}
+function monsterSeasonProjectionTable(conf,rows){
+  return `<section class="monster-season-conference" data-testid="monster-season-${E(conf.toLowerCase())}"><h3>${E(conf)} Conference</h3><div class="monster-season-table-wrap"><table class="monster-season-table"><thead><tr><th>#</th><th>Team</th><th>FBA-Punkte</th><th>Gegen</th><th>Diff</th><th>W–L–T</th><th>Win%</th><th>All-Play</th><th>AP%</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${E(row.rank)}</td><td><span class="monster-season-team">${chip(row.team)}<b>${E(T(row.team).s||row.team)}</b></span></td><td><b>${E(de(row.fbaFor,1))}</b></td><td>${E(de(row.fbaAgainst,1))}</td><td class="${row.diff>0?"monster-season-positive":row.diff<0?"monster-season-negative":""}">${row.diff>0?"+":""}${E(de(row.diff,1))}</td><td>${E(`${row.w}–${row.l}–${row.t}`)}</td><td>${E(de(row.winPct*100,1))}%</td><td>${E(`${row.allPlayW}–${row.allPlayL}–${row.allPlayT}`)}</td><td>${E(de(row.allPlayPct*100,1))}%</td></tr>`).join("")}</tbody></table></div></section>`;
+}
+function monsterSeasonProjectionMarkup(){
+  const lifecycle=monsterSeasonProjectionLifecycle();let state=MONSTER_SEASON_PROJECTION_STATE;if(state.status==="ready"&&state.fingerprint!==monsterSeasonProjectionFingerprint())state={status:"stale",result:null,error:""};
+  const heading=`<div class="monster-season-head"><div class="monster-season-head-copy"><h2>Vorsaison-Simulation</h2><p>Alle acht eingefrorenen Kader werden für jede FBA-Woche gegen den bekannten NBA-Spielplan gerechnet.</p></div><span class="monster-season-secret">Privat · nur Monster</span></div><div class="monster-season-model">${E(MONSTER_SEASON_MODEL)} · Modellannahme: volle Spielerverfügbarkeit; Rückkehrdaten werden nicht erfunden.</div>`;
+  if(!lifecycle.allowed)return `<section class="monster-card draft-glass monster-season-card" style="margin-top:18px" data-testid="monster-season-projection">${heading}<div class="monster-season-error" role="status"><b>Saison läuft</b>Saison läuft – Endprognose wartet auf Ist + Restspiel-Modell; keine Werte werden simuliert.</div></section>`;
+  if(state.status==="loading")return `<section class="monster-card draft-glass monster-season-card" style="margin-top:18px" data-testid="monster-season-projection">${heading}<div class="monster-season-action"><span>Prüfe Kader, FBA-Spielplan, NBA-Kalender und Statistikfelder …</span><button type="button" disabled>Rechnet …</button></div></section>`;
+  if(state.status==="error")return `<section class="monster-card draft-glass monster-season-card" style="margin-top:18px" data-testid="monster-season-projection">${heading}<div class="monster-season-error" role="alert"><b>Prognose blockiert</b>${E(state.error)}</div><div class="monster-season-action"><span>Erst nach vollständigen, belastbaren Eingaben werden Werte angezeigt.</span><button type="button" data-testid="monster-season-project" onclick="runMonsterSeasonProjection()">Erneut prüfen</button></div></section>`;
+  if(state.status!=="ready")return `<section class="monster-card draft-glass monster-season-card" style="margin-top:18px" data-testid="monster-season-projection">${heading}<div class="monster-season-action"><span>${state.status==="stale"?"Die Datengrundlage hat sich geändert. Bitte neu berechnen.":"Berechnet W–L–T, FBA-Punkte und All-Play für alle 18 Regular-Season-Wochen."}</span><button type="button" data-testid="monster-season-project" onclick="runMonsterSeasonProjection()">Jetzt durchrechnen</button></div></section>`;
+  const result=state.result;return `<section class="monster-card draft-glass monster-season-card" style="margin-top:18px" data-testid="monster-season-projection">${heading}<div class="monster-season-coverage"><span>${E(result.coverageLabel)}</span><span>${E(result.scheduleGapsLabel||"Es zählen ausschließlich bekannte ESPN-Termine.")}</span></div><div class="monster-season-summary"><span>${E(result.rosterMode)}</span><span>${E(result.matchupCount)}/72 FBA-Matchups</span><span>18 FBA-Wochen · bekannte NBA-Termine</span><span>All-Play: 7 Gegner je Woche</span></div><div class="monster-season-tables">${monsterSeasonProjectionTable("East",result.conferences.East)}${monsterSeasonProjectionTable("West",result.conferences.West)}</div><div class="monster-season-action"><span>FG% und FT% sind über Treffer und Versuche volumenbereinigt. Exakter FBA-Punkt-Gleichstand geht im echten Matchup an das Heimteam.</span><button type="button" data-testid="monster-season-project" onclick="runMonsterSeasonProjection()">Neu durchrechnen</button></div></section>`;
+}
 function monsterResultLabel(f){return `${f.aExpected.toFixed(1).replace(".",",")} – ${f.bExpected.toFixed(1).replace(".",",")} erwartete FBA-Punkte`}
 function monsterDateShort(value){const date=new Date(String(value||"")+"T12:00:00Z");return isNaN(date.getTime())?String(value||"–"):date.toLocaleDateString("de-DE",{day:"2-digit",month:"short",timeZone:"UTC"}).replace(".",".")}
 function monsterWeekLabel(row){if(!row)return "Zeitraum fehlt";return `${monsterDateShort(row.start)} – ${monsterDateShort(row.end)} ${String(row.end||"").slice(0,4)}`}
@@ -2001,7 +2229,9 @@ function monsterB2bPlayersMarkup(group){
 }
 function monsterB2bMarkup(){
   const nba=(MONSTER_STATE.data||{}).nbaSchedule||{},list=Array.isArray(nba.backToBack)?nba.backToBack:[],groups=monsterB2bGroups(list),window=`${monsterDateShort(nba.rangeStart)} – ${monsterDateShort(nba.rangeEnd)}`,cat=MONSTER_STATE.b2bHunt;
-  if(nba.dataIssue)return `<div class="monster-b2b-window">FBA-Woche ${E(MONSTER_STATE.week)} · ${E(window)}</div><div class="monster-data-issue">${E(nba.dataIssue)} Der Radar zeigt deshalb bewusst keine erfundenen B2B-Spiele.</div>`;
+  if(Number(nba.matchupWeek||0)!==Number(MONSTER_STATE.week))return `<div class="monster-b2b-window">FBA-Woche ${E(MONSTER_STATE.week)}</div><div class="monster-data-issue">Der ESPN-NBA-Spielplan dieser Woche wird gerade geladen.</div>`;
+  if(nba.dataIssue||!monsterScheduledWeekGames(nba).length)return `<div class="monster-b2b-window">FBA-Woche ${E(MONSTER_STATE.week)} · ${E(window)}</div><div class="monster-data-issue">${E(nba.dataIssue||"Kein belastbarer ESPN-NBA-Spielplan für diese Woche.")} Der Radar zeigt deshalb bewusst keine erfundenen B2B-Spiele.</div>`;
+  if(monsterRoster().length!==104)return `<div class="monster-b2b-window">FBA-Woche ${E(MONSTER_STATE.week)} · ${E(window)}</div><div class="monster-data-issue">Der vollständige 8 × 13-Kaderstand fehlt. Freie Spieler werden deshalb noch nicht erfunden.</div>`;
   const toolbar=`<div class="monster-b2b-toolbar"><span>Freie Spieler sortieren nach</span><div class="monster-hunt"><button type="button" class="${cat?"":"on"}" onclick="setMonsterB2bHunt('')">GESAMT</button>${DRAFT_CATS.map(point=>`<button type="button" class="${cat===point?"on":""}" onclick="setMonsterB2bHunt('${point}')">${E(point)}</button>`).join("")}</div></div>`;
   return `<div class="monster-b2b-window">FBA-Woche ${E(MONSTER_STATE.week)} · ${E(window)} · Tage zuerst · Sonntag→Montag geprüft</div>${toolbar}${groups.length?`<div class="monster-b2b-list">${groups.map(group=>{const open=MONSTER_STATE.b2bOpen===group.key;return `<section class="monster-b2b-group${group.crossWeek?" cross":""}${open?" open":""}"><button type="button" class="monster-b2b-toggle" onclick="toggleMonsterB2b('${E(group.key)}')" aria-expanded="${open}"><span class="monster-b2b-days"><b>${E(monsterWeekdayPair(group.first,group.second))}</b><small>${E(monsterDateShort(group.first))} → ${E(monsterDateShort(group.second))}${group.crossWeek?" · Lookahead":""}</small></span><span class="monster-b2b-teams">${group.teams.map(team=>`<span class="monster-nba-team"><b>${E(team)}</b> ${E(MONSTER_NBA_NAMES[team]||team)}</span>`).join("")}</span><span class="monster-b2b-chevron">⌄</span></button>${open?monsterB2bPlayersMarkup(group):""}</section>`}).join("")}</div>`:`<div class="empty">In diesem ESPN-Zeitraum gibt es kein Back-to-Back.</div>`}`;
 }
@@ -2011,14 +2241,31 @@ function monsterPointRowsMarkup(forecast,teamA,teamB,simulation){
   const leftColor=T(teamA).c,rightColor=T(teamB).c,display=simulation?simulation.after:forecast;
   return `<div class="monster-points-v30">${display.cats.map((x,index)=>{const before=forecast.cats[index],left=Math.round(x.p*100),right=100-left,beforeLeft=Math.round(before.p*100),delta=left-beforeLeft,impact=monsterImpactClass(delta/100),leftValue=simulation?`<span class="monster-point-value-stack"><strong class="monster-point-value">${E(formatDraftValue(x.cat,x.a))}</strong><small>vorher ${E(formatDraftValue(before.cat,before.a))}</small></span>`:`<strong class="monster-point-value">${E(formatDraftValue(x.cat,x.a))}</strong>`,rightValue=simulation?`<span class="monster-point-value-stack right"><strong class="monster-point-value right">${E(formatDraftValue(x.cat,x.b))}</strong><small>unverändert</small></span>`:`<strong class="monster-point-value right">${E(formatDraftValue(x.cat,x.b))}</strong>`,impactMarkup=simulation?`<div class="monster-point-impact ${impact}"><span>${beforeLeft}% → ${left}%</span><b>${delta>=0?"+":""}${delta} Pp.</b></div>`:"";return `<div class="monster-point-v30" data-testid="monster-point-${E(x.cat)}">${leftValue}<div class="monster-point-center"><div class="monster-point-labels"><span>${E(T(teamA).s||teamA)}</span><b>${E(x.cat)}</b><span>${E(T(teamB).s||teamB)}</span></div>${impactMarkup}<div class="monster-balance-track" role="img" aria-label="${E(x.cat+': '+left+' Prozent '+teamA+', '+right+' Prozent '+teamB)}" style="--monster-left:${E(leftColor)};--monster-right:${E(rightColor)};--monster-split:${left}%"><span class="monster-balance-percent left" data-percent="${left}" aria-hidden="true">${left}%</span><span class="monster-balance-percent right" data-percent="${right}" aria-hidden="true">${right}%</span></div></div>${rightValue}</div>`}).join("")}</div>`
 }
+
 function pgMonster(){
-  if(!monsterUnlocked())return `<section class="monster-hero"><span class="draft-kicker">Private Analytics</span><h1>Matchup Monster</h1><p>Diese Seite ist gesperrt.</p></section>`;
-  if(MONSTER_STATE.loading&&!MONSTER_STATE.data)return `<section class="monster-hero"><span class="draft-kicker">Private Analytics</span><h1>Matchup Monster</h1><p>Lade Kader, Spielplan und NBA-Woche …</p><span class="monster-lock-state">● Entsperrt</span></section>`;
-  monsterEnsureTeams();const teams=monsterTeams(),aTeam=MONSTER_STATE.teamA,bTeam=MONSTER_STATE.teamB,rosterA=monsterRosterFor(aTeam),rosterB=monsterRosterFor(bTeam),forecast=monsterForecast(rosterA,rosterB),simulation=monsterSimulation(aTeam,bTeam,forecast),displayForecast=simulation?simulation.after:forecast,winsA=displayForecast.cats.filter(x=>x.p>=.5).length;
-  const schedule=monsterSchedule(),weeks=monsterWeeks(),rosterMode=DRAFT_STATE.picks.length?`Testdraft ${DRAFT_STATE.picks.length}/${DRAFT_MAX_ROUNDS*8}`:"ESPN-Kader",scheduleMeta=(MONSTER_STATE.data||{}).scheduleMeta||{},nba=(MONSTER_STATE.data||{}).nbaSchedule||{},selected=weeks.find(row=>Number(row.week)===Number(MONSTER_STATE.week))||weeks[0];
-  document.documentElement.style.setProperty("--monster-score-left",T(aTeam).c);document.documentElement.style.setProperty("--monster-score-right",T(bTeam).c);
-  const scheduledOpponent=monsterScheduledOpponent(aTeam,MONSTER_STATE.week),scenarioBanner=simulation?`<div class="monster-scenario-banner"><b>${E(simulation.drop.name)} raus → ${E(simulation.add.name)} rein</b><span>Alle acht FBA-Punkte zeigen jetzt Vorher → Nachher</span></div>`:"",leftDelta=displayForecast.aExpected-forecast.aExpected,rightDelta=displayForecast.bExpected-forecast.bExpected,leftScore=simulation?`<span class="monster-score-stack"><strong class="monster-score-v30 left">${E(de(displayForecast.aExpected,1))}</strong><small class="monster-score-before">vorher ${E(de(forecast.aExpected,1))}</small><span class="monster-score-delta ${monsterImpactClass(leftDelta)}">${leftDelta>=0?"+":""}${E(de(leftDelta,1))}</span></span>`:`<strong class="monster-score-v30 left">${E(de(forecast.aExpected,1))}</strong>`,rightScore=simulation?`<span class="monster-score-stack"><strong class="monster-score-v30 right">${E(de(displayForecast.bExpected,1))}</strong><small class="monster-score-before">vorher ${E(de(forecast.bExpected,1))}</small><span class="monster-score-delta ${monsterImpactClass(rightDelta)}">${rightDelta>=0?"+":""}${E(de(rightDelta,1))}</span></span>`:`<strong class="monster-score-v30 right">${E(de(forecast.bExpected,1))}</strong>`;
-  return `<section class="monster-hero"><span class="draft-kicker">Private Analytics · v32</span><h1>Matchup Monster</h1><p>Wähle dein Analyse-Team einmal, springe durch eindeutige FBA-Wochen und teste jeden Gegner. Pickup Lab und B2B-Radar rechnen immer aus deiner gewählten Perspektive.</p><span class="monster-lock-state">● Gerät dauerhaft frei</span></section>${MONSTER_STATE.error?`<div class="note" style="margin-top:12px;color:#ff8791">${E(MONSTER_STATE.error)} · Draft-Daten bleiben lokal nutzbar.</div>`:""}<div class="draft-source-strip"><span class="source-chip live">${E(rosterMode)}</span><span class="source-chip live">${E(scheduleMeta.matchups||schedule.length)} ESPN-Matchups · ${E(scheduleMeta.season||"2026/27")}</span><span class="source-chip live">NBA-Zeitraum ${E(monsterWeekLabel(selected))}</span></div><div class="monster-controls"><label class="monster-control-field analysis"><span>Mein Analyse-Team · Pickup Lab</span><select data-testid="monster-analysis-team" onchange="setMonsterTeam('teamA',this.value)">${teams.map(t=>`<option ${t===aTeam?"selected":""}>${E(t)}</option>`).join("")}</select></label><label class="monster-control-field"><span>FBA-Woche · einmal pro Woche</span><select data-testid="monster-week" onchange="setMonsterWeek(this.value)">${weeks.map(row=>{const opponent=monsterScheduledOpponent(aTeam,row.week);return `<option value="${E(row.week)}" ${Number(row.week)===Number(MONSTER_STATE.week)?"selected":""}>W${E(row.week)} · ${E(monsterWeekLabel(row))}${opponent?" · vs "+E(T(opponent).s||opponent):""}</option>`}).join("")}</select></label><label class="monster-control-field"><span>Vergleichsgegner · frei wählbar</span><select data-testid="monster-opponent" onchange="setMonsterTeam('teamB',this.value)">${teams.filter(t=>t!==aTeam).map(t=>`<option ${t===bTeam?"selected":""}>${E(t)}</option>`).join("")}</select></label><button type="button" onclick="loadMonsterData(true)">Live neu laden</button></div><div class="monster-grid"><section class="monster-card draft-glass"><div class="monster-card-head"><div><h2>${simulation?"Pickup-Szenario":"Wahrscheinlichstes Szenario"}</h2><small>${simulation?"Vorher/Nachher über alle acht FBA-Punkte":"Ein Balance-Balken je FBA-Punkt"}</small></div><span class="monster-week-badge">W${E(MONSTER_STATE.week)} · ${winsA}:${8-winsA} Median</span></div>${nba.dataIssue?`<div class="monster-data-issue">${E(nba.dataIssue)} Die Projektion bleibt neutral, bis echte Spiele vorliegen.</div>`:""}${scenarioBanner}<div class="monster-scoreboard-v30" data-testid="monster-scoreboard"><div class="monster-team">${chip(aTeam)}<b>${E(T(aTeam).s||aTeam)}</b><span>${rosterA.length} Spieler · ${displayForecast.a.games.toFixed(0)} Spiele übrig</span></div>${leftScore}<div class="monster-vs-v30">VS</div>${rightScore}<div class="monster-team">${chip(bTeam)}<b>${E(T(bTeam).s||bTeam)}</b><span>${rosterB.length} Spieler · ${displayForecast.b.games.toFixed(0)} Spiele übrig${scheduledOpponent===bTeam?" · echter Gegner":" · freier Vergleich"}</span></div></div>${monsterPointRowsMarkup(forecast,aTeam,bTeam,simulation)}<div class="monster-private-note">Die Balkengrenze zeigt auf einen Blick, zu welchem Team der FBA-Punkt kippt. Grundlage: Spielerwert × verbleibende NBA-Spiele × ESPN-Verfügbarkeitsstatus. Entscheidungshilfe, keine Garantie.</div></section><div><section class="monster-card draft-glass"><div class="monster-card-head"><div><h2>Verletzungen</h2><small>ESPN Status</small></div></div>${monsterInjuryMarkup()}</section><section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>B2B Radar</h2><small>Tage → NBA-Teams → freie Spieler</small></div></div>${monsterB2bMarkup()}</section></div></div><section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>Pickup Impact Lab</h2><small>${E(T(aTeam).s||aTeam)} · Gesamtprofil oder gezielter FBA-Punkt</small></div></div>${monsterSimulatorMarkup(aTeam,bTeam,forecast,simulation)}</section><section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>Projektionsquellen</h2><small>Kein Fake-Consensus</small></div></div>${monsterSourcesMarkup()}<div class="monster-private-note">FantasyPros weist eine Fantasy-Basketball-API aus; Hashtag bietet Vollprojektionen als Premium-Funktion. Die Adapter sind vorbereitet, werden aber erst nach deinem lizenzierten Zugang aktiv. Bis dahin rechnet die Beta sichtbar mit ESPN-Rangfolge und der vorhandenen ESPN-Statistikbasis.</div></section>`;
+  const hero=state=>`<section class="monster-hero"><h1>Matchup Monster</h1><span class="monster-lock-state">● ${E(state)}</span></section>`;
+  if(!monsterUnlocked())return hero("Gesperrt");
+  if(MONSTER_STATE.loading&&!MONSTER_STATE.data)return `${hero("Gerät dauerhaft frei")}<section class="monster-card draft-glass" style="margin-top:12px"><div class="monster-data-issue">Lade ESPN-Kader, FBA-Spielplan und NBA-Termine …</div></section>`;
+  if(!MONSTER_STATE.data){const error=MONSTER_STATE.error||"Die geschützten Monster-Daten wurden noch nicht geladen.";return `${hero("Gerät dauerhaft frei")}<section class="monster-card draft-glass" style="margin-top:12px"><div class="monster-data-issue"><b>Keine Nullwerte angezeigt.</b><br>${E(error)}</div><button type="button" onclick="loadMonsterData(true)">ESPN live neu laden</button></section>`}
+
+  monsterEnsureTeams();
+  const teams=monsterTeams(),aTeam=MONSTER_STATE.teamA,bTeam=MONSTER_STATE.teamB,schedule=monsterSchedule(),weeks=monsterWeeks(),scheduleMeta=MONSTER_STATE.data.scheduleMeta||{},nba=MONSTER_STATE.data.nbaSchedule||{},selected=weeks.find(row=>Number(row.week)===Number(MONSTER_STATE.week))||weeks[0],sameWeek=Number(nba.matchupWeek||0)===Number(MONSTER_STATE.week),nbaWeekGames=sameWeek?monsterScheduledWeekGames(nba):[],rosterA=monsterRosterFor(aTeam),rosterB=monsterRosterFor(bTeam),rosterMode=DRAFT_STATE.picks.length?`Testdraft ${DRAFT_STATE.picks.length}/${DRAFT_MAX_ROUNDS*8}`:"ESPN-Kader",scheduleCount=Number(scheduleMeta.matchups||0)||schedule.filter(row=>Number(row.week)>=1&&Number(row.week)<=18).length;
+  const scheduleIssue=schedule.length?"":"Der aktuelle ESPN-FBA-Spielplan fehlt.",basisIssue=scheduleIssue||monsterProjectionBasisIssue(nba,rosterA,rosterB),ready=!basisIssue;
+  let forecast=null,simulation=null,displayForecast=null;
+  if(ready){forecast=monsterForecast(rosterA,rosterB);simulation=monsterSimulation(aTeam,bTeam,forecast);displayForecast=simulation?simulation.after:forecast;document.documentElement.style.setProperty("--monster-score-left",T(aTeam).c);document.documentElement.style.setProperty("--monster-score-right",T(bTeam).c)}
+
+  const sourceStrip=`<div class="draft-source-strip"><span class="source-chip live">${E(rosterMode)}</span><span class="source-chip${scheduleCount===72?" live":""}">${E(scheduleCount)} FBA-Matchups · ESPN ${E(scheduleMeta.season||"2026/27")}</span><span class="source-chip${nbaWeekGames.length?" live":""}">${nbaWeekGames.length?E(nbaWeekGames.length)+" NBA-Spiele · "+E(monsterWeekLabel(selected)):"NBA-Spielplan wird geladen"}</span></div>`;
+  const controls=`<div class="monster-controls"><label class="monster-control-field analysis"><span>Mein Analyse-Team</span><select data-testid="monster-analysis-team" onchange="setMonsterTeam('teamA',this.value)">${teams.map(team=>`<option ${team===aTeam?"selected":""}>${E(team)}</option>`).join("")}</select></label><label class="monster-control-field"><span>FBA-Woche</span><select data-testid="monster-week" onchange="setMonsterWeek(this.value)">${weeks.map(row=>{const opponent=monsterScheduledOpponent(aTeam,row.week);return `<option value="${E(row.week)}" ${Number(row.week)===Number(MONSTER_STATE.week)?"selected":""}>W${E(row.week)} · ${E(monsterWeekLabel(row))}${opponent?" · vs "+E(T(opponent).s||opponent):""}</option>`}).join("")}</select></label><label class="monster-control-field"><span>Vergleichsgegner</span><select data-testid="monster-opponent" onchange="setMonsterTeam('teamB',this.value)">${teams.filter(team=>team!==aTeam).map(team=>`<option ${team===bTeam?"selected":""}>${E(team)}</option>`).join("")}</select></label><button type="button" onclick="loadMonsterData(true)" ${MONSTER_STATE.loading?"disabled":""}>${MONSTER_STATE.loading?"ESPN lädt …":"Live neu laden"}</button></div>`;
+
+  let matchupCard;
+  if(!ready){matchupCard=`<section class="monster-card draft-glass"><div class="monster-card-head"><div><h2>Datencheck</h2><small>Fehlende Werte werden nicht als Null interpretiert</small></div><span class="monster-week-badge">W${E(MONSTER_STATE.week)}</span></div><div class="monster-data-issue"><b>Prognose bewusst blockiert.</b><br>${E(basisIssue)}</div><button type="button" onclick="loadMonsterData(true)">ESPN live neu laden</button></section>`}
+  else{
+    const scheduledOpponent=monsterScheduledOpponent(aTeam,MONSTER_STATE.week),scenarioBanner=simulation?`<div class="monster-scenario-banner"><b>${E(simulation.drop.name)} raus → ${E(simulation.add.name)} rein</b><span>Alle acht FBA-Punkte zeigen jetzt Vorher → Nachher</span></div>`:"",leftDelta=displayForecast.aExpected-forecast.aExpected,rightDelta=displayForecast.bExpected-forecast.bExpected;
+    const leftScore=simulation?`<span class="monster-score-stack"><strong class="monster-score-v30 left">${E(de(displayForecast.aExpected,1))}</strong><small class="monster-score-before">vorher ${E(de(forecast.aExpected,1))}</small><span class="monster-score-delta ${monsterImpactClass(leftDelta)}">${leftDelta>=0?"+":""}${E(de(leftDelta,1))}</span></span>`:`<strong class="monster-score-v30 left">${E(de(forecast.aExpected,1))}</strong>`,rightScore=simulation?`<span class="monster-score-stack"><strong class="monster-score-v30 right">${E(de(displayForecast.bExpected,1))}</strong><small class="monster-score-before">vorher ${E(de(forecast.bExpected,1))}</small><span class="monster-score-delta ${monsterImpactClass(rightDelta)}">${rightDelta>=0?"+":""}${E(de(rightDelta,1))}</span></span>`:`<strong class="monster-score-v30 right">${E(de(forecast.bExpected,1))}</strong>`;
+    matchupCard=`<section class="monster-card draft-glass"><div class="monster-card-head"><div><h2>${simulation?"Pickup-Szenario":"Wahrscheinlichstes Szenario"}</h2><small>${simulation?"Vorher/Nachher über alle acht FBA-Punkte":"Ein Balance-Balken je FBA-Punkt"}</small></div><span class="monster-week-badge">W${E(MONSTER_STATE.week)} · ${E(de(displayForecast.aExpected,1))}:${E(de(displayForecast.bExpected,1))} Prognose</span></div>${scenarioBanner}<div class="monster-scoreboard-v30" data-testid="monster-scoreboard"><div class="monster-team">${chip(aTeam)}<b>${E(T(aTeam).s||aTeam)}</b><span>${rosterA.length} Spieler · ${displayForecast.a.games.toFixed(0)} Spiele übrig</span></div>${leftScore}<div class="monster-vs-v30">VS</div>${rightScore}<div class="monster-team">${chip(bTeam)}<b>${E(T(bTeam).s||bTeam)}</b><span>${rosterB.length} Spieler · ${displayForecast.b.games.toFixed(0)} Spiele übrig${scheduledOpponent===bTeam?" · echter Gegner":" · freier Vergleich"}</span></div></div>${monsterPointRowsMarkup(forecast,aTeam,bTeam,simulation)}<div class="monster-private-note">Die Balkengrenze zeigt auf einen Blick, zu welchem Team der FBA-Punkt kippt. Grundlage: Spielerwert × verbleibende NBA-Spiele × ESPN-Verfügbarkeitsstatus. Entscheidungshilfe, keine Garantie.</div></section>`;
+  }
+  const pickupBody=ready?monsterSimulatorMarkup(aTeam,bTeam,forecast,simulation):`<div class="monster-data-issue">${E(basisIssue)} Das Pickup Impact Lab zeigt deshalb keine erfundenen Auswirkungen.</div>`;
+  return `${hero("Gerät dauerhaft frei")}${MONSTER_STATE.error?`<div class="note" style="margin-top:12px;color:#ff8791">${E(MONSTER_STATE.error)}</div>`:""}${sourceStrip}${controls}<div class="monster-grid">${matchupCard}<div><section class="monster-card draft-glass"><div class="monster-card-head"><div><h2>Verletzungen</h2><small>ESPN Status</small></div></div>${monsterInjuryMarkup()}</section><section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>B2B Radar</h2><small>Tage → NBA-Teams → freie Spieler</small></div></div>${monsterB2bMarkup()}</section></div></div>${monsterSeasonProjectionMarkup()}<section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>Pickup Impact Lab</h2><small>${E(T(aTeam).s||aTeam)} · Gesamtprofil oder gezielter FBA-Punkt</small></div></div>${pickupBody}</section><section class="monster-card draft-glass" style="margin-top:18px"><div class="monster-card-head"><div><h2>Projektionsquellen</h2><small>Kein Fake-Consensus</small></div></div>${monsterSourcesMarkup()}<div class="monster-private-note">FantasyPros und Hashtag bleiben vorbereitete Adapter und werden erst nach einem lizenzierten Zugang aktiv. Bis dahin rechnet die App sichtbar nur mit ESPN-Spielplan, ESPN-Rangfolge und der vorhandenen ESPN-Statistikbasis.</div></section>`;
 }
 
 window.__FBA_DRAFT_TEST__={
@@ -2923,7 +3170,7 @@ function render(){
   document.body.classList.toggle("draft-wide",CUR==="draft"||CUR==="monster");
   const visiblePages=PAGES.filter(([k])=>k!=="monster"||monsterUnlocked());
   document.getElementById("nav").innerHTML = visiblePages.map(([k,l])=>
-    `<button class="${CUR===k?"on":""}" onclick="CUR='${k}';render()">${l}</button>`).join("");
+    `<button class="${CUR===k?"on":""}" onclick="navigatePage('${k}')">${l}</button>`).join("");
   const fn = (PAGES.find(p=>p[0]===CUR)||PAGES[0])[2];
   document.getElementById("main").innerHTML = `<div class="page page-${E(CUR)} on">${fn()}</div>`;
   updateCountdowns();

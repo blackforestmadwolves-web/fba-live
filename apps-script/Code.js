@@ -1227,6 +1227,7 @@ var ESPN_SYNC_V1 = {
   seasonLabel: '2026/27',
   statsSheet: 'S26_27 StatsRaw',
   scheduleSheet: 'S26_27 Schedule',
+  nbaScheduleSheet: 'ESPN_NBA_Schedule',
   resultsSheet: 'S26_27 Results',
   logSheet: 'ESPN_Sync',
   analyticsSheet: 'App_Analytics',
@@ -1258,6 +1259,11 @@ var ESPN_STATS_HEADER_V1 = [
 
 var ESPN_SCHEDULE_HEADER_V1 = [
   'season_id', 'week', 'matchup_id', 'date_start', 'date_end', 'away_team', 'home_team'
+];
+
+var ESPN_NBA_SCHEDULE_HEADER_V33 = [
+  'season_id', 'event_id', 'nba_date', 'away_team', 'home_team', 'status',
+  'scoring_period', 'source', 'last_seen', 'last_changed'
 ];
 
 var ESPN_RESULTS_HEADER_V1 = [
@@ -1364,6 +1370,9 @@ function syncEspnData() {
         FBA_ESPN_PLAYER_ERROR: playerResult.error
       });
     }
+    var nbaScheduleResult = null, nbaScheduleError = '';
+    try { nbaScheduleResult = refreshEspnNbaScheduleV33_(false, true); }
+    catch (nbaScheduleErr) { nbaScheduleError = String(nbaScheduleErr && nbaScheduleErr.message ? nbaScheduleErr.message : nbaScheduleErr).slice(0, 300); }
     var scheduleRows = buildEspnScheduleRowsV1_(league);
     var rows = buildEspnStatsRowsV1_(league, stamp);
     upsertEspnScheduleRowsV1_(scheduleRows);
@@ -1387,7 +1396,9 @@ function syncEspnData() {
       (rows.length ? 'ESPN-Matchups übernommen.' : 'Liga erreichbar; Saison noch ohne Matchup-Werte.') +
       ' Player Hub: ' + playerResult.status + ' · Spieler ' + (playerResult.players || 0) +
       ' · Kader ' + (playerResult.roster || 0) + ' · Transaktionen ' + (playerResult.transactions || 0) +
-      ' · neue NBA-Zeilen ' + (playerResult.dailyRows || 0) + (playerResult.error ? ' · ' + playerResult.error : ''));
+      ' · neue NBA-Zeilen ' + (playerResult.dailyRows || 0) +
+      ' · NBA-Spielplan ' + (nbaScheduleResult ? (nbaScheduleResult.games.length + ' Spiele') : ('Fehler: ' + (nbaScheduleError || 'unbekannt'))) +
+      (playerResult.error ? ' · ' + playerResult.error : ''));
     return getEspnSyncStatus_();
   } catch (err) {
     var message = String(err && err.message ? err.message : err).slice(0, 500);
@@ -1420,6 +1431,7 @@ function ensureEspnSheetsV1_() {
     log.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#EAEAEA');
   }
   ensureSimpleEspnSheetV1_(ESPN_SYNC_V1.scheduleSheet, ESPN_SCHEDULE_HEADER_V1);
+  ensureSimpleEspnSheetV1_(ESPN_SYNC_V1.nbaScheduleSheet, ESPN_NBA_SCHEDULE_HEADER_V33);
   ensureSimpleEspnSheetV1_(ESPN_SYNC_V1.resultsSheet, ESPN_RESULTS_HEADER_V1);
   ensureAnalyticsSeasonV1_();
 }
@@ -1509,7 +1521,7 @@ function buildEspnScheduleRowsV1_(league) {
   var grouped = {};
   (league.schedule || []).forEach(function (game) {
     var week = Number(game.matchupPeriodId || 0);
-    if (!week || !game.away || !game.home || !game.away.teamId || !game.home.teamId) return;
+    if (!week || week > ESPN_SYNC_V1.regularSeasonEnd || !game.away || !game.home || !game.away.teamId || !game.home.teamId) return;
     if (!grouped[week]) grouped[week] = [];
     grouped[week].push(game);
   });
@@ -1622,20 +1634,50 @@ function upsertEspnStatsRowsV1_(rows) {
   return updated;
 }
 
-function upsertEspnScheduleRowsV1_(rows) {
-  var sh = book().getSheetByName(ESPN_SYNC_V1.scheduleSheet);
-  if (!sh || !rows.length) return 0;
-  var last = sh.getLastRow();
-  var existing = last > 1 ? sh.getRange(2, 1, last - 1, ESPN_SCHEDULE_HEADER_V1.length).getValues() : [];
-  var byKey = {};
-  existing.forEach(function (row, index) { if (row[1] && row[2]) byKey[row[1] + '|' + row[2]] = index + 2; });
-  var append = [];
-  rows.forEach(function (row) {
-    var key = row[1] + '|' + row[2], rowNo = byKey[key];
-    if (rowNo) sh.getRange(rowNo, 1, 1, row.length).setValues([row]);
-    else append.push(row);
+function validateEspnScheduleRowsV33_(rows) {
+  var gamesPerWeek = 4, expectedRows = ESPN_SYNC_V1.regularSeasonEnd * gamesPerWeek;
+  if (!Array.isArray(rows) || rows.length !== expectedRows) {
+    throw new Error('ESPN-FBA-Spielplan unvollständig: erwartet werden exakt ' + expectedRows + ' Matchups aus 18 Wochen mit je vier Paarungen.');
+  }
+  var byWeek = {}, matchupIds = {}, referenceTeams = '';
+  rows.forEach(function (row, index) {
+    var week = Number(row && row[1]), matchupId = String(row && row[2] || '').trim();
+    var away = String(row && row[5] || '').trim(), home = String(row && row[6] || '').trim();
+    if (String(row && row[0] || '') !== ESPN_SYNC_V1.seasonLabel || week !== Math.floor(week) || week < 1 || week > ESPN_SYNC_V1.regularSeasonEnd) {
+      throw new Error('ESPN-FBA-Spielplan fehlerhaft: ungültige Saison oder Woche in Zeile ' + (index + 1) + '.');
+    }
+    if (!matchupId || matchupIds[matchupId]) throw new Error('ESPN-FBA-Spielplan fehlerhaft: Matchup-ID fehlt oder ist doppelt (' + matchupId + ').');
+    if (!away || !home || away === home) throw new Error('ESPN-FBA-Spielplan fehlerhaft: ungültige Paarung in Woche ' + week + '.');
+    matchupIds[matchupId] = true;
+    if (!byWeek[week]) byWeek[week] = { count: 0, teams: {} };
+    if (byWeek[week].teams[away] || byWeek[week].teams[home]) {
+      throw new Error('ESPN-FBA-Spielplan fehlerhaft: Team in Woche ' + week + ' mehrfach angesetzt.');
+    }
+    byWeek[week].count++;
+    byWeek[week].teams[away] = true;
+    byWeek[week].teams[home] = true;
   });
-  if (append.length) sh.getRange(sh.getLastRow() + 1, 1, append.length, ESPN_SCHEDULE_HEADER_V1.length).setValues(append);
+  for (var week = 1; week <= ESPN_SYNC_V1.regularSeasonEnd; week++) {
+    var bucket = byWeek[week], teams = bucket ? Object.keys(bucket.teams).sort() : [];
+    if (!bucket || bucket.count !== gamesPerWeek || teams.length !== 8) {
+      throw new Error('ESPN-FBA-Spielplan unvollständig: Woche ' + week + ' braucht vier Paarungen und acht eindeutige Teams.');
+    }
+    var signature = teams.join('|');
+    if (!referenceTeams) referenceTeams = signature;
+    else if (signature !== referenceTeams) throw new Error('ESPN-FBA-Spielplan fehlerhaft: der Teamkreis wechselt in Woche ' + week + '.');
+  }
+  return rows;
+}
+
+function upsertEspnScheduleRowsV1_(rows) {
+  validateEspnScheduleRowsV33_(rows);
+  var sh = book().getSheetByName(ESPN_SYNC_V1.scheduleSheet);
+  if (!sh) throw new Error('ESPN-FBA-Spielplan-Sheet fehlt.');
+  var previousLast = sh.getLastRow();
+  sh.getRange(2, 1, rows.length, ESPN_SCHEDULE_HEADER_V1.length).setValues(rows);
+  if (previousLast > rows.length + 1) {
+    sh.getRange(rows.length + 2, 1, previousLast - rows.length - 1, ESPN_SCHEDULE_HEADER_V1.length).clearContent();
+  }
   return rows.length;
 }
 
@@ -1689,6 +1731,9 @@ function clearEspnDependentCachesV1_() {
   cache.remove(DATA_CACHE_PREFIX + 'idx');
   cache.remove(ANALYTICS_CACHE_KEY_V1);
   cache.remove(CONFIG_CACHE_KEY_PHASE_V1);
+  if (typeof MATCHUP_MONSTER_V30 !== 'undefined' && MATCHUP_MONSTER_V30.scheduleCacheKey) {
+    for (var week = 1; week <= MATCHUP_MONSTER_V30.maxWeek; week++) cache.remove(MATCHUP_MONSTER_V30.scheduleCacheKey + week);
+  }
   _g = {};
   _map = null;
 }
@@ -2275,7 +2320,7 @@ function monsterFbaScheduleV29_() {
     ie=indexOfAny(['ENDE','END','DATE_END'],-1),ist=indexOfAny(['STATUS'],4),ia=indexOfAny(['AWAY','AWAY_TEAM'],5),ih=indexOfAny(['HOME','HOME_TEAM'],6);
   return values.map(function(r){return {week:Number(r[iw]||0),mu:String(r[im]||''),away:String(r[ia]||''),home:String(r[ih]||''),
     start:is>=0?String(r[is]||''):'',end:ie>=0?String(r[ie]||''):'',status:ist>=0?String(r[ist]||''):''};})
-    .filter(function(r){return r.week&&r.away&&r.home;});
+    .filter(function(r){return r.week>=1&&r.week<=ESPN_SYNC_V1.regularSeasonEnd&&r.away&&r.home;});
 }
 
 function nbaSeasonStartV29_() {
@@ -2364,18 +2409,27 @@ function matchupMonsterResponseV29_(p) {
   return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
 
-/* ================= MATCHUP MONSTER v32 =================
+/* ================= MATCHUP MONSTER v33 =================
  * ESPN Fantasy und die ESPN-Site-API bezeichnen 2026/27 als Saison 2027.
  * Die FBA-Zeiträume sind feste Matchup-Fenster; niemals wird das heutige
  * Datum als stiller Ersatz verwendet. Für die ersten beiden Wochen liegt
  * zusätzlich ein am 04.09.2026 gegen NBA.com verifizierter Fallback vor.
- * v32 kennzeichnet den Analyse-Team-/B2B-/Pickup-Impact-Frontendstand.
+ * v33 hält den vollständigen ESPN-Fantasy-NBA-Spielplan als validierten
+ * Last-known-good-Snapshot vor und liefert ihn zusätzlich im Monster-Payload.
  */
 var MATCHUP_MONSTER_V30 = {
   nbaSiteSeasons: [2027],
   firstWeekStart: '2026-10-20',
   firstWeekEnd: '2026-10-25',
-  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V31_',
+  scheduleCacheKey: 'FBA_MONSTER_NBA_SCHEDULE_V33_',
+  nbaScheduleLastSuccessKey: 'FBA_ESPN_NBA_SCHEDULE_LAST_SUCCESS_V33',
+  nbaScheduleSource: 'ESPN Fantasy proTeamSchedules_wl',
+  nbaScheduleMaxAgeMs: 86400000,
+  nbaScheduleMinimumGames: 1200,
+  nbaScheduleTeamCount: 30,
+  nbaScheduleMinimumTeamGames: 80,
+  nbaScheduleMaximumTeamGames: 82,
+  nbaScheduleLockWaitMs: 5000,
   maxWeek: 20,
   nbaTeamSlugs: ['atl','bos','bkn','cha','chi','cle','dal','den','det','gs','hou','ind','lac','lal','mem','mia','mil','min','no','ny','okc','orl','phi','phx','por','sac','sa','tor','utah','wsh']
 };
@@ -2403,7 +2457,9 @@ function monsterDateCellV30_(value) {
 }
 
 function monsterFbaScheduleV30_() {
-  return monsterFbaScheduleV29_().map(function(row){
+  return monsterFbaScheduleV29_().filter(function(row){
+    return Number(row.week)>=1&&Number(row.week)<=ESPN_SYNC_V1.regularSeasonEnd;
+  }).map(function(row){
     var window=fantasyWeekWindowV30_(row.week);
     row.start=monsterDateCellV30_(row.start)||window.start;
     row.end=monsterDateCellV30_(row.end)||window.end;
@@ -2431,6 +2487,264 @@ function dedupeNbaGamesV30_(games) {
     if(!game)return false;var key=game.id||[game.date].concat(game.teams.slice().sort()).join(':');
     if(seen[key])return false;seen[key]=true;return true;
   }).sort(function(a,b){return a.date.localeCompare(b.date)||a.id.localeCompare(b.id);});
+}
+
+function espnFantasyNbaScheduleEndpointV33_() {
+  return 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/' +
+    ESPN_SYNC_V1.seasonId + '?view=proTeamSchedules_wl';
+}
+
+function espnFantasyNbaDateV33_(value) {
+  var raw = value instanceof Date ? value : value;
+  if (typeof raw === 'string' && /^\d{11,}$/.test(raw)) raw = Number(raw);
+  var date = new Date(raw);
+  return isNaN(date.getTime()) ? '' : Utilities.formatDate(date, ESPN_PLAYER_HUB_V2.nbaTimezone, 'yyyy-MM-dd');
+}
+
+function espnFantasyNbaStatusV33_(game) {
+  if (game && game.suspended === true) return 'STATUS_SUSPENDED';
+  if (game && game.postponed === true) return 'STATUS_POSTPONED';
+  if (game && game.startTimeTBD === true) return 'STATUS_TIME_TBD';
+  var raw = game && (game.status || game.gameStatus || game.state);
+  if (raw && typeof raw === 'object') raw = ((raw.type || {}).name || (raw.type || {}).state || raw.name || raw.state || '');
+  if (/suspend/i.test(String(raw || ''))) return 'STATUS_SUSPENDED';
+  if (/postpon/i.test(String(raw || ''))) return 'STATUS_POSTPONED';
+  if (/time.?tbd|start.?tbd/i.test(String(raw || ''))) return 'STATUS_TIME_TBD';
+  if (raw) return String(raw);
+  return game && game.statsOfficial ? 'STATUS_FINAL' : 'STATUS_SCHEDULED';
+}
+
+function parseEspnFantasyNbaScheduleV33_(payload) {
+  var proTeams = ((payload || {}).settings || {}).proTeams || (payload || {}).proTeams || [];
+  var proTeamIds = {}, gameTeams = {}, gamesById = {};
+  (proTeams || []).forEach(function (team) {
+    var teamId = Number(team && team.id), abbreviation = nbaAbbreviationV3_(teamId);
+    if (!abbreviation) return;
+    proTeamIds[String(teamId)] = true;
+    var periods = team.proGamesByScoringPeriod || {};
+    Object.keys(periods).forEach(function (periodKey) {
+      var periodGames = periods[periodKey];
+      if (!Array.isArray(periodGames)) periodGames = periodGames ? Object.keys(periodGames).map(function (key) { return periodGames[key]; }) : [];
+      periodGames.forEach(function (game) {
+        var eventId = String(game && (game.id || game.gameId) || '').trim();
+        if (!eventId) return;
+        var away = nbaAbbreviationV3_(game.awayProTeamId), home = nbaAbbreviationV3_(game.homeProTeamId);
+        var date = espnFantasyNbaDateV33_(game.date || game.startTime);
+        if (!date || !away || !home || away === home) return;
+        var candidate = {
+          id: eventId,
+          date: date,
+          teams: [away, home],
+          awayTeam: away,
+          homeTeam: home,
+          status: String(espnFantasyNbaStatusV33_(game) || '').trim().toUpperCase(),
+          scoringPeriod: Number(game.scoringPeriodId || periodKey || 0)
+        };
+        if (gamesById[eventId]) {
+          var existing = gamesById[eventId];
+          var existingSignature = [existing.date,existing.awayTeam,existing.homeTeam,existing.status,existing.scoringPeriod].join('|');
+          var candidateSignature = [candidate.date,candidate.awayTeam,candidate.homeTeam,candidate.status,candidate.scoringPeriod].join('|');
+          if (candidateSignature !== existingSignature) {
+            throw new Error('ESPN-Saisonspielplan widersprüchlich: Event-ID ' + eventId + ' enthält abweichende Termin-, Team- oder Statusdaten.');
+          }
+          return;
+        }
+        gamesById[eventId] = candidate;
+        gameTeams[away] = true;
+        gameTeams[home] = true;
+      });
+    });
+  });
+  var games = Object.keys(gamesById).map(function (id) { return gamesById[id]; });
+  games.sort(function (a, b) { return a.date.localeCompare(b.date) || a.id.localeCompare(b.id); });
+  return {
+    seasonId: ESPN_SYNC_V1.seasonId,
+    season: ESPN_SYNC_V1.seasonLabel,
+    source: MATCHUP_MONSTER_V30.nbaScheduleSource,
+    teamCount: Object.keys(gameTeams).length,
+    proTeamCount: Object.keys(proTeamIds).length,
+    gameCount: games.length,
+    games: games
+  };
+}
+
+function validateEspnFantasyNbaScheduleV33_(snapshot) {
+  var games = snapshot && snapshot.games;
+  if (!snapshot || !Array.isArray(games)) throw new Error('ESPN-Saisonspielplan unvollständig: keine prüfbare Spieleliste.');
+  if (snapshot.seasonId != null && Number(snapshot.seasonId) !== ESPN_SYNC_V1.seasonId) {
+    throw new Error('ESPN-Saisonspielplan fehlerhaft: falsche Saison-ID.');
+  }
+  var allowedTeams = {}, teamGames = {}, unique = {}, fixtureSignatures = {}, derivedTeams = {};
+  for (var teamId = 1; teamId <= MATCHUP_MONSTER_V30.nbaScheduleTeamCount; teamId++) {
+    var abbreviation = nbaAbbreviationV3_(teamId);
+    allowedTeams[abbreviation] = true;
+    teamGames[abbreviation] = 0;
+  }
+  games.forEach(function (game) {
+    var id = String(game && game.id || '').trim(), date = String(game && game.date || '').trim();
+    var away = String(game && game.awayTeam || '').trim().toUpperCase(), home = String(game && game.homeTeam || '').trim().toUpperCase();
+    var status = String(game && game.status || '').trim(), scoringPeriod = Number(game && game.scoringPeriod);
+    if (!id || unique[id]) throw new Error('ESPN-Saisonspielplan fehlerhaft: Event-ID fehlt oder ist doppelt (' + id + ').');
+    unique[id] = true;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('ESPN-Saisonspielplan fehlerhaft: ungültiges NBA-Datum in Event ' + id + '.');
+    var parsedDate = new Date(date + 'T00:00:00Z');
+    if (isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10) !== date || date < '2026-10-20' || date > '2027-06-30') {
+      throw new Error('ESPN-Saisonspielplan fehlerhaft: NBA-Datum außerhalb der Saison in Event ' + id + '.');
+    }
+    if (!allowedTeams[away] || !allowedTeams[home]) throw new Error('ESPN-Saisonspielplan fehlerhaft: unbekanntes NBA-Team in Event ' + id + '.');
+    if (away === home) throw new Error('ESPN-Saisonspielplan fehlerhaft: Heim- und Auswärtsteam sind identisch in Event ' + id + '.');
+    var fixtureSignature = date + '|' + [away, home].sort().join('|');
+    if (fixtureSignatures[fixtureSignature] && fixtureSignatures[fixtureSignature] !== id) {
+      throw new Error('ESPN-Saisonspielplan widersprüchlich: derselbe NBA-Termin steht unter verschiedenen Event-IDs (' + fixtureSignatures[fixtureSignature] + ', ' + id + ').');
+    }
+    fixtureSignatures[fixtureSignature] = id;
+    if (game.teams && (!Array.isArray(game.teams) || game.teams.length !== 2 || String(game.teams[0]).toUpperCase() !== away || String(game.teams[1]).toUpperCase() !== home)) {
+      throw new Error('ESPN-Saisonspielplan fehlerhaft: Teamfelder widersprechen sich in Event ' + id + '.');
+    }
+    if (!status || scoringPeriod !== Math.floor(scoringPeriod) || scoringPeriod < 1 || scoringPeriod > 366) {
+      throw new Error('ESPN-Saisonspielplan fehlerhaft: Status oder Scoring-Tag ungültig in Event ' + id + '.');
+    }
+    derivedTeams[away] = true;
+    derivedTeams[home] = true;
+    teamGames[away]++;
+    teamGames[home]++;
+  });
+  var gameCount = Object.keys(unique).length, teamCount = Object.keys(derivedTeams).length;
+  if (snapshot.gameCount != null && Number(snapshot.gameCount) !== gameCount) {
+    throw new Error('ESPN-Saisonspielplan unvollständig: gameCount ' + snapshot.gameCount + ' passt nicht zu ' + gameCount + ' eindeutigen Spielen.');
+  }
+  if (games.length !== gameCount || (snapshot.teamCount != null && Number(snapshot.teamCount) !== teamCount) ||
+      (snapshot.proTeamCount != null && Number(snapshot.proTeamCount) !== MATCHUP_MONSTER_V30.nbaScheduleTeamCount) ||
+      teamCount !== MATCHUP_MONSTER_V30.nbaScheduleTeamCount || gameCount < MATCHUP_MONSTER_V30.nbaScheduleMinimumGames) {
+    throw new Error('ESPN-Saisonspielplan unvollständig: ' + teamCount + '/30 Teams, ' + gameCount + '/' + MATCHUP_MONSTER_V30.nbaScheduleMinimumGames + ' eindeutige Spiele.');
+  }
+  Object.keys(teamGames).forEach(function (team) {
+    if (teamGames[team] < MATCHUP_MONSTER_V30.nbaScheduleMinimumTeamGames || teamGames[team] > MATCHUP_MONSTER_V30.nbaScheduleMaximumTeamGames) {
+      throw new Error('ESPN-Saisonspielplan unplausibel: ' + team + ' hat ' + teamGames[team] + ' Spiele.');
+    }
+  });
+  snapshot.gameCount = gameCount;
+  snapshot.teamCount = teamCount;
+  snapshot.complete = true;
+  return snapshot;
+}
+
+function fetchEspnFantasyNbaScheduleV33_() {
+  var response = UrlFetchApp.fetch(espnFantasyNbaScheduleEndpointV33_(), {
+    method: 'get', headers: { Accept: 'application/json' }, muteHttpExceptions: true, followRedirects: true
+  });
+  if (!response || response.getResponseCode() !== 200) throw new Error('ESPN-Saisonspielplan HTTP ' + (response ? response.getResponseCode() : 'ohne Antwort'));
+  var parsed;
+  try { parsed = JSON.parse(response.getContentText()); }
+  catch (parseError) { throw new Error('ESPN-Saisonspielplan enthält kein gültiges JSON.'); }
+  return validateEspnFantasyNbaScheduleV33_(parseEspnFantasyNbaScheduleV33_(parsed));
+}
+
+function ensureEspnNbaScheduleSheetV33_() {
+  var sh = ensureSimpleEspnSheetV1_(ESPN_SYNC_V1.nbaScheduleSheet, ESPN_NBA_SCHEDULE_HEADER_V33);
+  var current = sh.getRange(1, 1, 1, ESPN_NBA_SCHEDULE_HEADER_V33.length).getValues()[0];
+  if (current.join('|') !== ESPN_NBA_SCHEDULE_HEADER_V33.join('|')) {
+    sh.getRange(1, 1, 1, ESPN_NBA_SCHEDULE_HEADER_V33.length).setValues([ESPN_NBA_SCHEDULE_HEADER_V33]);
+  }
+  return sh;
+}
+
+function readPersistedEspnNbaScheduleV33_() {
+  var sh = book().getSheetByName(ESPN_SYNC_V1.nbaScheduleSheet);
+  if (!sh || sh.getLastRow() < 2) return null;
+  var values = sh.getRange(1, 1, sh.getLastRow(), ESPN_NBA_SCHEDULE_HEADER_V33.length).getValues(), header = {};
+  values[0].forEach(function (value, index) { header[String(value || '').trim().toLowerCase()] = index; });
+  if (header.event_id === undefined || header.nba_date === undefined || header.away_team === undefined || header.home_team === undefined) return null;
+  var games = [], teams = {}, source = '', lastSeen = '', lastChanged = '';
+  values.slice(1).forEach(function (row) {
+    if (header.season_id !== undefined && String(row[header.season_id] || '') !== String(ESPN_SYNC_V1.seasonId)) return;
+    var id = String(row[header.event_id] || '').trim(), date = monsterDateCellV30_(row[header.nba_date]);
+    var away = normalizeNbaAbbreviationV30_(row[header.away_team]), home = normalizeNbaAbbreviationV30_(row[header.home_team]);
+    if (!id || !date || !away || !home) return;
+    games.push({id:id,date:date,teams:[away,home],awayTeam:away,homeTeam:home,
+      status:String(header.status === undefined ? '' : row[header.status] || ''),
+      scoringPeriod:Number(header.scoring_period === undefined ? 0 : row[header.scoring_period] || 0)});
+    teams[away] = true; teams[home] = true;
+    if (!source && header.source !== undefined) source = String(row[header.source] || '');
+    if (header.last_seen !== undefined && String(row[header.last_seen] || '') > lastSeen) lastSeen = String(row[header.last_seen] || '');
+    if (header.last_changed !== undefined && String(row[header.last_changed] || '') > lastChanged) lastChanged = String(row[header.last_changed] || '');
+  });
+  var snapshot = {seasonId:ESPN_SYNC_V1.seasonId,season:ESPN_SYNC_V1.seasonLabel,
+    source:source || MATCHUP_MONSTER_V30.nbaScheduleSource,teamCount:Object.keys(teams).length,
+    gameCount:games.length,games:dedupeNbaGamesV30_(games),lastSeen:lastSeen,lastChanged:lastChanged,persisted:true};
+  try { return validateEspnFantasyNbaScheduleV33_(snapshot); } catch (invalidStoredSchedule) { return null; }
+}
+
+function persistEspnNbaScheduleV33_(snapshot) {
+  validateEspnFantasyNbaScheduleV33_(snapshot);
+  var sh = ensureEspnNbaScheduleSheetV33_(), previousLast = sh.getLastRow(), oldById = {};
+  if (previousLast > 1) {
+    sh.getRange(2, 1, previousLast - 1, ESPN_NBA_SCHEDULE_HEADER_V33.length).getValues().forEach(function (row) {
+      if (row[1]) oldById[String(row[1])] = row;
+    });
+  }
+  var stamp = new Date().toISOString(), rows = snapshot.games.map(function (game) {
+    var old = oldById[String(game.id)], signature = [game.date,game.awayTeam,game.homeTeam,game.status,Number(game.scoringPeriod||0)].join('|');
+    var oldSignature = old ? [monsterDateCellV30_(old[2]),String(old[3]||''),String(old[4]||''),String(old[5]||''),Number(old[6]||0)].join('|') : '';
+    var changed = old && signature === oldSignature && old[9] ? String(old[9]) : stamp;
+    return [ESPN_SYNC_V1.seasonId,String(game.id),game.date,game.awayTeam,game.homeTeam,String(game.status||''),
+      Number(game.scoringPeriod||0),snapshot.source || MATCHUP_MONSTER_V30.nbaScheduleSource,stamp,changed];
+  });
+  var requiredRows = rows.length + 1;
+  if (sh.getMaxRows() < requiredRows) sh.insertRowsAfter(sh.getMaxRows(), requiredRows - sh.getMaxRows());
+  sh.getRange(2, 2, rows.length, 2).setNumberFormat('@');
+  sh.getRange(2, 1, rows.length, ESPN_NBA_SCHEDULE_HEADER_V33.length).setValues(rows);
+  if (previousLast > rows.length + 1) sh.getRange(rows.length + 2, 1, previousLast - rows.length - 1, ESPN_NBA_SCHEDULE_HEADER_V33.length).clearContent();
+  espnPropertiesV1_().setProperties({
+    FBA_ESPN_NBA_SCHEDULE_LAST_SUCCESS_V33: stamp,
+    FBA_ESPN_NBA_SCHEDULE_GAME_COUNT_V33: String(rows.length),
+    FBA_ESPN_NBA_SCHEDULE_SOURCE_V33: snapshot.source || MATCHUP_MONSTER_V30.nbaScheduleSource
+  });
+  var cache = CacheService.getScriptCache();
+  for (var week = 1; week <= MATCHUP_MONSTER_V30.maxWeek; week++) cache.remove(MATCHUP_MONSTER_V30.scheduleCacheKey + week);
+  snapshot.lastSeen = stamp;
+  snapshot.lastChanged = rows.reduce(function (latest, row) { return String(row[9]) > latest ? String(row[9]) : latest; }, '');
+  snapshot.persisted = true;
+  return snapshot;
+}
+
+function refreshEspnNbaScheduleV33_(force, scriptLockAlreadyHeld) {
+  // syncEspnData() hält bereits denselben nicht-reentranten Script-Lock und
+  // übergibt deshalb explizit true. Alle anderen Aufrufer serialisieren hier
+  // Fetch, LKG-Vergleich und Persistenz in einem einzigen kritischen Abschnitt.
+  var lock = scriptLockAlreadyHeld ? null : LockService.getScriptLock();
+  var locked = scriptLockAlreadyHeld === true || (lock && lock.tryLock(MATCHUP_MONSTER_V30.nbaScheduleLockWaitMs));
+  if (!locked) {
+    var waitingFallback = readPersistedEspnNbaScheduleV33_();
+    if (waitingFallback) {
+      waitingFallback.persistedFallback = true;
+      waitingFallback.error = 'ESPN-Saisonspielplan wird gerade parallel aktualisiert; letzter gültiger Stand wird verwendet.';
+      return waitingFallback;
+    }
+    throw new Error('ESPN-Saisonspielplan konnte nicht exklusiv aktualisiert werden.');
+  }
+  try {
+    var stored = readPersistedEspnNbaScheduleV33_(), props = espnPropertiesV1_();
+    var lastSuccess = props.getProperty(MATCHUP_MONSTER_V30.nbaScheduleLastSuccessKey) || (stored && stored.lastSeen) || '';
+    var age = lastSuccess ? Date.now() - new Date(lastSuccess).getTime() : NaN;
+    if (!force && stored && !isNaN(age) && age >= 0 && age < MATCHUP_MONSTER_V30.nbaScheduleMaxAgeMs) return stored;
+    try {
+      var fresh = fetchEspnFantasyNbaScheduleV33_();
+      if (stored && fresh.gameCount < stored.gameCount) {
+        throw new Error('ESPN-Saisonspielplan geschrumpft: ' + fresh.gameCount + ' statt ' + stored.gameCount + ' Spielen.');
+      }
+      return persistEspnNbaScheduleV33_(fresh);
+    }
+    catch (error) {
+      if (stored) {
+        stored.persistedFallback = true;
+        stored.error = String(error && error.message ? error.message : error).slice(0, 400);
+        return stored;
+      }
+      throw error;
+    }
+  }
+  finally { if (lock) lock.releaseLock(); }
 }
 
 function parseEspnGamesV30_(responses,window) {
@@ -2481,7 +2795,9 @@ function officialSnapshotGamesV31_(window) {
 }
 
 function monsterBackToBackV30_(games,rangeEnd) {
-  var byTeam={};(games||[]).forEach(function(game){
+  var byTeam={};(games||[]).filter(function(game){
+    return !/POSTPONED|SUSPENDED|CANCELLED|CANCELED|REMOVED/i.test(String(game&&game.status||''));
+  }).forEach(function(game){
     (game.teams||[]).forEach(function(team){(byTeam[team]||(byTeam[team]=[])).push(game.date);});
   });
   var rows=[];Object.keys(byTeam).sort().forEach(function(team){
@@ -2508,11 +2824,22 @@ function espnTeamScheduleGamesV30_(window,season) {
   return parseEspnGamesV30_(UrlFetchApp.fetchAll(requests),window);
 }
 
-function nbaWeekScheduleV30_(requestedWeek,force) {
+function nbaWeekScheduleV30_(requestedWeek,force,providedSeasonSnapshot,providedSeasonError) {
   var window=fantasyWeekWindowV30_(requestedWeek),cache=CacheService.getScriptCache(),cacheKey=MATCHUP_MONSTER_V30.scheduleCacheKey+window.week,cached=cache.get(cacheKey);
   if(!force&&cached){try{return JSON.parse(cached);}catch(e){}}
-  var games=[],source='ESPN NBA Scoreboard',errors=[],siteSeason=null,officialFallback=false;
-  try{games=espnScoreboardGamesV30_(window);}catch(scoreboardErr){errors.push('ESPN Scoreboard: '+String(scoreboardErr));}
+  var games=[],source=MATCHUP_MONSTER_V30.nbaScheduleSource,errors=[],siteSeason=null,officialFallback=false,seasonSnapshot=null;
+  if(arguments.length>=3){seasonSnapshot=providedSeasonSnapshot;if(providedSeasonError)errors.push('ESPN Fantasy Saisonplan: '+String(providedSeasonError));}
+  else {try{seasonSnapshot=refreshEspnNbaScheduleV33_(force);}catch(seasonErr){errors.push('ESPN Fantasy Saisonplan: '+String(seasonErr));}}
+  if(seasonSnapshot&&seasonSnapshot.games){
+    source=seasonSnapshot.source+(seasonSnapshot.persistedFallback?' · letzter gültiger Stand':'');
+    if(seasonSnapshot.error)errors.push('ESPN Fantasy Saisonplan: '+String(seasonSnapshot.error));
+    games=seasonSnapshot.games.filter(function(game){return game.date>=window.start&&game.date<=window.lookaheadEnd;});
+    siteSeason=seasonSnapshot.seasonId||ESPN_SYNC_V1.seasonId;
+  }
+  if(!games.length){
+    source='ESPN NBA Scoreboard';
+    try{games=espnScoreboardGamesV30_(window);}catch(scoreboardErr){errors.push('ESPN Scoreboard: '+String(scoreboardErr));}
+  }
   if(!games.length){
     source='NBA.com Official Schedule';
     try{games=officialNbaScheduleGamesV31_(window);}catch(nbaErr){errors.push('NBA.com Feed: '+String(nbaErr));}
@@ -2527,7 +2854,7 @@ function nbaWeekScheduleV30_(requestedWeek,force) {
     games=officialSnapshotGamesV31_(window);
     if(games.length){source='NBA.com Official Schedule · verifizierter Test-Fallback';officialFallback=true;}
   }
-  var inWeekGames=games.filter(function(game){return game.date>=window.start&&game.date<=window.end;}),teamGames={};
+  var inWeekGames=games.filter(function(game){return game.date>=window.start&&game.date<=window.end&&!/POSTPONED|SUSPENDED|CANCELLED|CANCELED|REMOVED/i.test(String(game.status||''));}),teamGames={};
   inWeekGames.forEach(function(game){game.teams.forEach(function(team){teamGames[team]=(teamGames[team]||0)+1;});});
   var out={generated:new Date().toISOString(),source:source,nbaSiteSeason:siteSeason,matchupWeek:window.week,
     rangeStart:window.start,rangeEnd:window.end,lookaheadEnd:window.lookaheadEnd,games:games,teamGames:teamGames,
@@ -2535,6 +2862,18 @@ function nbaWeekScheduleV30_(requestedWeek,force) {
     dataIssue:games.length?'':'Für diesen Zeitraum konnte noch kein offizieller NBA-Spielplan geladen werden.',errors:errors};
   try{cache.put(cacheKey,JSON.stringify(out),games.length?21600:180);}catch(e2){}
   return out;
+}
+
+function compactEspnNbaSeasonScheduleV33_(snapshot,error) {
+  var games=snapshot&&snapshot.games||[];
+  return {season:ESPN_SYNC_V1.seasonLabel,seasonId:ESPN_SYNC_V1.seasonId,
+    source:snapshot&&snapshot.source||MATCHUP_MONSTER_V30.nbaScheduleSource,
+    lastSeen:snapshot&&snapshot.lastSeen||null,lastChanged:snapshot&&snapshot.lastChanged||null,
+    complete:!!(snapshot&&snapshot.complete),gameCount:games.length,teamCount:Number(snapshot&&snapshot.teamCount||0),
+    persistedFallback:!!(snapshot&&snapshot.persistedFallback),warning:String(snapshot&&snapshot.error||''),games:games.map(function(game){return {
+      gameId:String(game.id||''),date:String(game.date||''),away:String(game.awayTeam||(game.teams||[])[0]||''),
+      home:String(game.homeTeam||(game.teams||[])[1]||''),status:String(game.status||''),scoringPeriod:Number(game.scoringPeriod||0)
+    };}),dataIssue:games.length?'':String(error||'Kein vollständig validierter ESPN-Saisonspielplan verfügbar.')};
 }
 
 function buildMonsterPayloadV30_(requestedWeek,force) {
@@ -2545,12 +2884,15 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
     nbaTeam:nbaAbbreviationV3_(player.nba_team_id),slot:Number(row.lineup_slot_id),active:row.active_lineup===true||String(row.active_lineup).toUpperCase()==='TRUE',
     injuryStatus:String(player.injury_status||''),photo:String(row.headshot_url||player.headshot_url||espnHeadshotV2_(row.player_id))
   };}).filter(function(row){return row.team&&row.playerId;});
-  var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force);
-  return {ok:true,version:32,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,
+  var seasonSnapshot=null,seasonError='';
+  try{seasonSnapshot=refreshEspnNbaScheduleV33_(force);}catch(error){seasonError=String(error&&error.message?error.message:error);}
+  var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force,seasonSnapshot,seasonError);
+  var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
+  return {ok:true,version:33,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
-      {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' Matchups',active:true},
-      {id:'nba',label:nbaSchedule.source+' · '+nbaSchedule.games.length+' Spiele inkl. Montag-Lookahead',active:!!nbaSchedule.games.length},
+      {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
+      {id:'nba',label:nbaSchedule.source+' · '+nbaSchedule.games.length+' NBA-Spiele inkl. Montag-Lookahead · Saison '+nbaSeasonSchedule.gameCount,active:!!nbaSchedule.games.length},
       {id:'fantasypros',label:'FantasyPros Projektionen – Adapter bereit, Lizenz/API-Schlüssel fehlt',active:false},
       {id:'hashtag',label:'Hashtag Basketball – Adapter bereit, Premium-Export fehlt',active:false}
     ]};
@@ -2594,7 +2936,10 @@ function getEspnSyncStatus_() {
     lastAttempt:p.getProperty('FBA_ESPN_LAST_ATTEMPT')||null,lastSuccess:p.getProperty('FBA_ESPN_LAST_SUCCESS')||null,lastStatus:p.getProperty('FBA_ESPN_LAST_STATUS')||'NOCH_NICHT_AUSGEFUEHRT',
     lastRows:Number(p.getProperty('FBA_ESPN_LAST_ROWS')||0),lastError:p.getProperty('FBA_ESPN_LAST_ERROR')||null,playerStatus:p.getProperty('FBA_ESPN_PLAYER_STATUS')||'NOCH_NICHT_AUSGEFUEHRT',
     playerLastSuccess:p.getProperty('FBA_ESPN_PLAYER_LAST_SUCCESS')||null,playerCount:Number(p.getProperty('FBA_ESPN_PLAYER_COUNT')||0),rosterCount:Number(p.getProperty('FBA_ESPN_ROSTER_COUNT')||0),
-    transactionCount:Number(p.getProperty('FBA_ESPN_TRANSACTION_COUNT')||0),dailyCount:Number(p.getProperty('FBA_ESPN_DAILY_COUNT')||0),nextIntervalMinutes:espnSyncIntervalMinutesV2_()};
+    transactionCount:Number(p.getProperty('FBA_ESPN_TRANSACTION_COUNT')||0),dailyCount:Number(p.getProperty('FBA_ESPN_DAILY_COUNT')||0),
+    nbaScheduleLastSuccess:p.getProperty('FBA_ESPN_NBA_SCHEDULE_LAST_SUCCESS_V33')||null,
+    nbaScheduleGameCount:Number(p.getProperty('FBA_ESPN_NBA_SCHEDULE_GAME_COUNT_V33')||0),
+    nbaScheduleSource:p.getProperty('FBA_ESPN_NBA_SCHEDULE_SOURCE_V33')||null,nextIntervalMinutes:espnSyncIntervalMinutesV2_()};
 }
 
 /* ================ DRAFT-PROGNOSE v3 ================
