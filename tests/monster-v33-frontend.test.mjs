@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v35 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
+// v36 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v35-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v36-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v35-20260904/,"Produktions-Build muss v35 ausweisen");
+assert.match(html,/war-room-monster-v36-20260904/,"Produktions-Build muss v36 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -299,4 +299,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v35 frontend regression tests");
+console.log("PASS · Matchup Monster v36 frontend regression tests");

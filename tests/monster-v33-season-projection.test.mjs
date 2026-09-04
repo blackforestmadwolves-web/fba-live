@@ -9,7 +9,7 @@ new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const start=inline[1].indexOf("function monsterSeasonProjectionCalculate(input){");
 const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs(",start);
-assert.ok(start>=0&&end>start,"Der reine v35-Saisonprognose-Rechner muss vorhanden sein");
+assert.ok(start>=0&&end>start,"Der reine v36-Saisonprognose-Rechner muss vorhanden sein");
 const model="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
 const calculate=vm.runInNewContext(`(${inline[1].slice(start,end)})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
 
@@ -242,4 +242,4 @@ const boundaryTeam=makeRoster().find(player=>player.nba===boundaryGame.away).tea
 assert.equal(boundaryResult.weekly[boundaryTeam][1].games,result.weekly[boundaryTeam][1].games,
   "00:30 UTC am 26. Oktober ist in New York noch W1; scoringPeriod darf nicht als Woche dienen");
 
-console.log("PASS · Matchup Monster v35 season projection frontend tests");
+console.log("PASS · Matchup Monster v36 season projection frontend tests");
