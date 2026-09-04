@@ -116,4 +116,6 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-console.log("PASS · Matchup Monster v31 backend tests");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:32"),true,"Backend-Payload muss den v32-Frontendstand kennzeichnen");
+
+console.log("PASS · Matchup Monster v32 backend tests");

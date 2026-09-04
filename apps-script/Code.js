@@ -2364,11 +2364,12 @@ function matchupMonsterResponseV29_(p) {
   return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
 
-/* ================= MATCHUP MONSTER v31 =================
+/* ================= MATCHUP MONSTER v32 =================
  * ESPN Fantasy und die ESPN-Site-API bezeichnen 2026/27 als Saison 2027.
  * Die FBA-Zeiträume sind feste Matchup-Fenster; niemals wird das heutige
  * Datum als stiller Ersatz verwendet. Für die ersten beiden Wochen liegt
  * zusätzlich ein am 04.09.2026 gegen NBA.com verifizierter Fallback vor.
+ * v32 kennzeichnet den Analyse-Team-/B2B-/Pickup-Impact-Frontendstand.
  */
 var MATCHUP_MONSTER_V30 = {
   nbaSiteSeasons: [2027],
@@ -2545,7 +2546,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
     injuryStatus:String(player.injury_status||''),photo:String(row.headshot_url||player.headshot_url||espnHeadshotV2_(row.player_id))
   };}).filter(function(row){return row.team&&row.playerId;});
   var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force);
-  return {ok:true,version:31,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,
+  return {ok:true,version:32,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' Matchups',active:true},
