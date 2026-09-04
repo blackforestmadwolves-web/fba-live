@@ -9,7 +9,7 @@ new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const start=inline[1].indexOf("function monsterSeasonProjectionCalculate(input){");
 const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs(",start);
-assert.ok(start>=0&&end>start,"Der reine v41-Saisonprognose-Rechner muss vorhanden sein");
+assert.ok(start>=0&&end>start,"Der reine v42-Saisonprognose-Rechner muss vorhanden sein");
 const model="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
 const calculatorSource=inline[1].slice(start,end);
 const calculate=vm.runInNewContext(`(${calculatorSource})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
@@ -343,4 +343,4 @@ assert.equal(pickupLiveResult.weekly[teams[0]][2].actualGames,2,"Montag und Dien
 assert.ok(pickupLiveResult.weeklyPlayers[teams[0]][2].some(row=>row.id==="P1-1"&&row.actualOnly===true),
   "Der vor dem Pickup aktive Spieler muss als historischer W2-Ist-Beitrag erhalten bleiben");
 
-console.log("PASS · Matchup Monster v41 season projection frontend tests");
+console.log("PASS · Matchup Monster v42 season projection frontend tests");

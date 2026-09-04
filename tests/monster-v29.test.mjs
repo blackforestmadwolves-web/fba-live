@@ -355,7 +355,7 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:41"),true,"Backend-Payload muss den v41-Release-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:42"),true,"Backend-Payload muss den v42-Release-Stand kennzeichnen");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("espnPlayerPool:espnPlayerPool"),true,"Der geschützte Payload muss den ESPN-Free-Agent-Pool liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("adpTrend:adpPayload"),true,"Der geschützte Payload muss den dynamischen ESPN-ADP-Verlauf liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("projectionEngine:projectionEngine"),true,"Der geschützte Monster-Payload muss den Projection-Engine-Status liefern");
@@ -425,4 +425,4 @@ assert.equal(context.ESPN_PLAYER_HUB_V2.nightIntervalMinutes,30,"Während des NB
 assert.match(context.installEspnSync.toString(),/everyMinutes\(30\)/,"Der Trigger muss eng genug für den 30-Minuten-Spielbetrieb laufen");
 assert.doesNotMatch(context.installEspnSync.toString(),/everyMinutes\([123]\)/,"Ein riskanter Vollsync im Ein- bis Drei-Minuten-Takt darf nicht aktiviert werden");
 
-console.log("PASS · Matchup Monster v41 backend tests");
+console.log("PASS · Matchup Monster v42 backend tests");

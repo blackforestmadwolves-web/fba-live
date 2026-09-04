@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v41 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
+// v42 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v41-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v42-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v41-20260904/,"Produktions-Build muss v41 ausweisen");
+assert.match(html,/war-room-monster-v42-20260904/,"Produktions-Build muss v42 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -458,6 +458,8 @@ assert.doesNotMatch(functionSource("pgFreeAgency"),/Rest-GP|<th>B2B<\/th>|Live-F
   "Rest-GP, B2B und aktuelles Wochenfenster gehören nicht ins allgemeine Free-Agent-Scouting");
 assert.match(html,/\.fa-player-art img\{[^}]*width:104px[\s\S]*\.fa-stat b\{[^}]*font-size:15px/,
   "Spielerbilder und Projektionszahlen müssen auf dem Free-Agent-Board deutlich lesbar sein");
+assert.match(html,/\.fa-card-details\{[^}]*grid-template-rows:0fr[\s\S]*\.fa-player-card\.open \.fa-card-details\{[^}]*grid-template-rows:1fr/,
+  "Die ROS-Stats müssen platzsparend einklappen und weich aufklappen können");
 assert.match(functionSource("freeAgencyRows"),/owned\.has\(String\(row\.player\.id\)\)/,
   "Aktuell gerosterte Spieler dürfen nie in der Free-Agency-Liste erscheinen");
 assert.match(functionSource("freeAgencyFilteredRows"),/slice\(0,100\)/,
@@ -484,17 +486,41 @@ const relevantStatus=loadFunction("freeAgencyInjuryStatus",{String});
 assert.equal(relevantStatus({injuryStatus:"ACTIVE"}),"","Gesunde Spieler dürfen kein ACTIVE-Label bekommen");
 assert.equal(relevantStatus({injuryStatus:"DAY_TO_DAY"}),"DTD");
 assert.equal(relevantStatus({injuryStatus:"OUT"}),"OUT");
-const freeAgentCard=loadFunction("freeAgencyPlayerRow",{
+const freeAgencyCardState={openIds:new Set()};
+const renderFreeAgentCard=loadFunction("freeAgencyPlayerRow",{
   freeAgencyInjuryStatus:relevantStatus,draftNormalize:value=>String(value||"").toLowerCase(),de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),
   DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],freeAgencyProjectionValue:(cat,value)=>cat.includes("%")?`${(value*100).toFixed(1)}%`:Number(value).toFixed(1),
-  freeAgencyZ:value=>`${value} z`,freeAgencySigned:value=>String(value),E:value=>String(value),espnPlayerHeadshot:id=>`photo-${id}`,imageFallbackAttr:()=>"",String,Number
-})({player:{id:"kpj",name:"Kevin Porter Jr.",nba:"MIL",injuryStatus:"ACTIVE",photo:"kpj.png"},positions:"SG",espnRank:93.4,fbaRank:20,upside:73,profile:{best:"AST",worst:"FT%",z:{AST:1.2,"FT%":-1.1}},projection:{basis:"IST + REST",detail:"1 echtes Spiel · 69 ESPN-Projektionsspiele",perGame:{PTS:24.7857,REB:5,AST:6,"3PM":2,STL:1,BLK:.4,"FG%":.48,"FT%":.75}}},0);
+  freeAgencyZ:value=>`${value} z`,freeAgencySigned:value=>String(value),E:value=>String(value),espnPlayerHeadshot:id=>`photo-${id}`,imageFallbackAttr:()=>"",FREE_AGENCY_STATE:freeAgencyCardState,String,Number,Set
+});
+const freeAgentRow={player:{id:"kpj",name:"Kevin Porter Jr.",nba:"MIL",injuryStatus:"ACTIVE",photo:"kpj.png"},positions:"SG",espnRank:93.4,fbaRank:20,upside:73,profile:{best:"AST",worst:"FT%",z:{AST:1.2,"FT%":-1.1}},projection:{basis:"IST + REST",detail:"1 echtes Spiel · 69 ESPN-Projektionsspiele",perGame:{PTS:24.7857,REB:5,AST:6,"3PM":2,STL:1,BLK:.4,"FG%":.48,"FT%":.75}}};
+const freeAgentCard=renderFreeAgentCard(freeAgentRow,0);
 assert.equal((freeAgentCard.match(/class="fa-stat"/g)||[]).length,8,"Jede Karte muss alle acht großen ROS-Projektionen zeigen");
 assert.equal((freeAgentCard.match(/MIL/g)||[]).length,1,"NBA-Team darf auf der Spielerkarte nicht doppelt erscheinen");
 assert.match(freeAgentCard,/Kevin Porter Jr\.[\s\S]*MIL · SG/,
   "ESPN-Position muss direkt unter dem Spielernamen neben dem NBA-Team stehen");
 assert.doesNotMatch(freeAgentCard,/ACTIVE|B2B|Rest-GP/,
   "Gesunde Spieler und Wochenfelder dürfen die ROS-Karte nicht vermüllen");
+assert.match(freeAgentCard,/class="fa-card-head fa-card-toggle"[\s\S]*aria-expanded="false"[\s\S]*class="fa-card-details"[\s\S]*aria-hidden="true"/,
+  "Eine Free-Agent-Karte muss standardmäßig kompakt und per kompletter Kopfzeile bedienbar sein");
+freeAgencyCardState.openIds.add("kpj");
+const openFreeAgentCard=renderFreeAgentCard(freeAgentRow,0);
+assert.match(openFreeAgentCard,/class="fa-player-card open"[\s\S]*aria-expanded="true"[\s\S]*class="fa-card-details"[\s\S]*aria-hidden="false"/,
+  "Der offene Zustand muss Filter- und Sortier-Renderings überstehen");
+const toggleState={openIds:new Set()},cardClasses=new Set(),detailAttributes={},buttonAttributes={},toggleLabel={textContent:"Stats"};
+const fakeCard={dataset:{playerId:"kpj"},classList:{contains:value=>cardClasses.has(value),toggle:(value,on)=>on?cardClasses.add(value):cardClasses.delete(value)},querySelector:selector=>selector===".fa-card-details"?{setAttribute:(key,value)=>detailAttributes[key]=value}:null};
+const fakeButton={dataset:{playerName:"Kevin Porter Jr."},closest:selector=>selector===".fa-player-card"?fakeCard:null,querySelector:selector=>selector===".fa-card-expand span"?toggleLabel:null,setAttribute:(key,value)=>buttonAttributes[key]=value};
+const toggleFreeAgentCard=loadFunction("toggleFreeAgencyCard",{FREE_AGENCY_STATE:toggleState,String,Set});
+toggleFreeAgentCard(fakeButton);
+assert.equal(cardClasses.has("open"),true);
+assert.equal(toggleState.openIds.has("kpj"),true);
+assert.equal(buttonAttributes["aria-expanded"],"true");
+assert.equal(detailAttributes["aria-hidden"],"false");
+assert.equal(toggleLabel.textContent,"Schließen");
+toggleFreeAgentCard(fakeButton);
+assert.equal(cardClasses.has("open"),false);
+assert.equal(toggleState.openIds.has("kpj"),false);
+assert.equal(buttonAttributes["aria-expanded"],"false");
+assert.equal(detailAttributes["aria-hidden"],"true");
 const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"ros"};
 const filterFreeAgents=loadFunction("freeAgencyFilteredRows",{
   FREE_AGENCY_STATE:freeAgencyFilterState,
@@ -534,4 +560,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v41 frontend regression tests");
+console.log("PASS · Matchup Monster v42 frontend regression tests");
