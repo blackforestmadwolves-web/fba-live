@@ -1338,9 +1338,15 @@ function uninstallEspnSync() {
   return getEspnSyncStatus_();
 }
 
-function syncEspnData() {
+function syncEspnData(lockWaitMs) {
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(1500)) return getEspnSyncStatus_();
+  var waitMs = Number(lockWaitMs);
+  if (!isFinite(waitMs) || waitMs < 0) waitMs = 1500;
+  if (!lock.tryLock(waitMs)) {
+    var busyStatus = getEspnSyncStatus_();
+    busyStatus.busy = true;
+    return busyStatus;
+  }
   var props = espnPropertiesV1_();
   var stamp = Utilities.formatDate(new Date(), ESPN_SYNC_V1.timezone, "yyyy-MM-dd'T'HH:mm:ssXXX");
   props.setProperty('FBA_ESPN_LAST_ATTEMPT', stamp);
@@ -1399,7 +1405,9 @@ function syncEspnData() {
       ' · neue NBA-Zeilen ' + (playerResult.dailyRows || 0) +
       ' · NBA-Spielplan ' + (nbaScheduleResult ? (nbaScheduleResult.games.length + ' Spiele') : ('Fehler: ' + (nbaScheduleError || 'unbekannt'))) +
       (playerResult.error ? ' · ' + playerResult.error : ''));
-    return getEspnSyncStatus_();
+    var completedStatus = getEspnSyncStatus_();
+    completedStatus.busy = false;
+    return completedStatus;
   } catch (err) {
     var message = String(err && err.message ? err.message : err).slice(0, 500);
     props.setProperties({ FBA_ESPN_LAST_STATUS: 'FEHLER', FBA_ESPN_LAST_ERROR: message });
@@ -2889,7 +2897,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
   try{seasonSnapshot=refreshEspnNbaScheduleV33_(force);}catch(error){seasonError=String(error&&error.message?error.message:error);}
   var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force,seasonSnapshot,seasonError);
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
-  return {ok:true,version:34,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,
+  return {ok:true,version:35,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -2897,6 +2905,18 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
       {id:'fantasypros',label:'FantasyPros Projektionen – Adapter bereit, Lizenz/API-Schlüssel fehlt',active:false},
       {id:'hashtag',label:'Hashtag Basketball – Adapter bereit, Premium-Export fehlt',active:false}
     ]};
+}
+
+function refreshMonsterEspnV35_(requestedWeek) {
+  var sync = syncEspnData(30000);
+  if (sync && sync.busy) throw new Error('Ein ESPN-Sync läuft bereits. Bitte den Live-Reset in wenigen Sekunden erneut starten.');
+  if (!sync || sync.lastStatus === 'FEHLER') throw new Error('Der vollständige ESPN-Sync ist fehlgeschlagen: ' + String(sync && sync.lastError || 'unbekannter Fehler'));
+  if (sync.playerStatus === 'TEILFEHLER') throw new Error('Der ESPN-Kader-/Spielerfeed konnte nicht vollständig aktualisiert werden. Der alte Stand wird nicht als live ausgegeben.');
+  var season = refreshEspnNbaScheduleV33_(true);
+  if (!season || season.persistedFallback) throw new Error('Der NBA-Spielplan konnte nicht frisch bestätigt werden. Der letzte gültige Stand bleibt geschützt erhalten.');
+  return {ok:true,version:35,fullSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
+    lastSuccess:sync.lastSuccess||null,playerLastSuccess:sync.playerLastSuccess||null,playerStatus:sync.playerStatus||null,
+    rosterCount:Number(sync.rosterCount||0),playerCount:Number(sync.playerCount||0),scheduleGames:Number(season.gameCount||(season.games||[]).length||0)};
 }
 
 function matchupMonsterResponseV30_(p) {
@@ -2908,6 +2928,10 @@ function matchupMonsterResponseV30_(p) {
   if(action==='data'){
     if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
     try{return monsterJsonResponseV29_(buildMonsterPayloadV30_(p.week,String(p.refresh||'')==='1'),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err)},p.callback);}
+  }
+  if(action==='refresh'){
+    if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
+    try{return monsterJsonResponseV29_(refreshMonsterEspnV35_(p.week),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err&&err.message?err.message:err)},p.callback);}
   }
   return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }

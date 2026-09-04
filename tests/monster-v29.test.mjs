@@ -254,6 +254,8 @@ assert.match(lockFallback.error,/parallel aktualisiert/);
 assert.equal(seasonFetchCount,0,"ohne exklusiven Schedule-Lock wird weder geladen noch persistiert");
 assert.match(context.syncEspnData.toString(),/refreshEspnNbaScheduleV33_\(false, true\)/,
   "der bereits gesperrte Komplett-Sync signalisiert den gehaltenen Script-Lock und darf nicht deadlocken");
+assert.match(context.syncEspnData.toString(),/Number\(lockWaitMs\)[\s\S]*waitMs = 1500[\s\S]*busyStatus\.busy = true/,
+  "Automatische Syncs behalten den kurzen Lock-Wait; ein paralleler Sync muss ausdrücklich als busy erkennbar sein");
 const beforeIncomplete=JSON.stringify(nbaSheet.rows);
 context.UrlFetchApp.fetch=()=>{seasonFetchCount++;return {getResponseCode:()=>200,getContentText:()=>JSON.stringify({settings:{proTeams:[]}})};};
 const lastGood=context.refreshEspnNbaScheduleV33_(true);
@@ -353,11 +355,47 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:34"),true,"Backend-Payload muss den v34-Schedule-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:35"),true,"Backend-Payload muss den v35-Live-Reset-Stand kennzeichnen");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("nbaSeasonSchedule:nbaSeasonSchedule"),true,"geschützter Monster-Payload enthält den vollständigen Saisonplan");
+const refreshEvents=[];
+const refreshMonsterEspn=vm.runInNewContext(`(${context.refreshMonsterEspnV35_.toString()})`,{
+  syncEspnData:waitMs=>{refreshEvents.push(`sync:${waitMs}`);return {busy:false,lastStatus:"OK",playerStatus:"OK",lastSuccess:"roster-now",playerLastSuccess:"players-now",rosterCount:104,playerCount:500}},
+  refreshEspnNbaScheduleV33_:force=>{refreshEvents.push(`schedule:${force}`);return {gameCount:1230,games:Array(1230),persistedFallback:false}},
+  Date,Number,String,Error
+});
+const refreshAck=refreshMonsterEspn(2);
+assert.deepEqual(refreshEvents,["sync:30000","schedule:true"],"Reset muss zuerst alle ESPN-Ligadaten und danach den NBA-Spielplan frisch bestätigen");
+assert.equal(refreshAck.fullSync,true);
+assert.equal(refreshAck.rosterCount,104,"Der Vollsync muss alle acht 13er-Kader bestätigen");
+assert.equal(refreshAck.playerCount,500);
+assert.equal(refreshAck.scheduleGames,1230);
+const rejectedPartialRefresh=vm.runInNewContext(`(${context.refreshMonsterEspnV35_.toString()})`,{
+  syncEspnData:()=>({busy:false,lastStatus:"OK",playerStatus:"TEILFEHLER"}),
+  refreshEspnNbaScheduleV33_:()=>assert.fail("Bei unvollständigem Kaderfeed darf der Schedule-Schritt nicht als Erfolg kaschieren"),
+  Date,Number,String,Error
+});
+assert.throws(()=>rejectedPartialRefresh(1),/nicht vollständig aktualisiert/,
+  "Ein partieller Spieler-/Kaderabruf darf niemals als Live-Reset bestätigt werden");
+const rejectedScheduleFallback=vm.runInNewContext(`(${context.refreshMonsterEspnV35_.toString()})`,{
+  syncEspnData:()=>({busy:false,lastStatus:"OK",playerStatus:"OK"}),
+  refreshEspnNbaScheduleV33_:()=>({persistedFallback:true,games:Array(1230)}),
+  Date,Number,String,Error
+});
+assert.throws(()=>rejectedScheduleFallback(1),/nicht frisch bestätigt/,
+  "Last-known-good-Schedule bleibt geschützt, darf aber nicht als gerade live geladen bezeichnet werden");
+const refreshEndpointEvents=[];
+const refreshEndpoint=vm.runInNewContext(`(${context.matchupMonsterResponseV30_.toString()})`,{
+  validMonsterDeviceV29_:token=>token==="device-token",
+  refreshMonsterEspnV35_:week=>{refreshEndpointEvents.push(`refresh:${week}`);return {ok:true,fullSync:true}},
+  monsterJsonResponseV29_:payload=>payload,
+  String
+});
+assert.equal(refreshEndpoint({monster:"refresh",token:"wrong",week:2}).locked,true,"Der teure ESPN-Vollsync muss durch die dauerhafte Gerätefreigabe geschützt sein");
+assert.equal(refreshEndpoint({monster:"refresh",token:"device-token",week:2}).fullSync,true);
+assert.deepEqual(refreshEndpointEvents,["refresh:2"]);
 assert.equal(context.ESPN_PLAYER_HUB_V2.dayIntervalMinutes,60,"Tagsüber soll die ESPN-Basis stündlich statt zweistündlich geprüft werden");
 assert.equal(context.ESPN_PLAYER_HUB_V2.nightIntervalMinutes,30,"Während des NBA-Fensters bleibt der sichere 30-Minuten-Takt erhalten");
 assert.match(context.installEspnSync.toString(),/everyMinutes\(30\)/,"Der Trigger muss eng genug für den 30-Minuten-Spielbetrieb laufen");
 assert.doesNotMatch(context.installEspnSync.toString(),/everyMinutes\([123]\)/,"Ein riskanter Vollsync im Ein- bis Drei-Minuten-Takt darf nicht aktiviert werden");
 
-console.log("PASS · Matchup Monster v34 backend tests");
+console.log("PASS · Matchup Monster v35 backend tests");

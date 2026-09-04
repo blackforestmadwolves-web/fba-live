@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v34 regression suite: Monster loading, navigation, responsive layout and pickup tools.
+// v35 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v34-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v35-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v34-20260904/,"Produktions-Build muss v34 ausweisen");
+assert.match(html,/war-room-monster-v35-20260904/,"Produktions-Build muss v35 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -72,7 +72,7 @@ assert.match(html,/data-testid="monster-opponent"/,"Der freie Vergleichsgegner m
 assert.match(html,/function monsterWeeks\(\)[\s\S]*new Map\(\)/,"Vier Spielplanzeilen pro Woche müssen zu einer Wochenoption verdichtet werden");
 assert.match(html,/function setMonsterWeek\(value\)[\s\S]*monsterScheduledOpponent/,
   "Ein Wochenwechsel muss den echten Gegner des Analyse-Teams vorauswählen");
-assert.match(html,/function loadMonsterData\(force\)[\s\S]*queuedWeek=requestedWeek[\s\S]*requestedWeek!==currentWeek[\s\S]*await loadMonsterData\(followupForce\)/,
+assert.match(html,/function loadMonsterData\(force,fullSync\)[\s\S]*queuedWeek=requestedWeek[\s\S]*requestedWeek!==currentWeek[\s\S]*await loadMonsterData\(followupForce,followupFullSync\)/,
   "Ein Wochenwechsel während eines ESPN-Abrufs muss die neueste Woche nachladen und die alte Antwort verwerfen");
 assert.match(html,/MONSTER_TEAM_KEY="fba_monster_analysis_team_v32"/,
   "Das gewählte Analyse-Team muss auf dem Gerät erhalten bleiben");
@@ -148,7 +148,7 @@ const scheduledOpponent=loadFunction("monsterScheduledOpponent",{monsterSchedule
 assert.equal(scheduledOpponent("Wolves",1),"Pirates");
 assert.equal(scheduledOpponent("Wolves",2),"Lions");
 
-const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false};
+const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
 const requestCalls=[],requestResolvers=[];
 const loadMonsterData=loadAsyncFunction("loadMonsterData",{
   MONSTER_STATE:requestState,
@@ -175,6 +175,29 @@ requestResolvers[1]({ok:true,marker:"neue-woche",nbaSchedule:{matchupWeek:2}});
 await firstRequest;
 assert.equal(requestState.data.marker,"neue-woche");
 assert.equal(requestState.dataWeek,2);
+
+const fullSyncState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
+const fullSyncEvents=[];
+const fullSyncLoad=loadAsyncFunction("loadMonsterData",{
+  MONSTER_STATE:fullSyncState,
+  monsterToken:()=>"device-token",
+  openMonsterGate:()=>assert.fail("Ein vorhandenes Gerätetoken darf nicht zum Gate führen"),
+  requestFullEspnRefresh:async()=>{fullSyncEvents.push("full-sync");return {ok:true,fullSync:true}},
+  monsterJsonp:async params=>{fullSyncEvents.push({request:params});return {ok:true,marker:"Chris hat neuen Spieler",roster:[{team:"Chris",playerId:"new-player"}],nbaSchedule:{matchupWeek:1}}},
+  monsterEnsureTeams:()=>{},
+  localStorage:{removeItem:()=>{}},
+  CUR:"monster",
+  render:()=>{}
+});
+await fullSyncLoad(true,true);
+assert.equal(fullSyncEvents[0],"full-sync","Der ESPN-Vollsync muss vor dem neuen Monster-Payload abgeschlossen sein");
+assert.deepEqual(JSON.parse(JSON.stringify(fullSyncEvents[1])),{request:{monster:"data",token:"device-token",week:1}},
+  "Nach bestätigtem Vollsync wird der Payload ohne zweiten Schedule-Fetch gelesen");
+assert.equal(fullSyncState.data.roster[0].playerId,"new-player","Ein gerade getätigter Roster Move muss sofort Berechnungsgrundlage werden");
+assert.match(functionSource("refreshMonsterLive"),/loadMonsterData\(true,true\)/,
+  "Live neu laden muss den vollständigen ESPN-Sync anfordern");
+assert.match(functionSource("requestFullEspnRefresh"),/monsterToken\(\)[\s\S]*monster:"refresh"[\s\S]*token/,
+  "Der Vollsync muss über den geschützten Geräte-Token laufen");
 
 const stats={PTS:10,REB:5,AST:4,"3PM":2,STL:1,BLK:1,FGM:4,FGA:8,FTM:2,FTA:3};
 const makeWeekRoster=(prefix,nba)=>Array.from({length:13},(_,index)=>Object.assign({name:`${prefix} ${index+1}`,nba,projectionReady:true},stats));
@@ -267,9 +290,13 @@ assert.match(functionSource("hardReloadApp"),/caches\.keys\(\)[\s\S]*caches\.del
   "Hard Reset muss Cache Storage leeren");
 assert.match(functionSource("hardReloadApp"),/serviceWorker\.getRegistrations\(\)[\s\S]*registration\.unregister/,
   "Hard Reset muss eventuell aktive Service Worker entfernen");
+assert.match(functionSource("hardReloadApp"),/await requestFullEspnRefresh\(\)[\s\S]*clearAnalyticsCache\(\)[\s\S]*caches\.keys\(\)/,
+  "Hard Reset muss den ESPN-Vollsync bestätigen, bevor lokale Daten gelöscht und neu geladen werden");
+assert.match(functionSource("hardReloadApp"),/Live-Reset abgebrochen:[\s\S]*return/,
+  "Bei einem fehlgeschlagenen Vollsync muss der Reset abbrechen und den letzten bestätigten Stand behalten");
 assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_fba_refresh[\s\S]*location\.replace/,
   "Hard Reset muss öffentliche und geschützte Live-Daten mit Cachebuster neu laden");
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v34 frontend regression tests");
+console.log("PASS · Matchup Monster v35 frontend regression tests");
