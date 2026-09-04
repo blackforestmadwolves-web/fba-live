@@ -355,12 +355,14 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:39"),true,"Backend-Payload muss den v39-Release-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:40"),true,"Backend-Payload muss den v40-Release-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("espnPlayerPool:espnPlayerPool"),true,"Der geschützte Payload muss den ESPN-Free-Agent-Pool liefern");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("adpTrend:adpPayload"),true,"Der geschützte Payload muss den dynamischen ESPN-ADP-Verlauf liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("projectionEngine:projectionEngine"),true,"Der geschützte Monster-Payload muss den Projection-Engine-Status liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("nbaSeasonSchedule:nbaSeasonSchedule"),true,"geschützter Monster-Payload enthält den vollständigen Saisonplan");
 const refreshEvents=[];
 const refreshMonsterEspn=vm.runInNewContext(`(${context.refreshMonsterEspnV35_.toString()})`,{
-  syncEspnData:(waitMs,full)=>{refreshEvents.push(`sync:${waitMs}:${full}`);return {busy:false,lastStatus:"OK",rosterStatus:"READY",playerStatus:"OK",dailyStatus:"READY",projectionStatus:"WAITING_ESPN_PROJECTIONS",profileStatus:"WAITING_NBA_TEAM_PROFILES",lastSuccess:"roster-now",playerLastSuccess:"players-now",rosterCount:104,playerCount:500,dailyCount:499}},
+  syncEspnData:(waitMs,full)=>{refreshEvents.push(`sync:${waitMs}:${full}`);return {busy:false,lastStatus:"OK",rosterStatus:"READY",playerStatus:"OK",dailyStatus:"READY",adpStatus:"READY",adpSnapshotRows:500,projectionStatus:"WAITING_ESPN_PROJECTIONS",profileStatus:"WAITING_NBA_TEAM_PROFILES",lastSuccess:"roster-now",playerLastSuccess:"players-now",rosterCount:104,playerCount:500,dailyCount:499}},
   refreshEspnNbaScheduleV33_:force=>{refreshEvents.push(`schedule:${force}`);return {gameCount:1230,games:Array(1230),persistedFallback:false}},
   Date,Number,String,Error
 });
@@ -375,6 +377,7 @@ assert.equal(refreshAck.profileStatus,"WAITING_NBA_TEAM_PROFILES");
 assert.equal(refreshAck.status,"OK");
 assert.deepEqual(JSON.parse(JSON.stringify(refreshAck.components.roster)),{status:"READY",count:104});
 assert.deepEqual(JSON.parse(JSON.stringify(refreshAck.components.daily)),{status:"READY",rows:499});
+assert.deepEqual(JSON.parse(JSON.stringify(refreshAck.components.adp)),{status:"READY",rows:500});
 assert.deepEqual(JSON.parse(JSON.stringify(refreshAck.components.schedule)),{status:"READY",games:1230});
 const rejectedPartialRefresh=vm.runInNewContext(`(${context.refreshMonsterEspnV35_.toString()})`,{
   syncEspnData:()=>({busy:false,lastStatus:"OK",rosterStatus:"PARTIAL",playerStatus:"TEILFEHLER"}),
@@ -422,4 +425,4 @@ assert.equal(context.ESPN_PLAYER_HUB_V2.nightIntervalMinutes,30,"Während des NB
 assert.match(context.installEspnSync.toString(),/everyMinutes\(30\)/,"Der Trigger muss eng genug für den 30-Minuten-Spielbetrieb laufen");
 assert.doesNotMatch(context.installEspnSync.toString(),/everyMinutes\([123]\)/,"Ein riskanter Vollsync im Ein- bis Drei-Minuten-Takt darf nicht aktiviert werden");
 
-console.log("PASS · Matchup Monster v39 backend tests");
+console.log("PASS · Matchup Monster v40 backend tests");

@@ -44,6 +44,37 @@ assert.match(String(context.buildProjectionEnginePayloadV36_),/fantasyPositions:
 assert.match(String(context.buildMonsterPayloadV30_),/espnFantasyPositions:fantasyPositions/,
   "Der Monster-Payload muss die Positionen des vollständigen ESPN-Spielerpools und nicht nur des Kaders liefern");
 
+assert.equal(context.espnAdpValueV40_({playerPoolEntry:{player:{ownership:{averageDraftPosition:27.4}}}}),27.4,
+  "Der Tages-Snapshot muss ESPNs Average Draft Position direkt aus dem Fantasy-Spielerobjekt lesen");
+assert.equal(context.espnAdpValueV40_({player:{ownership:{averageDraftPosition:0}}}),null,
+  "Fehlende oder ungültige ADP-Werte dürfen nicht als Rang 0 gespeichert werden");
+context.Utilities={formatDate:date=>new Date(date).toISOString().slice(0,10)};
+const adpRows=context.collectEspnAdpRowsV40_({players:[{playerPoolEntry:{player:{
+  id:501,fullName:"ADP Guard",proTeamId:6,defaultPositionId:1,eligibleSlots:[0,1,5],ownership:{averageDraftPosition:42.75,percentOwned:81.2}
+}}}],teams:[]},"2026-09-04T14:00:00.000Z");
+const adpHeaders=Array.from(context.ESPN_ADP_HISTORY_HEADERS_V40),adpValue=key=>adpRows[0][adpHeaders.indexOf(key)];
+assert.equal(adpRows.length,1);
+assert.equal(adpValue("snapshot_date"),"2026-09-04");
+assert.equal(adpValue("player_id"),"501");
+assert.equal(adpValue("adp"),42.75);
+assert.equal(adpValue("percent_owned"),81.2);
+
+context.sheetObjectsV2_=()=>[
+  {season_id:2027,snapshot_date:"2026-09-01",player_id:"501",adp:12},
+  {season_id:2027,snapshot_date:"2026-09-02",player_id:"501",adp:11},
+  {season_id:2027,snapshot_date:"2026-09-03",player_id:"501",adp:10},
+  {season_id:2027,snapshot_date:"2026-09-04",player_id:"501",adp:8},
+  {season_id:2027,snapshot_date:"2026-09-03",player_id:"502",adp:25},
+  {season_id:2027,snapshot_date:"2026-09-04",player_id:"502",adp:24}
+];
+const adpTrend=context.buildEspnAdpTrendPayloadV40_();
+assert.equal(adpTrend.players["501"].previousAverage,11,"Der Vergleichswert muss exakt der Mittelwert der drei echten Vortage sein");
+assert.equal(adpTrend.players["501"].change,3,"Ein niedrigerer aktueller ADP muss als positive Verbesserung in Plätzen erscheinen");
+assert.equal(adpTrend.players["501"].ready,true);
+assert.equal(adpTrend.players["502"].ready,false,"Weniger als drei Vortage dürfen keinen Trend vortäuschen");
+assert.equal(adpTrend.readyPlayers,1);
+assert.equal(adpTrend.status,"READY");
+
 function applyDailyUpsert(existing,incoming){
   let written=null;
   context.ensureEspnDailySheetV38_=()=>({

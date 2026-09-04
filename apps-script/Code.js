@@ -1801,6 +1801,7 @@ var ESPN_PLAYER_HUB_V2 = {
   rosterHistorySheet: 'ESPN_Roster_History',
   transactionsSheet: 'ESPN_Transactions',
   dailySheet: 'ESPN_Player_Daily',
+  adpHistorySheet: 'ESPN_ADP_History',
   projectionSheet: 'ESPN_Player_Projection_Baseline',
   teamProfilesSheet: 'NBA_Team_Profiles',
   nbaTimezone: 'America/New_York',
@@ -1823,6 +1824,9 @@ var ESPN_TRANSACTION_HEADERS_V2 = [
   'season_id','transaction_id','processed_at','scoring_period','matchup_period','status','transaction_type',
   'event_type','player_id','player_name','from_team_id','from_team','to_team_id','to_team',
   'from_slot_id','to_slot_id','bid_amount','last_seen'
+];
+var ESPN_ADP_HISTORY_HEADERS_V40 = [
+  'season_id','snapshot_date','player_id','full_name','nba_team_id','adp','percent_owned','updated_at'
 ];
 var ESPN_DAILY_HEADERS_V2 = [
   'season_id','nba_date','scoring_period','matchup_period','event_id','event_status','player_id','player_name',
@@ -1882,6 +1886,7 @@ function ensureEspnPlayerHubSheetsV2_() {
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.rosterSheet, ESPN_ROSTER_HEADERS_V2);
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.rosterHistorySheet, ESPN_ROSTER_HISTORY_HEADERS_V2);
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.transactionsSheet, ESPN_TRANSACTION_HEADERS_V2);
+  ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.adpHistorySheet, ESPN_ADP_HISTORY_HEADERS_V40);
   ensureEspnDailySheetV38_();
   ensureSimpleEspnSheetV1_(FBA_PROJECTION_ENGINE_V36.projectionSheet, ESPN_PROJECTION_HEADERS_V36);
   ensureSimpleEspnSheetV1_(FBA_PROJECTION_ENGINE_V36.teamProfilesSheet, NBA_TEAM_PROFILE_HEADERS_V36);
@@ -2092,6 +2097,78 @@ function collectFantasyPlayersV2_(league, stamp) {
     (((team.roster || {}).entries) || []).forEach(add);
   });
   return rows;
+}
+
+/* ESPN liefert die Average Draft Position direkt im Fantasy-Spielerobjekt.
+ * Wir speichern genau einen unveraenderlichen Tages-Snapshot. Erst drei echte
+ * Vortage ergeben einen Trend; fehlende Tage werden niemals interpoliert. */
+function espnAdpValueV40_(entry) {
+  var pool = entry && entry.playerPoolEntry ? entry.playerPoolEntry : entry || {};
+  var player = pool.player || (entry && entry.player) || entry || {};
+  var ownership = player.ownership || pool.ownership || (entry && entry.ownership) || {};
+  var candidates = [ownership.averageDraftPosition, player.averageDraftPosition, pool.averageDraftPosition];
+  for (var i = 0; i < candidates.length; i++) {
+    var value = Number(candidates[i]);
+    if (isFinite(value) && value > 0 && value <= 1000) return value;
+  }
+  return null;
+}
+
+function collectEspnAdpRowsV40_(league, stamp) {
+  var byId = {}, entries = [];
+  (league.players || []).forEach(function (entry) { entries.push(entry); });
+  (league.teams || []).forEach(function (team) {
+    ((((team || {}).roster || {}).entries) || []).forEach(function (entry) { entries.push(entry); });
+  });
+  entries.forEach(function (entry) {
+    var normalized = normalizeFantasyPlayerV2_(entry || {}), adp = espnAdpValueV40_(entry);
+    if (!normalized.id || !normalized.name || adp == null) return;
+    var pool = entry && entry.playerPoolEntry ? entry.playerPoolEntry : entry || {};
+    var player = pool.player || (entry && entry.player) || entry || {}, ownership = player.ownership || pool.ownership || {};
+    var percentOwned = Number(ownership.percentOwned), current = byId[normalized.id];
+    if (!current || adp < current.adp) byId[normalized.id] = {
+      id:normalized.id,name:normalized.name,proTeamId:normalized.proTeamId,adp:adp,
+      percentOwned:isFinite(percentOwned) ? percentOwned : null
+    };
+  });
+  var date = Utilities.formatDate(new Date(stamp || new Date()), ESPN_PLAYER_HUB_V2.nbaTimezone, 'yyyy-MM-dd');
+  return Object.keys(byId).map(function (id) { return byId[id]; })
+    .sort(function (a,b) { return a.adp-b.adp || String(a.name).localeCompare(String(b.name)); })
+    .slice(0,600).map(function (row) {
+      return [ESPN_SYNC_V1.seasonId,date,row.id,row.name,row.proTeamId,row.adp,row.percentOwned == null ? '' : row.percentOwned,stamp];
+    });
+}
+
+function captureEspnAdpSnapshotV40_(league, stamp) {
+  var props = espnPropertiesV1_(), date = Utilities.formatDate(new Date(stamp || new Date()), ESPN_PLAYER_HUB_V2.nbaTimezone, 'yyyy-MM-dd');
+  if (props.getProperty('FBA_ESPN_ADP_SNAPSHOT_DATE_V40') === date) return {status:'READY',date:date,rows:Number(props.getProperty('FBA_ESPN_ADP_SNAPSHOT_ROWS_V40') || 0),alreadyCaptured:true};
+  var rows = collectEspnAdpRowsV40_(league || {}, stamp || new Date().toISOString());
+  if (!rows.length) return {status:'WAITING_ESPN_ADP',date:date,rows:0};
+  var count = appendUniqueEspnRowsV2_(ESPN_PLAYER_HUB_V2.adpHistorySheet,ESPN_ADP_HISTORY_HEADERS_V40,rows,[0,1,2]);
+  props.setProperties({FBA_ESPN_ADP_SNAPSHOT_DATE_V40:date,FBA_ESPN_ADP_SNAPSHOT_ROWS_V40:String(rows.length),FBA_ESPN_ADP_STATUS_V40:'READY'});
+  try { CacheService.getScriptCache().remove(DATA_CACHE_PREFIX + 'idx'); } catch (cacheError) {}
+  return {status:'READY',date:date,rows:count || rows.length};
+}
+
+function buildEspnAdpTrendPayloadV40_() {
+  var rows = sheetObjectsV2_(ESPN_PLAYER_HUB_V2.adpHistorySheet), byPlayer = {}, dates = {};
+  rows.forEach(function (row) {
+    if (Number(row.season_id) !== Number(ESPN_SYNC_V1.seasonId)) return;
+    var id = String(row.player_id || ''), date = String(row.snapshot_date || ''), value = Number(row.adp);
+    if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !isFinite(value) || value <= 0) return;
+    (byPlayer[id] || (byPlayer[id] = {}))[date] = value; dates[date] = true;
+  });
+  var allDates = Object.keys(dates).sort(), latestDate = allDates.length ? allDates[allDates.length-1] : '', players = {};
+  Object.keys(byPlayer).forEach(function (id) {
+    var playerDates = Object.keys(byPlayer[id]).sort(), currentDate = playerDates.length ? playerDates[playerDates.length-1] : '', current = Number(byPlayer[id][currentDate]);
+    var priorDates = playerDates.filter(function (date) { return date < currentDate; }).slice(-3), priorValues = priorDates.map(function (date) { return Number(byPlayer[id][date]); });
+    var previousAverage = priorValues.length === 3 ? priorValues.reduce(function (sum,value) { return sum+value; },0)/3 : null;
+    players[id] = {current:current,currentDate:currentDate,previousAverage:previousAverage,
+      change:previousAverage == null ? null : previousAverage-current,ready:previousAverage != null,sampleDays:1+priorValues.length};
+  });
+  var readyPlayers = Object.keys(players).filter(function (id) { return players[id].ready; }).length;
+  return {status:readyPlayers ? 'READY' : (latestDate ? 'BUILDING' : 'WAITING'),latestDate:latestDate,requiredPriorDays:3,players:players,
+    readyPlayers:readyPlayers};
 }
 
 function rawFantasyPlayerV36_(entry) {
@@ -2691,7 +2768,7 @@ function saveRosterHistoryV2_(rosterRows, stamp) {
 
 function syncEspnPlayerHubV2_(stamp, coreLeague, forceProfiles) {
   ensureEspnPlayerHubSheetsV2_();
-  var result = {status:'OK',players:0,roster:0,transactions:0,dailyRows:0,rosterStatus:'UNKNOWN',dailyStatus:'READY',projectionStatus:'WAITING_ESPN_PROJECTIONS',profileStatus:'WAITING_NBA_TEAM_PROFILES',errors:[]}, fantasy = coreLeague || {}, criticalRosterError = false;
+  var result = {status:'OK',players:0,roster:0,transactions:0,dailyRows:0,rosterStatus:'UNKNOWN',dailyStatus:'READY',adpStatus:'WAITING_ESPN_ADP',projectionStatus:'WAITING_ESPN_PROJECTIONS',profileStatus:'WAITING_NBA_TEAM_PROFILES',errors:[]}, fantasy = coreLeague || {}, criticalRosterError = false;
   try { fantasy = fetchEspnFantasyHubV2_(); }
   catch (e) { result.errors.push('Fantasy: ' + String(e && e.message ? e.message : e)); }
   var playerRows = [], rosterRows = [], transactionRows = [], existingRoster = sheetObjectsV2_(ESPN_PLAYER_HUB_V2.rosterSheet), safeRosterRows = objectRowsToArraysV36_(existingRoster,ESPN_ROSTER_HEADERS_V2);
@@ -2719,6 +2796,14 @@ function syncEspnPlayerHubV2_(stamp, coreLeague, forceProfiles) {
     result.roster = criticalRosterError ? existingRoster.length : rosterRows.length;
     result.transactions = transactionRows.length;
   } catch (e2) { criticalRosterError = true; result.rosterStatus = 'PARTIAL'; result.errors.push('Kader/Transaktionen: ' + String(e2 && e2.message ? e2.message : e2)); }
+  try {
+    var adpSnapshot = captureEspnAdpSnapshotV40_(fantasy,stamp);
+    result.adpStatus = adpSnapshot.status;
+    result.adpRows = adpSnapshot.rows;
+  } catch (adpError) {
+    result.adpStatus = 'PARTIAL';
+    result.errors.push('ESPN ADP: ' + String(adpError && adpError.message ? adpError.message : adpError));
+  }
   try {
     var profiles = syncNbaTeamProfilesV36_(forceProfiles === true,stamp);
     result.profileStatus = profiles.status;
@@ -2766,6 +2851,7 @@ function syncEspnPlayerHubV2_(stamp, coreLeague, forceProfiles) {
     FBA_ESPN_PLAYER_STATUS:result.status,FBA_ESPN_PLAYER_ERROR:result.error || '',FBA_ESPN_PLAYER_COUNT:String(result.players),
     FBA_ESPN_ROSTER_COUNT:String(result.roster),FBA_ESPN_TRANSACTION_COUNT:String(result.transactions),FBA_ESPN_DAILY_COUNT:String(result.dailyRows),
     FBA_ESPN_ROSTER_STATUS_V36:result.rosterStatus,FBA_ESPN_DAILY_STATUS_V36:result.dailyStatus,
+    FBA_ESPN_ADP_STATUS_V40:result.adpStatus,
     FBA_PROJECTION_STATUS_V36:result.projectionStatus,FBA_TEAM_PROFILE_STATUS_V36:result.profileStatus
   });
   return result;
@@ -3186,15 +3272,16 @@ function enhancePayloadPhaseV1(data, cfg) {
   data.espnSync = getEspnSyncStatus_();
   data.playerHub = buildPlayerHubPayloadV2_();
   data.draftPredictions = buildDraftPredictionsV3_();
-  data.draftTop10 = buildDraftTop10V5_();
+  data.adpTrend = buildEspnAdpTrendPayloadV40_();
+  data.draftTop10 = buildDraftTop10V5_(data.adpTrend);
   data.draftTop3 = data.draftTop10.slice(0,3);
   return data;
 }
 
 /* Aktueller externer Draft-Konsens. Bewusst getrennt von Maiks persönlicher
  * Acht-Pick-Prognose. score = transparenter Heat-Index, keine Wahrscheinlichkeit. */
-function buildDraftTop10V5_() {
-  return [
+function buildDraftTop10V5_(adpPayload) {
+  var rows = [
     {rank:1,id:'3112335',name:'Nikola Jokić',nba:'DEN',score:99,adp:'1,8',reason:'Sicherster Allrounder: Elite bei Punkten, Rebounds, Assists und beiden Quoten.',report:'Jokić bleibt der verlässlichste 1.01-Kandidat: Vor der vergangenen Saison hatte er fünf Jahre in Folge als Nummer 1 beendet. Hashtag projiziert 28,4 Punkte, 12,7 Rebounds und 10,4 Assists bei 57,3 % aus dem Feld – praktisch kein anderer Spieler greift so breit in das FBA-Duell ein.',strengths:'Punkte · Rebounds · Assists · FG% · Steals',risk:'Er verpasste zuletzt erstmals deutlich mehr Spiele (17); bei Pick 1 ist Verfügbarkeit der einzige echte Vorbehalt.',fit:'Sicherster Teamanker ohne erzwungene Schwachstelle.',active:true},
     {rank:2,id:'5104157',name:'Victor Wembanyama',nba:'SAS',score:97,adp:'2,9',reason:'Historischer Blocks-Vorteil plus Dreier und starke Quoten; realer 1.01-Kandidat.',report:'Wembanyama kann einen kompletten FBA-Punkt nahezu allein drehen: projiziert sind 3,2 Blocks bei gleichzeitig 25,6 Punkten, 11,8 Rebounds und 2,2 Dreiern. Sein Profil aus Ringbeschützer, Shooter und gutem Freiwurfschützen ist einzigartig und besitzt sogar noch Entwicklungspotenzial.',strengths:'Blocks · Rebounds · Punkte · Dreier · FT%',risk:'In jeder seiner ersten drei Saisons fehlte er länger; Hashtag kalkuliert vorsichtig mit 66 Spielen.',fit:'Höchste Decke im Draft und sofortiger Blocks-Anker.',active:true},
     {rank:3,id:'4278073',name:'Shai Gilgeous-Alexander',nba:'OKC',score:91,adp:'3,1',reason:'Elite-Scoring und Effizienz ohne echte Schwäche im FBA-Profil.',report:'SGA gilt bei RotoWire als klarer dritter Spieler hinter Jokić und Wemby. Projiziert werden 32,1 Punkte bei 53,4 % FG und 88,9 % FT sowie 1,6 Steals – dazu kommen eine stabile Rolle in OKC und eine starke Verfügbarkeitsbilanz.',strengths:'Punkte · FG% · FT% · Steals · Assists',risk:'Weniger Rebound- und Dreier-Volumen als einige direkte Konkurrenten; an Pick 3 ist sein fast fehlerfreies Profil bereits voll eingepreist.',fit:'Ideal für einen ausgeglichenen Build ohne spätere Reparaturarbeit.',active:true},
@@ -3205,7 +3292,15 @@ function buildDraftTop10V5_() {
     {rank:8,id:'3032977',name:'Giannis Antetokounmpo',nba:'MIA',score:76,adp:'5,3',reason:'Massive Punkte-, Rebound- und FG%-Basis; Turnovers spielen in der FBA keine Rolle.',report:'In Miami bleibt Giannis die Nummer 1 und Hashtag projiziert 31,4 Punkte, 11,9 Rebounds, 6,5 Assists sowie 60,8 % FG. Der Wegfall der Turnovers hilft ihm in eurem Format enorm, trotzdem verlangt sein Profil einen klaren Plan für die Quoten.',strengths:'Punkte · Rebounds · FG% · Assists · Blocks',risk:'Nur 62,8 % FT, kaum Dreier und ein neues Frontcourt-Fit mit Bam; zudem spielte er vergangene Saison nur 36 Partien.',fit:'Dominanter Punt-FT%-Anker mit enormer physischer Produktion.',active:true},
     {rank:9,id:'4431678',name:'Tyrese Maxey',nba:'PHI',score:74,adp:'16,6',reason:'Punkte, Dreier, Elite-FT% und Steals – aber neues Star-Gedränge in Philadelphia.',report:'Maxey lieferte zuletzt 28,3 Punkte, 6,6 Assists, 1,9 Steals und 89,2 % FT. Mit LeBron James und Jaylen Brown erwartet RotoWire jedoch weniger Ballbesitz und eventuell weniger Minuten; deshalb bleibt sein Potenzial erstklassig, aber seine Rolle weniger sicher.',strengths:'Punkte · FT% · Dreier · Steals · Assists',risk:'Deutlich mehr Konkurrenz um Würfe und Spielmacher-Anteile in Philadelphia.',fit:'Sehr sauberer Guard-Baustein am Ende der ersten Runde.',active:true},
     {rank:10,id:'4701230',name:'Jalen Johnson',nba:'ATL',score:72,adp:'32,3',reason:'Allround-Breakout mit fast 23/10/8 – starke Rebounds, Assists und FG%.',report:'Johnson spielte 72 Partien und kam laut ESPN auf 22,5 Punkte, 10,3 Rebounds und 7,9 Assists bei 48,9 % FG. RotoWire sieht diese Entwicklung als nachhaltig und Atlanta klar als sein Team; der extrem späte ESPN-ADP macht ihn zugleich zum auffälligsten Value-Namen des Radars.',strengths:'Rebounds · Assists · Punkte · FG% · Steals',risk:'Der Markt ist noch uneins (ESPN-ADP 32,3); FT% und defensive Zahlen sind nicht auf Top-10-Niveau.',fit:'Der mögliche Value-Steal der ersten Runde.',active:true}
-  ];
+  ], trends = adpPayload && adpPayload.players ? adpPayload.players : {};
+  return rows.map(function (row) {
+    var trend = trends[String(row.id || '')];
+    if (!trend) return row;
+    var current = Number(trend.current);
+    if (isFinite(current) && current > 0) row.adp = current.toFixed(1).replace('.',',');
+    row.adpTrend = trend;
+    return row;
+  });
 }
 
 /* ================= MATCHUP MONSTER v29 =================
@@ -3876,13 +3971,23 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
     nbaTeam:nbaAbbreviationV3_(player.nba_team_id),slot:Number(row.lineup_slot_id),active:row.active_lineup===true||String(row.active_lineup).toUpperCase()==='TRUE',
     position:String(player.primary_position||''),primaryPosition:String(player.primary_position||''),fantasyPositions:String(player.fantasy_positions||player.primary_position||''),injuryStatus:String(player.injury_status||''),photo:String(row.headshot_url||player.headshot_url||espnHeadshotV2_(row.player_id))
   };}).filter(function(row){return row.team&&row.playerId;});
+  var ownedIds={};compactRoster.forEach(function(row){ownedIds[String(row.playerId||'')]=true;});
+  var adpPayload=buildEspnAdpTrendPayloadV40_(),adpPlayers=adpPayload.players||{};
+  var espnPlayerPool=players.filter(function(player){return player.player_id&&!ownedIds[String(player.player_id)];}).map(function(player){
+    var id=String(player.player_id||''),trend=adpPlayers[id]||{},current=Number(trend.current);return {
+      id:id,name:String(player.full_name||''),nbaTeam:nbaAbbreviationV3_(player.nba_team_id),
+      primaryPosition:String(player.primary_position||''),fantasyPositions:String(player.fantasy_positions||player.primary_position||''),
+      injuryStatus:String(player.injury_status||''),availabilityStatus:String(player.ownership_status||'FREE AGENT'),photo:String(player.headshot_url||espnHeadshotV2_(id)),
+      adp:isFinite(current)&&current>0?current:null,adpTrend:trend.ready?trend:null
+    };
+  }).sort(function(a,b){var aa=a.adp==null?9999:a.adp,bb=b.adp==null?9999:b.adp;return aa-bb||String(a.name).localeCompare(String(b.name));}).slice(0,700);
   var seasonSnapshot=null,seasonError='';
   try{seasonSnapshot=refreshEspnNbaScheduleV33_(force);}catch(error){seasonError=String(error&&error.message?error.message:error);}
   var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force,seasonSnapshot,seasonError);
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
   var projectionEngine=buildProjectionEnginePayloadV36_(nbaSchedule,nbaSeasonSchedule),projectionWaiting=projectionEngine.baseline.feedStatus==='WAITING_ESPN_PROJECTIONS';
   overlayProjectionEventStatusV36_(nbaSchedule,nbaSeasonSchedule,projectionEngine);
-  return {ok:true,version:39,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
+  return {ok:true,version:40,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,espnPlayerPool:espnPlayerPool,adpTrend:adpPayload,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -3905,12 +4010,12 @@ function refreshMonsterEspnV35_(requestedWeek) {
   if (!season || season.persistedFallback) throw new Error('Der NBA-Spielplan konnte nicht frisch bestätigt werden. Der letzte gültige Stand bleibt geschützt erhalten.');
   var dailyStatus = sync.dailyStatus || (sync.playerStatus === 'OK' ? 'READY' : 'PARTIAL');
   var fullSync = sync.playerStatus === 'OK' && dailyStatus === 'READY';
-  return {ok:true,version:39,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
+  return {ok:true,version:40,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
     lastSuccess:sync.lastSuccess||null,playerLastSuccess:sync.playerLastSuccess||null,playerStatus:sync.playerStatus||null,
     projectionStatus:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS',profileStatus:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES',
     rosterCount:Number(sync.rosterCount||0),playerCount:Number(sync.playerCount||0),scheduleGames:Number(season.gameCount||(season.games||[]).length||0),
     components:{roster:{status:rosterStatus,count:Number(sync.rosterCount||0)},playerHub:{status:sync.playerStatus||'UNKNOWN',count:Number(sync.playerCount||0)},
-      daily:{status:dailyStatus,rows:Number(sync.dailyCount||0)},projection:{status:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS'},
+      daily:{status:dailyStatus,rows:Number(sync.dailyCount||0)},adp:{status:sync.adpStatus||'WAITING_ESPN_ADP',rows:Number(sync.adpSnapshotRows||0)},projection:{status:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS'},
       profiles:{status:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES'},schedule:{status:'READY',games:Number(season.gameCount||(season.games||[]).length||0)}}};
 }
 
@@ -3958,6 +4063,8 @@ function getEspnSyncStatus_() {
     playerLastSuccess:p.getProperty('FBA_ESPN_PLAYER_LAST_SUCCESS')||null,playerCount:Number(p.getProperty('FBA_ESPN_PLAYER_COUNT')||0),rosterCount:Number(p.getProperty('FBA_ESPN_ROSTER_COUNT')||0),
     transactionCount:Number(p.getProperty('FBA_ESPN_TRANSACTION_COUNT')||0),dailyCount:Number(p.getProperty('FBA_ESPN_DAILY_COUNT')||0),
     rosterStatus:p.getProperty('FBA_ESPN_ROSTER_STATUS_V36')||'UNKNOWN',dailyStatus:p.getProperty('FBA_ESPN_DAILY_STATUS_V36')||'UNKNOWN',
+    adpStatus:p.getProperty('FBA_ESPN_ADP_STATUS_V40')||'WAITING_ESPN_ADP',adpSnapshotDate:p.getProperty('FBA_ESPN_ADP_SNAPSHOT_DATE_V40')||null,
+    adpSnapshotRows:Number(p.getProperty('FBA_ESPN_ADP_SNAPSHOT_ROWS_V40')||0),
     nbaScheduleLastSuccess:p.getProperty('FBA_ESPN_NBA_SCHEDULE_LAST_SUCCESS_V33')||null,
     nbaScheduleGameCount:Number(p.getProperty('FBA_ESPN_NBA_SCHEDULE_GAME_COUNT_V33')||0),
     nbaScheduleSource:p.getProperty('FBA_ESPN_NBA_SCHEDULE_SOURCE_V33')||null,

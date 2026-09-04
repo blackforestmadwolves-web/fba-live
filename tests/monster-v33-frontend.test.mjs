@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v39 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
+// v40 regression suite: Monster, Free Agency, live ADP, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v39-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v40-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,11 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v39-20260904/,"Produktions-Build muss v39 ausweisen");
+assert.match(html,/war-room-monster-v40-20260904/,"Produktions-Build muss v40 ausweisen");
+assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
+  "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
+assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
+  "Monster und Free Agency müssen denselben privaten Gerätezugang verwenden");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -85,6 +89,12 @@ assert.match(html,/MONSTER_TEAM_KEY="fba_monster_analysis_team_v32"/,
 assert.match(html,/function monsterB2bGroups\(list\)/,"B2B-Einträge müssen nach Tagespaar gruppiert werden");
 assert.match(html,/monsterWeekdayPair\(group\.first,group\.second\)/,"Der Wochentag muss im Radar vor den NBA-Teams stehen");
 assert.match(html,/toggleMonsterB2b\('\$\{E\(group\.key\)\}'\)/,"B2B-Zeilen müssen aufklappbar sein");
+assert.doesNotMatch(functionSource("monsterB2bMarkup"),/setMonsterB2bTeam/,
+  "Im geschlossenen B2B-Feld dürfen Teamkürzel noch keine eigene Filteraktion auslösen");
+assert.match(functionSource("monsterB2bPlayersMarkup"),/monster-b2b-team-filter[\s\S]*setMonsterB2bTeam/,
+  "Erst das geöffnete B2B-Feld muss anklickbare NBA-Teamfilter erhalten");
+assert.match(functionSource("toggleMonsterB2b"),/b2bTeam=""/,
+  "Der erste Klick öffnet das Fenster und startet ohne alten Teamfilter");
 assert.match(html,/function monsterB2bFreeAgents\(teams,points\)/,"Aufgeklappte B2B-Zeilen brauchen freie Spieler der betroffenen NBA-Teams");
 assert.match(html,/b2bHunts:\[\]/,"Das B2B-Radar muss mit einer leeren Mehrfachauswahl starten");
 assert.match(functionSource("setMonsterB2bHunt"),/selected\.splice[\s\S]*selected\.push[\s\S]*DRAFT_CATS\.filter/,
@@ -104,13 +114,15 @@ assert.match(html,/\.monster-b2b-player-copy\{[^}]*z-index:3[^}]*padding-left:36
   "Der Spielertext muss lesbar vor dem überlappenden Schulter-Layer liegen");
 assert.match(functionSource("monsterPlayer"),/espnFantasyPositions[\s\S]*positionMap\[id\][\s\S]*fantasyPositions/,
   "Auch freie Spieler müssen ihre ligaabhängigen ESPN-Positionen aus dem vollständigen Spielerpool erhalten");
-assert.match(functionSource("monsterB2bPlayersMarkup"),/monster-b2b-player-art[\s\S]*monster-b2b-player-team[\s\S]*monster-b2b-player-position[\s\S]*monsterEspnFantasyPositionLabel/,
-  "Die ESPN-Position muss im B2B-Feld direkt unter dem NBA-Teamkürzel stehen");
+assert.match(functionSource("monsterB2bPlayersMarkup"),/monsterEspnFantasyPositionLabel[\s\S]*monster-b2b-player-rank[\s\S]*ESPN #[\s\S]*<b>\$\{E\(player\.name\)\}<\/b>[\s\S]*monster-b2b-player-meta[\s\S]*player\.nba[\s\S]*position[\s\S]*vs\./,
+  "B2B-Karten müssen ESPN-Rang, Spielername sowie NBA-Team, ESPN-Position und beide Gegner hierarchisch zeigen");
 const espnPositionLabel=loadFunction("monsterEspnFantasyPositionLabel",{Set});
 assert.equal(espnPositionLabel({fantasyPositions:"SG,PG,UTIL,BE"}),"PG, SG",
   "ESPN-Mehrfachberechtigungen müssen in fester Basketball-Reihenfolge erscheinen; Flex und Bank bleiben draußen");
-assert.equal(espnPositionLabel({fantasyPositions:"4,7,8"}),"ESPN-Position offen",
+assert.equal(espnPositionLabel({fantasyPositions:"4,7,8"}),"ESPN-Sync",
   "Historische numerische Slotwerte dürfen nicht als vermeintlich exakte ESPN-Position ausgegeben werden");
+assert.doesNotMatch(html,/ESPN-Position offen/,
+  "Die Oberfläche darf keinen falschen offenen Positionsstatus mehr anzeigen");
 
 assert.match(html,/hunt:null/,"Das Pickup Impact Lab muss ohne ausgewählten FBA-Punkt starten");
 assert.match(html,/setMonsterHunt\(''\).*GESAMT/,
@@ -126,11 +138,15 @@ assert.match(html,/Kein bekannter verbleibender ESPN-Termin/,
 assert.match(html,/Keine verbleibenden NBA-Spiele/,
   "Ein Kader ohne verbleibende NBA-Spiele darf keine Nullwert-Prognose auslösen");
 
-assert.match(html,/<h2>Vorsaison-Simulation<\/h2>/,"Die geheime Conference-Rechnung muss klar als Vorsaison-Simulation bezeichnet sein");
-assert.match(html,/<h2>Meta Projection<\/h2>/,"Die Matchup-Karte muss Meta Projection heißen");
+assert.match(html,/<h2>Season Simulation<\/h2>/,"Die Conference-Rechnung muss Season Simulation heißen");
+assert.match(html,/<h2>Matchup Projection<\/h2>/,"Die Matchup-Karte muss Matchup Projection heißen");
+assert.doesNotMatch(html,/>Meta Projection</);
+assert.match(html,/monster-projection-stage[\s\S]*Erwartete FBA-Punkte/,
+  "Matchup Projection muss die ruhige Broadcast-Struktur mit allen Werten behalten");
 assert.doesNotMatch(html,/Wahrscheinlichstes Szenario|Ein Balance-Balken je FBA-Punkt/,
   "Doppelte Meta-Erklärungen müssen aus der kompakten Ansicht entfernt sein");
-assert.match(html,/monster-vs-v30">:<\/div>/,"Der Score trennt beide Teams platzsparend mit einem Doppelpunkt");
+assert.match(functionSource("pgMonster"),/monster-projection-score[\s\S]*<i>:<\/i>/,
+  "Der neue Matchup-Score trennt beide Teams neutral mit einem Doppelpunkt");
 assert.match(html,/data-testid="monster-season-pickup-impact"/,
   "Ein gewählter Pickup muss einen eigenen Season-Impact-Vergleich erhalten");
 assert.match(functionSource("monsterSeasonProjectionPickupImpact"),/monsterSeasonProjectionCalculate\(monsterSeasonProjectionInputs\(pickup\)\)/,
@@ -186,6 +202,10 @@ assert.match(html,/\.monster-season-week\.outcome-good\{[^}]*rgba\(34,201,138,\.
   "Ein Vorsaison-Sieg braucht eine deutlich erkennbare grüne Fläche, Kontur und Statuskante");
 assert.match(html,/\.monster-season-week\.outcome-bad\{[^}]*rgba\(255,89,104,\.125\)[^}]*border-color[^}]*box-shadow:inset 4px/,
   "Eine Vorsaison-Niederlage braucht eine deutlich erkennbare rote Fläche, Kontur und Statuskante");
+assert.match(html,/\.monster-season-week\.outcome-tie\{[^}]*rgba\(255,255,255/,
+  "Ein Remis muss neutral weiß statt gelb erscheinen");
+assert.match(html,/\.monster-season-outcome\.tie\{[^}]*color:#eef2f8/,
+  "Auch das Remis-Label muss neutral bleiben");
 assert.doesNotMatch(journeyMarkup,/Pirates \+1|Wolves \+1|Heim-Tie/,
   "Die Detailfelder dürfen oben rechts keinen zusätzlichen Punktgewinner mehr ausschreiben");
 assert.equal((journeyMarkup.match(/monster-season-category"/g)||[]).length,8,
@@ -196,10 +216,15 @@ const pgMonsterSource=functionSource("pgMonster");
 const pickupCardIndex=pgMonsterSource.indexOf("${pickupCard}"),seasonSimulatorIndex=pgMonsterSource.indexOf("${monsterSeasonProjectionMarkup()}");
 assert.ok(pickupCardIndex>=0&&seasonSimulatorIndex>pickupCardIndex,
   "Das Pickup Impact Lab muss vor dem Season Simulator erscheinen");
+assert.match(functionSource("monsterSimulatorMarkup"),/<option value="">Free Agent wählen …<\/option>/,
+  "Das Pickup-Feld muss kurz Free Agent wählen heißen");
 assert.match(pgMonsterSource,/monsterSimulatorMarkup\(analysisTeam,comparisonTeam,analysisForecast,analysisSimulation\)/,
   "Das Pickup Lab muss auch bei gedrehter Heim-/Auswärtsdarstellung auf das Analyse-Team rechnen");
 assert.match(html,/volle Spielerverfügbarkeit; Rückkehrdaten werden nicht erfunden/,
-  "Die Verfügbarkeitsannahme der Vorsaison-Simulation muss sichtbar sein");
+  "Die Verfügbarkeitsannahme der Season Simulation muss sichtbar sein");
+const seasonMarkupSource=functionSource("monsterSeasonProjectionMarkup"),seasonReadyReturn=seasonMarkupSource.lastIndexOf("return `<section");
+assert.ok(seasonMarkupSource.indexOf("${info(coverage)}",seasonReadyReturn)>seasonMarkupSource.indexOf("${monsterSeasonJourneyMarkup",seasonReadyReturn),
+  "Modellhinweise müssen in der fertigen Season Simulation ganz unten stehen");
 assert.match(html,/Saison läuft – Endprognose wartet auf Ist \+ Restspiel-Modell; keine Werte werden simuliert\./,
   "Nach Saisonstart müssen alte Vorsaisonsergebnisse verborgen bleiben");
 assert.match(functionSource("monsterSeasonProjectionFingerprint"),/lifecycle:/,
@@ -275,6 +300,7 @@ const loadMonsterData=loadAsyncFunction("loadMonsterData",{
   openMonsterGate:()=>assert.fail("Ein vorhandenes Gerätetoken darf nicht zum Gate führen"),
   monsterJsonp:params=>{requestCalls.push(params);return new Promise(resolve=>requestResolvers.push(resolve))},
   monsterEnsureTeams:()=>{},
+  monsterPrivatePage:()=>true,
   localStorage:{removeItem:()=>{}},
   CUR:"monster",
   render:()=>{}
@@ -304,6 +330,7 @@ const fullSyncLoad=loadAsyncFunction("loadMonsterData",{
   requestFullEspnRefresh:async()=>{fullSyncEvents.push("full-sync");return {ok:true,fullSync:true}},
   monsterJsonp:async params=>{fullSyncEvents.push({request:params});return {ok:true,marker:"Chris hat neuen Spieler",roster:[{team:"Chris",playerId:"new-player"}],nbaSchedule:{matchupWeek:1}}},
   monsterEnsureTeams:()=>{},
+  monsterPrivatePage:()=>true,
   localStorage:{removeItem:()=>{}},
   CUR:"monster",
   render:()=>{}
@@ -343,7 +370,7 @@ assert.equal(lifecycle({phase:"PRESEASON",nbaSeasonSchedule:{games:[{status:"SCH
 assert.equal(lifecycle({phase:"DRAFT",nbaSeasonSchedule:{games:[{status:"STATUS_IN_PROGRESS"}]}}).allowed,false);
 assert.equal(lifecycle({phase:"REGULAR_SEASON",nbaSeasonSchedule:{games:[{status:"SCHEDULED"}]}}).allowed,false);
 assert.equal(lifecycle({nbaSeasonSchedule:{games:[{status:"SCHEDULED"}]}},"REGULAR_SEASON").allowed,false,
-  "D.appConfig über activePhase muss die Vorsaison-Simulation nach dem Saisonstart blockieren");
+  "D.appConfig über activePhase muss einen unvollständigen In-Season-Stand blockieren");
 const blockedProjectionMarkup=loadFunction("monsterSeasonProjectionMarkup",{
   monsterSeasonProjectionLifecycle:()=>({phase:"REGULAR_SEASON",seasonRunning:true,allowed:false}),
   MONSTER_SEASON_PROJECTION_STATE:{status:"ready",result:{secret:"darf nicht erscheinen"},error:"",fingerprint:"same"},
@@ -405,6 +432,42 @@ assert.match(html,/FantasyPros[^\n]+Adapter[^\n]+false|FantasyPros API vorbereit
 assert.match(html,/Hashtag[^\n]+Adapter[^\n]+false|Hashtag Export vorbereitet/,
   "Hashtag darf weiterhin nur als vorbereitete Quelle erscheinen");
 
+assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Upside[\s\S]*B2B Edge/,
+  "Free Agency braucht Hot Zone, Upside und B2B Edge");
+assert.match(functionSource("pgFreeAgency"),/Free-Agent Board/,
+  "Free Agency braucht das lange Spieler-Board");
+assert.match(functionSource("pgFreeAgency"),/ESPN-Position[\s\S]*NBA-Team[\s\S]*Sortierung/,
+  "Die 100er-Liste muss nach ESPN-Position und NBA-Team filter- sowie mehrfach sortierbar sein");
+assert.match(functionSource("freeAgencyRows"),/owned\.has\(id\)/,
+  "Aktuell gerosterte Spieler dürfen nie in der Free-Agency-Liste erscheinen");
+assert.match(functionSource("freeAgencyFilteredRows"),/slice\(0,100\)/,
+  "Das Free-Agent Board muss hart auf 100 Spieler begrenzt sein");
+const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"hot"};
+const filterFreeAgents=loadFunction("freeAgencyFilteredRows",{
+  FREE_AGENCY_STATE:freeAgencyFilterState,
+  monsterNbaKey:value=>String(value||"").toUpperCase(),
+  draftNormalize:value=>String(value||"").toLowerCase(),
+  String,Number
+});
+const filterRows=Array.from({length:130},(_,index)=>({hotRank:index+1,fbaRank:index+1,espnRank:130-index,upside:index,games:index%5,positions:index%2?"PG, SG":"C",player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL"}}));
+assert.equal(filterFreeAgents(filterRows.slice()).length,100,"Auch ein großer ESPN-Pool darf maximal 100 Free Agents rendern");
+freeAgencyFilterState.position="C";
+assert.equal(filterFreeAgents(filterRows.slice()).length,65,"ESPN-Positionsfilter müssen Mehrfachberechtigungen exakt berücksichtigen");
+freeAgencyFilterState.position="ALL";freeAgencyFilterState.nba="ATL";
+assert.equal(filterFreeAgents(filterRows.slice()).every(row=>row.player.nba==="ATL"),true);
+
+const adpTrendMarkup=loadFunction("draftAdpTrendMarkup",{E:value=>String(value),Number,Math});
+assert.match(adpTrendMarkup({adpTrend:{ready:true,change:2.25}}),/up[\s\S]*▲ 2,3 Plätze/,
+  "Ein besserer ESPN-ADP muss als grüne Aufwärtsbewegung erscheinen");
+assert.match(adpTrendMarkup({adpTrend:{ready:true,change:-1.4}}),/down[\s\S]*▼ 1,4 Plätze/,
+  "Ein schlechterer ESPN-ADP muss als Abwärtsbewegung erscheinen");
+assert.match(adpTrendMarkup({}),/3T-Trend baut sich auf/,
+  "Vor drei echten Vortagen darf kein erfundener ADP-Trend erscheinen");
+assert.match(functionSource("draftRadarHome"),/ESPN-ADP täglich · 3T-Trend vs\. Ø der drei Vortage/,
+  "Die Startseite muss die dynamische ADP-Berechnung transparent erklären");
+assert.doesNotMatch(functionSource("draftRadarHome"),/Stand 03\.09/,
+  "Der Draft Radar darf kein statisches Tages-Standbild mehr behaupten");
+
 assert.match(functionSource("hardReloadApp"),/caches\.keys\(\)[\s\S]*caches\.delete/,
   "Hard Reset muss Cache Storage leeren");
 assert.match(functionSource("hardReloadApp"),/serviceWorker\.getRegistrations\(\)[\s\S]*registration\.unregister/,
@@ -418,4 +481,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v39 frontend regression tests");
+console.log("PASS · Matchup Monster v40 frontend regression tests");

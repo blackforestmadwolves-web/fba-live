@@ -243,7 +243,7 @@ const ownershipBasisIssue=context.monsterProjectionBasisIssue({
   games:[{gameId:"week-open",date:"2026-10-23",teams:["SAS","OKC"],status:"STATUS_SCHEDULED"}]
 },metaRosterA,metaRosterB);
 assert.match(ownershipBasisIssue,/Ownership-at-game|Besitzer zum Spielzeitpunkt/i,
-  "Derselbe Ownership-Block muss Meta Projection und Pickup Impact Lab vor einer Rueckrechnung mit heutigen Kadern schuetzen");
+  "Derselbe Ownership-Block muss Matchup Projection und Pickup Impact Lab vor einer Rueckrechnung mit heutigen Kadern schuetzen");
 assert.match(functionSource("pgMonster"),/basisIssue[\s\S]*ready=!basisIssue[\s\S]*if\(!ready\)[\s\S]*Prognose bewusst blockiert/);
 assert.match(functionSource("pgMonster"),/pickupBody=ready\?monsterSimulatorMarkup[\s\S]*Pickup Impact Lab zeigt deshalb keine erfundenen Auswirkungen/);
 
