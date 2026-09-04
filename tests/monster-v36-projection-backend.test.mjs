@@ -13,6 +13,36 @@ assert.deepEqual(Array.from(context.FBA_PROJECTION_ENGINE_V36.projectionStats),
   ["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"]);
 assert.equal(Array.from(context.ESPN_DAILY_HEADERS_V2).at(-1),"ownership_captured",
   "Das additive Daily-Schema muss historische Besitzer-Snapshots eindeutig kennzeichnen");
+assert.equal(Array.from(context.ESPN_PLAYER_HEADERS_V2).at(-1),"fantasy_positions",
+  "Ligaabhängige ESPN-Positionen müssen als additives Feld rechts angehängt werden");
+
+const espnEligible=context.normalizeFantasyPlayerV2_({playerPoolEntry:{player:{
+  id:99,fullName:"ESPN Dual Guard",proTeamId:1,defaultPositionId:1,
+  eligibleSlots:[0,1,5,6,7,8,9,10,13]
+}}});
+assert.equal(espnEligible.primaryPosition,"PG");
+assert.equal(espnEligible.fantasyPositions,"PG,SG",
+  "Nur die echten, ligaabhängigen ESPN-Positionen dürfen erscheinen; G/F/UTIL/BE/IR bleiben Slottypen");
+const espnFallback=context.normalizeFantasyPlayerV2_({player:{
+  id:100,fullName:"ESPN Center",proTeamId:2,defaultPositionId:5,eligibleSlots:[7,8,9]
+}});
+assert.equal(espnFallback.fantasyPositions,"C",
+  "Fehlen die fünf Kern-Slots, darf ausschließlich ESPNs eigene Hauptposition als Fallback dienen");
+const poolSlotFallback=context.normalizeFantasyPlayerV2_({playerPoolEntry:{eligibleSlots:[2,3,6,7],player:{
+  id:101,fullName:"ESPN Forward",proTeamId:3,defaultPositionId:3,eligibleSlots:[]
+}}});
+assert.equal(poolSlotFallback.fantasyPositions,"SF,PF",
+  "Liefert ESPN die Ligaberechtigungen am Pool-Eintrag, müssen auch diese unverändert ausgewertet werden");
+const eligibleRows=context.collectFantasyPlayersV2_({players:[{playerPoolEntry:{player:{
+  id:99,fullName:"ESPN Dual Guard",proTeamId:1,defaultPositionId:1,eligibleSlots:[0,1,5,7]
+}}}],teams:[]},"2026-09-04T12:00:00.000Z");
+const playerHeaders=Array.from(context.ESPN_PLAYER_HEADERS_V2);
+assert.equal(eligibleRows[0][playerHeaders.indexOf("fantasy_positions")],"PG,SG",
+  "Der ESPN-Vollsync muss die exakten Fantasy-Positionen bis in ESPN_Players schreiben");
+assert.match(String(context.buildProjectionEnginePayloadV36_),/fantasyPositions:String\(meta\.fantasy_positions \|\| position/,
+  "Auch die Projection Engine muss ESPNs ligaabhängige Positionen transportieren");
+assert.match(String(context.buildMonsterPayloadV30_),/espnFantasyPositions:fantasyPositions/,
+  "Der Monster-Payload muss die Positionen des vollständigen ESPN-Spielerpools und nicht nur des Kaders liefern");
 
 function applyDailyUpsert(existing,incoming){
   let written=null;

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v38 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
+// v39 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v38-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v39-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v38-20260904/,"Produktions-Build muss v38 ausweisen");
+assert.match(html,/war-room-monster-v39-20260904/,"Produktions-Build muss v39 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -98,8 +98,19 @@ assert.doesNotMatch(functionSource("monsterB2bMarkup"),/Atlanta Hawks|Chicago Bu
   "Die B2B-Teamzeile darf Kürzel und ausgeschriebenen Namen nicht doppelt zeigen");
 assert.match(html,/\.monster-b2b-player\{[^}]*grid-template-columns:88px[^}]*min-height:104px[^}]*overflow:hidden/,
   "B2B-Spielerkarten müssen dem Portrait sichtbar mehr Kartenhöhe geben");
-assert.match(html,/\.monster-b2b-player img\{[^}]*align-self:stretch[^}]*height:104px[^}]*object-fit:cover/,
-  "B2B-Portraits müssen die verfügbare Kartenhöhe ausfüllen");
+assert.match(html,/\.monster-b2b-player-art img\{[^}]*width:142px[^}]*height:104px[^}]*object-fit:contain[^}]*drop-shadow/,
+  "B2B-Portraits müssen bei gleicher Höhe die vollständige Schulter als 3D-Layer zeigen");
+assert.match(html,/\.monster-b2b-player-copy\{[^}]*z-index:3[^}]*padding-left:36px/,
+  "Der Spielertext muss lesbar vor dem überlappenden Schulter-Layer liegen");
+assert.match(functionSource("monsterPlayer"),/espnFantasyPositions[\s\S]*positionMap\[id\][\s\S]*fantasyPositions/,
+  "Auch freie Spieler müssen ihre ligaabhängigen ESPN-Positionen aus dem vollständigen Spielerpool erhalten");
+assert.match(functionSource("monsterB2bPlayersMarkup"),/monster-b2b-player-art[\s\S]*monster-b2b-player-team[\s\S]*monster-b2b-player-position[\s\S]*monsterEspnFantasyPositionLabel/,
+  "Die ESPN-Position muss im B2B-Feld direkt unter dem NBA-Teamkürzel stehen");
+const espnPositionLabel=loadFunction("monsterEspnFantasyPositionLabel",{Set});
+assert.equal(espnPositionLabel({fantasyPositions:"SG,PG,UTIL,BE"}),"PG, SG",
+  "ESPN-Mehrfachberechtigungen müssen in fester Basketball-Reihenfolge erscheinen; Flex und Bank bleiben draußen");
+assert.equal(espnPositionLabel({fantasyPositions:"4,7,8"}),"ESPN-Position offen",
+  "Historische numerische Slotwerte dürfen nicht als vermeintlich exakte ESPN-Position ausgegeben werden");
 
 assert.match(html,/hunt:null/,"Das Pickup Impact Lab muss ohne ausgewählten FBA-Punkt starten");
 assert.match(html,/setMonsterHunt\(''\).*GESAMT/,
@@ -171,6 +182,10 @@ assert.match(journeyMarkup,/<b>34 GP<\/b><span class="bad">−6<\/span>/,
 assert.match(journeyMarkup,/Niederlage/);
 assert.match(journeyMarkup,/monster-season-week outcome-bad/,
   "Die komplette Wochenzeile muss aus Sicht des Analyse-Teams dezent als Niederlage eingefärbt sein");
+assert.match(html,/\.monster-season-week\.outcome-good\{[^}]*rgba\(34,201,138,\.135\)[^}]*border-color[^}]*box-shadow:inset 4px/,
+  "Ein Vorsaison-Sieg braucht eine deutlich erkennbare grüne Fläche, Kontur und Statuskante");
+assert.match(html,/\.monster-season-week\.outcome-bad\{[^}]*rgba\(255,89,104,\.125\)[^}]*border-color[^}]*box-shadow:inset 4px/,
+  "Eine Vorsaison-Niederlage braucht eine deutlich erkennbare rote Fläche, Kontur und Statuskante");
 assert.doesNotMatch(journeyMarkup,/Pirates \+1|Wolves \+1|Heim-Tie/,
   "Die Detailfelder dürfen oben rechts keinen zusätzlichen Punktgewinner mehr ausschreiben");
 assert.equal((journeyMarkup.match(/monster-season-category"/g)||[]).length,8,
@@ -403,4 +418,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v38 frontend regression tests");
+console.log("PASS · Matchup Monster v39 frontend regression tests");
