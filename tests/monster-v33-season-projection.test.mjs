@@ -9,7 +9,7 @@ new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const start=inline[1].indexOf("function monsterSeasonProjectionCalculate(input){");
 const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs(",start);
-assert.ok(start>=0&&end>start,"Der reine v36-Saisonprognose-Rechner muss vorhanden sein");
+assert.ok(start>=0&&end>start,"Der reine v37-Saisonprognose-Rechner muss vorhanden sein");
 const model="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
 const calculate=vm.runInNewContext(`(${inline[1].slice(start,end)})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
 
@@ -73,7 +73,7 @@ function makeRoster(equal=false){
 
 function makeMatchups(){
   const rows=[];
-  for(let week=1;week<=18;week++)for(let pair=0;pair<4;pair++)rows.push({week,away:teams[pair*2],home:teams[pair*2+1]});
+  for(let week=1;week<=18;week++)for(let pair=0;pair<4;pair++)rows.push({week,away:teams[pair*2],home:teams[pair*2+1],start:isoDateForWeek(week),end:isoDateForWeek(week,week===1?5:6)});
   rows.push({week:19,away:teams[0],home:teams[2]},{week:19,away:teams[4],home:teams[6]},{week:20,away:null,home:null},{week:20,away:null,home:null});
   return rows;
 }
@@ -96,7 +96,21 @@ assert.match(html,/Privat · nur Monster/);
 assert.match(html,/Kalenderabdeckung 1\.200\/1\.230 · 30 NBA-Cup-Flexspiele noch offen und nicht erfunden/);
 assert.match(html,/FG% und FT% sind über Treffer und Versuche volumenbereinigt/);
 assert.match(html,/Exakter FBA-Punkt-Gleichstand geht im echten Matchup an das Heimteam/);
-assert.match(html,/<th>FBA-Punkte<\/th><th>Gegen<\/th><th>Diff<\/th>/,"FBA-Punkte dürfen in der Conference-Tabelle nicht doppelt erscheinen");
+const tableStart=inline[1].indexOf("function monsterSeasonProjectionTable(");
+const tableEnd=inline[1].indexOf("\nfunction monsterSeasonImpactTone(",tableStart);
+assert.ok(tableStart>=0&&tableEnd>tableStart,"Die Conference-Tabellenfunktion muss vorhanden sein");
+const tableSource=inline[1].slice(tableStart,tableEnd);
+assert.match(tableSource,/<th title="Gewonnene FBA-Punkte">W<\/th><th title="Verlorene FBA-Punkte">L<\/th><th>WIN%<\/th><th>S–N–U<\/th>/,
+  "Die Conference-Tabelle braucht die kompakte Reihenfolge W, L, WIN% und S–N–U");
+assert.doesNotMatch(tableSource,/>Diff<|>All-Play<|>AP%</,
+  "Diff, All-Play und AP% dürfen in der Conference-Tabelle keinen Platz mehr verbrauchen");
+assert.match(tableSource,/monsterSeasonPercentage\(row\.fbaWinPct\)/,
+  "WIN% muss aus dem Verhältnis der gewonnenen und verlorenen FBA-Punkte kommen");
+const pctStart=inline[1].indexOf("function monsterSeasonPercentage(");
+const pctEnd=inline[1].indexOf("\nfunction monsterSeasonScore(",pctStart);
+const formatPct=vm.runInNewContext(`(${inline[1].slice(pctStart,pctEnd)})`,{Math,Number});
+assert.equal(formatPct(.5833333333),".583");
+assert.equal(formatPct(.5),".500");
 assert.match(html,new RegExp(model.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")));
 
 const result=calculate(fixture());
@@ -106,10 +120,24 @@ assert.equal(result.matchupCount,72,"W19+ aus einem 76-Zeilen-Payload darf nicht
 assert.equal(result.conferences.East.length,4);
 assert.equal(result.conferences.West.length,4);
 assert.equal(result.coverageLabel,"Kalenderabdeckung 1.200/1.230 · 30 NBA-Cup-Flexspiele noch offen und nicht erfunden");
+assert.equal(Object.keys(result.weeklyPlayers).length,8,"Die Season Journey braucht Spieler-Einsätze für alle acht Teams");
+for(const team of teams)for(let week=1;week<=18;week++){
+  const playerWeeks=result.weeklyPlayers[team][week];
+  assert.equal(playerWeeks.length,13,`${team} W${week}: Die Season Journey braucht alle 13 Kaderspieler`);
+  assert.ok(Math.abs(playerWeeks.reduce((sum,row)=>sum+row.games,0)-result.weekly[team][week].games)<1e-9,
+    `${team} W${week}: Spieler-Einsätze und Teamprojektion müssen identisch sein`);
+  assert.ok(Math.abs(playerWeeks.reduce((sum,row)=>sum+row.scheduledGames,0)-result.weekly[team][week].scheduledGames)<1e-9,
+    `${team} W${week}: Die sichtbaren Schedule-Slots dürfen nicht von der Wochenrechnung abweichen`);
+}
+assert.ok(result.matchupResults.every(game=>game.categories.length===8),"Jede Journey-Woche braucht alle acht Kategorieentscheidungen");
+assert.equal(result.matchupResults[0].start,isoDateForWeek(1));
+assert.equal(result.matchupResults[0].end,isoDateForWeek(1,5));
 for(const row of result.rows){
   assert.equal(row.w+row.l+row.t,18,`${row.team} braucht 18 echte Matchups`);
   assert.equal(row.allPlayW+row.allPlayL+row.allPlayT,126,`${row.team} braucht 18 × 7 All-Play-Vergleiche`);
   assert.equal(row.diff,row.fbaFor-row.fbaAgainst);
+  assert.equal(row.fbaWinPct,row.fbaFor/(row.fbaFor+row.fbaAgainst),
+    `${row.team}: Conference-WIN% muss ausschließlich W/(W+L) sein`);
 }
 assert.ok(result.matchupResults.every(game=>game.awayPoints+game.homePoints===8),"Jedes echte Matchup muss exakt acht FBA-Punkte vergeben");
 assert.equal(result.rows.reduce((sum,row)=>sum+row.fbaFor,0),576,"72 Matchups × 8 FBA-Punkte müssen ligaweit vergeben werden");
@@ -117,6 +145,14 @@ assert.equal(result.rows.reduce((sum,row)=>sum+row.fbaAgainst,0),576);
 assert.equal(result.rows.reduce((sum,row)=>sum+row.w,0),result.rows.reduce((sum,row)=>sum+row.l,0));
 assert.equal(result.rows.reduce((sum,row)=>sum+row.allPlayFor,0),4032,"18 Wochen × 28 Paarungen × 8 Punkte müssen im All-Play vergeben werden");
 assert.equal(result.rows.reduce((sum,row)=>sum+row.allPlayAgainst,0),4032);
+
+const scheduleSensitiveGames=makeNbaGames(),scheduleTargetNba=makeRoster()[0].nba,scheduleTargetRows=scheduleSensitiveGames.filter(game=>game.date>=isoDateForWeek(1)&&game.date<=isoDateForWeek(1,5)&&(game.away===scheduleTargetNba||game.home===scheduleTargetNba));
+assert.ok(scheduleTargetRows.length>2,"Das Test-NBA-Team braucht zunächst mehr als zwei Spiele in W1");
+scheduleTargetRows.slice(2).forEach((game,index)=>{game.date=`2027-04-${String(20+index).padStart(2,"0")}`});
+const scheduleSensitiveResult=calculate(fixture({nbaSeasonSchedule:{games:scheduleSensitiveGames}})),targetPlayer=scheduleSensitiveResult.weeklyPlayers[teams[0]][1].find(player=>player.id==="P1-1");
+assert.equal(targetPlayer.scheduledGames,2,"Ein 2-Spiele-Star darf in seiner FBA-Woche nur zwei Schedule-Slots erhalten");
+assert.ok(scheduleSensitiveResult.weekly[teams[0]][1].scheduledGames<=result.weekly[teams[0]][1].scheduledGames-(scheduleTargetRows.length-2),
+  "Weniger NBA-Spiele eines Kaderspielers müssen das exakte Wochenvolumen des FBA-Teams reduzieren");
 
 const pickupRoster=makeRoster(),dropIndex=pickupRoster.findIndex(player=>player.team===teams[0]);
 pickupRoster[dropIndex]={team:teams[0],id:"FREE-AGENT-1",name:"Pickup Upgrade",nba:pickupRoster[dropIndex].nba,projectionReady:true,stats:{PTS:45,REB:18,AST:14,"3PM":7,STL:4,BLK:4,FGM:16,FGA:25,FTM:9,FTA:10}};
@@ -242,4 +278,4 @@ const boundaryTeam=makeRoster().find(player=>player.nba===boundaryGame.away).tea
 assert.equal(boundaryResult.weekly[boundaryTeam][1].games,result.weekly[boundaryTeam][1].games,
   "00:30 UTC am 26. Oktober ist in New York noch W1; scoringPeriod darf nicht als Woche dienen");
 
-console.log("PASS · Matchup Monster v36 season projection frontend tests");
+console.log("PASS · Matchup Monster v37 season projection frontend tests");

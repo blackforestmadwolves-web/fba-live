@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v36 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
+// v37 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v36-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v37-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v36-20260904/,"Produktions-Build muss v36 ausweisen");
+assert.match(html,/war-room-monster-v37-20260904/,"Produktions-Build muss v37 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -91,6 +91,10 @@ assert.match(html,/monsterB2bDate\(group\.first\)[\s\S]* auf [\s\S]*monsterB2bDa
   "Das Radar braucht das kompakte numerische Datum unter dem Tagespaar");
 assert.doesNotMatch(functionSource("monsterB2bMarkup"),/Atlanta Hawks|Chicago Bulls|MONSTER_NBA_NAMES/,
   "Die B2B-Teamzeile darf Kürzel und ausgeschriebenen Namen nicht doppelt zeigen");
+assert.match(html,/\.monster-b2b-player\{[^}]*grid-template-columns:88px[^}]*min-height:104px[^}]*overflow:hidden/,
+  "B2B-Spielerkarten müssen dem Portrait sichtbar mehr Kartenhöhe geben");
+assert.match(html,/\.monster-b2b-player img\{[^}]*align-self:stretch[^}]*height:104px[^}]*object-fit:cover/,
+  "B2B-Portraits müssen die verfügbare Kartenhöhe ausfüllen");
 
 assert.match(html,/hunt:null/,"Das Pickup Impact Lab muss ohne ausgewählten FBA-Punkt starten");
 assert.match(html,/setMonsterHunt\(''\).*GESAMT/,
@@ -117,6 +121,50 @@ assert.match(functionSource("monsterSeasonProjectionPickupImpact"),/monsterSeaso
   "Season Impact muss die vollständige Saisonprojektion mit dem Tausch neu berechnen");
 assert.match(functionSource("monsterSeasonProjectionMarkup"),/impact\.result[\s\S]*highlightTeam/,
   "Die Conference-Tabellen müssen das neue Pickup-Szenario anzeigen und markieren");
+assert.match(functionSource("monsterSeasonProjectionMarkup"),/monsterSeasonJourneyMarkup\(result,MONSTER_STATE\.teamA\)/,
+  "Die berechnete Saison muss als Wochenpfad des ausgewählten Analyse-Teams sichtbar werden");
+assert.match(html,/data-testid="monster-season-journey"/,
+  "Der Season Simulator braucht eine eigene Season Journey");
+assert.match(html,/\.monster-season-category-grid\{[^}]*repeat\(4,minmax\(0,1fr\)\)/,
+  "Desktop muss die acht Kategorien einer Woche als kompaktes 4×2-Raster zeigen");
+const journeyMarkup=loadFunction("monsterSeasonJourneyMarkup",{
+  T:team=>({s:team,c:team==="Pirates"?"#7657ef":"#b21f35"}),
+  E:value=>String(value),
+  chip:team=>`[${team}]`,
+  monsterSeasonScore:value=>String(value),
+  monsterSeasonCategoryValue:(cat,value)=>String(value),
+  monsterSeasonScheduleWatchMarkup:team=>`<span>${team} watch</span>`,
+  monsterFallbackWeekDates:()=>({start:"2026-10-20",end:"2026-10-25"}),
+  monsterWeekLabel:()=>"20. Okt. – 25. Okt. 2026",
+  DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"]
+})({
+  weekly:{Pirates:{1:{games:40,scheduledGames:40}},Wolves:{1:{games:34,scheduledGames:34}}},
+  weeklyPlayers:{Pirates:{1:[]},Wolves:{1:[]}},
+  matchupResults:[{week:1,away:"Pirates",home:"Wolves",awayPoints:5,homePoints:3,seeded:false,categories:[
+    {cat:"PTS",left:120,right:100,winner:"left",homeTie:false},{cat:"REB",left:50,right:55,winner:"right",homeTie:false},
+    {cat:"AST",left:30,right:25,winner:"left",homeTie:false},{cat:"3PM",left:18,right:14,winner:"left",homeTie:false},
+    {cat:"STL",left:9,right:8,winner:"left",homeTie:false},{cat:"BLK",left:4,right:7,winner:"right",homeTie:false},
+    {cat:"FG%",left:.49,right:.48,winner:"left",homeTie:false},{cat:"FT%",left:.8,right:.82,winner:"right",homeTie:false}
+  ]}]
+},"Wolves");
+assert.match(journeyMarkup,/Season Journey · Wolves/);
+assert.match(journeyMarkup,/monster-season-week-side">Heim/,
+  "Ein ausgewähltes Heimteam muss in der Journey als Heim und der Gegner links erscheinen");
+assert.ok(journeyMarkup.indexOf("[Pirates]")<journeyMarkup.indexOf("[Wolves]"),
+  "Die Journey muss immer Auswärts links und Heim rechts darstellen");
+assert.match(journeyMarkup,/34 : 40 Kader-Einsätze/,
+  "Das echte Wochenvolumen beider Kader muss direkt in der geschlossenen Zeile stehen");
+assert.match(journeyMarkup,/Niederlage/);
+assert.equal((journeyMarkup.match(/monster-season-category"/g)||[]).length,8,
+  "Aufgeklappt muss eine Woche genau acht Kategorievergleiche enthalten");
+assert.doesNotMatch(journeyMarkup,/<details[^>]*\sopen(?:\s|>)/,
+  "Alle 18 Wochen bleiben für eine kompakte Übersicht zunächst eingeklappt");
+const pgMonsterSource=functionSource("pgMonster");
+const pickupCardIndex=pgMonsterSource.indexOf("${pickupCard}"),seasonSimulatorIndex=pgMonsterSource.indexOf("${monsterSeasonProjectionMarkup()}");
+assert.ok(pickupCardIndex>=0&&seasonSimulatorIndex>pickupCardIndex,
+  "Das Pickup Impact Lab muss vor dem Season Simulator erscheinen");
+assert.match(pgMonsterSource,/monsterSimulatorMarkup\(analysisTeam,comparisonTeam,analysisForecast,analysisSimulation\)/,
+  "Das Pickup Lab muss auch bei gedrehter Heim-/Auswärtsdarstellung auf das Analyse-Team rechnen");
 assert.match(html,/volle Spielerverfügbarkeit; Rückkehrdaten werden nicht erfunden/,
   "Die Verfügbarkeitsannahme der Vorsaison-Simulation muss sichtbar sein");
 assert.match(html,/Saison läuft – Endprognose wartet auf Ist \+ Restspiel-Modell; keine Werte werden simuliert\./,
@@ -147,6 +195,44 @@ assert.deepEqual(JSON.parse(JSON.stringify(weeks.map(row=>row.week))),[1,2]);
 const scheduledOpponent=loadFunction("monsterScheduledOpponent",{monsterSchedule:()=>fakeSchedule});
 assert.equal(scheduledOpponent("Wolves",1),"Pirates");
 assert.equal(scheduledOpponent("Wolves",2),"Lions");
+
+const displayMatchup=loadFunction("monsterDisplayMatchupTeams",{monsterSchedule:()=>fakeSchedule});
+assert.deepEqual(JSON.parse(JSON.stringify(displayMatchup("Wolves","Pirates",1))),
+  {away:"Pirates",home:"Wolves",analysisSide:"right"},
+  "Ein als Heimteam angesetztes Analyse-Team muss rechts erscheinen");
+assert.deepEqual(JSON.parse(JSON.stringify(displayMatchup("Wolves","Eagles",1))),
+  {away:"Eagles",home:"Wolves",analysisSide:"right"},
+  "Auch freie Vergleiche müssen die reale Heimseite des Analyse-Teams erhalten");
+assert.deepEqual(JSON.parse(JSON.stringify(displayMatchup("Wolves","Lions",2))),
+  {away:"Wolves",home:"Lions",analysisSide:"left"},
+  "Ein als Auswärtsteam angesetztes Analyse-Team muss links erscheinen");
+
+const swapForecast=loadFunction("monsterSwapForecastSides",{Object});
+const swapped=swapForecast({a:{team:"Wolves"},b:{team:"Pirates"},aExpected:5.5,bExpected:2.5,cats:[{cat:"PTS",a:120,b:100,p:.7}]});
+assert.equal(swapped.a.team,"Pirates");
+assert.equal(swapped.b.team,"Wolves");
+assert.equal(swapped.aExpected,2.5);
+assert.equal(swapped.bExpected,5.5);
+assert.ok(Math.abs(swapped.cats[0].p-.3)<1e-12,"Beim Seitenwechsel muss auch die linke Gewinnwahrscheinlichkeit gespiegelt werden");
+
+const pointRowsMarkup=loadFunction("monsterPointRowsMarkup",{
+  T:team=>({s:team,c:team==="Pirates"?"#7657ef":"#b21f35"}),
+  E:value=>String(value),
+  formatDraftValue:(cat,value)=>String(value),
+  monsterImpactClass:value=>value>.004?"good":value<-.004?"bad":"neutral",
+  Math
+});
+const rightSidePickup=pointRowsMarkup(
+  {cats:[{cat:"PTS",a:100,b:80,p:.6}]},"Pirates","Wolves",
+  {analysisSide:"right",after:{cats:[{cat:"PTS",a:100,b:95,p:.4}]}}
+);
+assert.match(rightSidePickup,/40% → 60%/,
+  "Bei einem Heimteam-Pickup muss der Vorher-/Nachher-Prozentwert aus Sicht der rechten Analyseseite laufen");
+assert.match(rightSidePickup,/\+20 Pp\./);
+assert.match(rightSidePickup,/100<\/strong><small>unverändert/,
+  "Der linke Vergleichsgegner muss bei einem Pickup des rechten Analyse-Teams unverändert bleiben");
+assert.match(rightSidePickup,/95<\/strong><small>vorher 80/,
+  "Der neue Wert des rechten Analyse-Teams muss seinen eigenen Vorher-Wert zeigen");
 
 const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
 const requestCalls=[],requestResolvers=[];
@@ -299,4 +385,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v36 frontend regression tests");
+console.log("PASS · Matchup Monster v37 frontend regression tests");
