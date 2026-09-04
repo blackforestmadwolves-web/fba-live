@@ -11,6 +11,29 @@ assert.equal(context.FBA_PROJECTION_ENGINE_V36.version,36);
 assert.equal(context.FBA_PROJECTION_ENGINE_V36.projectionStatIds.GP,42);
 assert.deepEqual(Array.from(context.FBA_PROJECTION_ENGINE_V36.projectionStats),
   ["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"]);
+assert.equal(Array.from(context.ESPN_DAILY_HEADERS_V2).at(-1),"ownership_captured",
+  "Das additive Daily-Schema muss historische Besitzer-Snapshots eindeutig kennzeichnen");
+
+function applyDailyUpsert(existing,incoming){
+  let written=null;
+  context.ensureEspnDailySheetV38_=()=>({
+    getLastRow:()=>2,getMaxRows:()=>100,insertRowsAfter:()=>{},
+    getRange:()=>({getValues:()=>[existing.slice()],setValues:rows=>{written=rows.map(row=>row.slice())}})
+  });
+  context.upsertEspnDailyRowsV36_([incoming.slice()]);
+  return written[0];
+}
+const dailyHeader=Array.from(context.ESPN_DAILY_HEADERS_V2),dailyIndex=key=>dailyHeader.indexOf(key),capturedDaily=Array(dailyHeader.length).fill("");
+Object.assign(capturedDaily,{[dailyIndex("season_id")]:2027,[dailyIndex("nba_date")]:"2026-10-20",[dailyIndex("event_id")]:"G1",[dailyIndex("player_id")]:"P1",
+  [dailyIndex("owner_team_id")]:"7",[dailyIndex("owner_team")]:"Wolves",[dailyIndex("lineup_slot_id")]:4,[dailyIndex("active_lineup")]:true,[dailyIndex("PTS")]:10,[dailyIndex("ownership_captured")]:true});
+const laterDaily=capturedDaily.slice();laterDaily[dailyIndex("owner_team_id")]="5";laterDaily[dailyIndex("owner_team")]="Pirates";laterDaily[dailyIndex("PTS")]=12;
+const preservedDaily=applyDailyUpsert(capturedDaily,laterDaily);
+assert.equal(preservedDaily[dailyIndex("owner_team")],"Wolves","Ein späterer Trade darf den ersten bestätigten Besitzer am Spieltag nicht überschreiben");
+assert.equal(preservedDaily[dailyIndex("PTS")],12,"Offizielle ESPN-Statkorrekturen müssen trotz eingefrorenem Besitzer aktualisiert werden");
+const legacyDaily=capturedDaily.slice();legacyDaily[dailyIndex("owner_team_id")]="";legacyDaily[dailyIndex("owner_team")]="";legacyDaily[dailyIndex("ownership_captured")]=false;
+const upgradedDaily=applyDailyUpsert(legacyDaily,laterDaily);
+assert.equal(upgradedDaily[dailyIndex("owner_team")],"Pirates","Ein alter unbestätigter Backfill darf durch einen frischen Spieltag-Snapshot repariert werden");
+assert.equal(upgradedDaily[dailyIndex("ownership_captured")],true);
 
 function espnTotals({gp=70,pts=1750}={}){
   return {
@@ -97,7 +120,7 @@ assert.equal(completed.games,71,"Ist-GP oberhalb projectedGp bleibt autoritativ 
 
 const completeKey="FBA_NBA_EVENT_DONE_2027_final-1";
 context.espnPropertiesV1_=()=>({getProperties:()=>({[completeKey]:"1"})});
-const dailyBase={season_id:2027,nba_date:"2026-10-20",matchup_period:1,player_id:"wemby",player_name:"Victor Wembanyama",nba_team:"SAS",...actual};
+const dailyBase={season_id:2027,nba_date:"2026-10-20",matchup_period:1,player_id:"wemby",player_name:"Victor Wembanyama",nba_team:"SAS",owner_team_id:"7",owner_team:"BlackForest Mad Wolves",active_lineup:true,ownership_captured:true,...actual};
 const actualAggregate=context.aggregateProjectionActualsV36_([
   {...dailyBase,event_id:"final-1",event_status:"FINAL"},
   {...dailyBase,event_id:"final-1",event_status:"FINAL"}, // duplicate fetch / stat correction, same game
@@ -108,9 +131,37 @@ assert.equal(actualAggregate.byPlayer.wemby.gp,1,"Nur ein bestaetigter, vollstae
 assert.equal(actualAggregate.byPlayer.wemby.totals.PTS,10,"Doppelte ESPN-Zeilen derselben Event-/Spieler-ID duerfen nicht doppelt zaehlen");
 assert.equal(actualAggregate.byPlayer.wemby.byWeek["1"].gp,1);
 assert.equal(actualAggregate.completeGames,1);
+assert.equal(actualAggregate.ownershipAtGameReady,true,
+  "Ein eingefrorener Besitzer-/Aufstellungsstand muss die In-Season-Rechnung freigeben");
+assert.equal(actualAggregate.byTeamWeek["BlackForest Mad Wolves"]["1"].gp,1);
+assert.equal(actualAggregate.byTeamWeek["BlackForest Mad Wolves"]["1"].stats.PTS,10,
+  "Finale Montag-/Dienstag-Werte müssen exakt dem damaligen FBA-Team zugerechnet werden");
 assert.equal(actualAggregate.inProgressRows,1,"IN_PROGRESS wird als wartend ausgewiesen und nicht in Ist-Werte gemischt");
 assert.equal(actualAggregate.excludedFinalRows,1,"Ein noch nicht als vollstaendig bestaetigtes FINAL bleibt ausgeschlossen");
 assert.equal(actualAggregate.byPlayer.dnp,undefined,"Ein Spieler ohne finale Boxscore-Zeile wird nicht als Null-Stat-Ist-Spiel erfunden");
+const ownershipMissing=context.aggregateProjectionActualsV36_([
+  {...dailyBase,event_id:"final-1",event_status:"FINAL",ownership_captured:false}
+]);
+assert.equal(ownershipMissing.ownershipAtGameReady,false);
+assert.deepEqual(Array.from(ownershipMissing.ownershipMissingEventIds),["final-1"],
+  "Ein alter Boxscore ohne damaligen Besitzer darf nicht dem heutigen Kader zugeschlagen werden");
+
+const completedSchedule=Array.from({length:4},(_,index)=>({week:1,away_team:`Away ${index+1}`,home_team:`Home ${index+1}`}));
+const completedStats=completedSchedule.map((game,index)=>({Woche:1,"Team A":game.away_team,"Team B":game.home_team,
+  PTS_A:100+index,PTS_B:90,REB_A:40,REB_B:45,AST_A:30,AST_B:20,"3PM_A":12,"3PM_B":10,
+  STL_A:8,STL_B:7,BLK_A:4,BLK_B:6,"FG%_A":.51,"FG%_B":.49,"FT%_A":.78,"FT%_B":.82}));
+const completedResults=completedSchedule.map((game,index)=>({Week:1,Away:game.away_team,Home:game.home_team,
+  "Away Cats":5,"Home Cats":3}));
+const fbaSeeds=context.projectionFbaActualSeedsV38_(completedResults,completedStats,completedSchedule,2,true);
+assert.equal(fbaSeeds.ready,true);
+assert.equal(fbaSeeds.completedThroughWeek,1);
+assert.equal(fbaSeeds.completedFbaMatchups.length,4,
+  "Sobald ESPN auf W2 steht, müssen alle vier finalen W1-Ergebnisse feste Saison-Seeds werden");
+assert.equal(fbaSeeds.completedFbaMatchups[0].categories.length,8);
+assert.equal(context.projectionFbaActualSeedsV38_([],[],completedSchedule,1,true).ready,true,
+  "In der laufenden W1 sind null abgeschlossene FBA-Wochen ein vollständiger und gültiger Seed-Stand");
+const incompleteSeeds=context.projectionFbaActualSeedsV38_(completedResults.slice(0,3),completedStats,completedSchedule,2,true);
+assert.equal(incompleteSeeds.ready,false,"Drei von vier W1-Ergebnissen dürfen die Endtabelle nicht teilweise einfrieren");
 
 const syncPropertyWrites={};
 const scoreboardFailureSync=vm.runInNewContext(`(${context.syncEspnPlayerHubV2_.toString()})`,{
@@ -150,6 +201,7 @@ const buildPartialActualEngine=vm.runInNewContext(`(${context.buildProjectionEng
   projectionBaselineStatusV36_:()=>({status:"READY",active:true,lastSuccess:"baseline-ready"}),
   projectionProfilesPayloadV36_:()=>({status:"READY",active:true,lastSuccess:"profiles-ready",teams:{}}),
   projectionActualCompletenessV36_:()=>({ready:true,allPendingEventIds:[],pendingEventIds:[]}),
+  projectionFbaActualSeedsV38_:()=>({ready:true,status:"READY",currentMatchupPeriod:0,completedThroughWeek:0,completedFbaMatchups:[],issue:""}),
   espnPropertiesV1_:()=>({getProperty:key=>key==="FBA_ESPN_DAILY_STATUS_V36"?"PARTIAL":""}),
   FBA_PROJECTION_ENGINE_V36:context.FBA_PROJECTION_ENGINE_V36,
   ESPN_PLAYER_HUB_V2:context.ESPN_PLAYER_HUB_V2,ESPN_SYNC_V1:context.ESPN_SYNC_V1,

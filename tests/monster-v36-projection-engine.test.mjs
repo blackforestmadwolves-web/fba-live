@@ -45,8 +45,8 @@ vm.createContext(context);
   "monsterProjectionSeasonFinish","monsterProjectionWeekForDate","monsterProjectionGameTeams","monsterProjectionGameKey",
   "monsterProjectionFinal","monsterProjectionUnavailableGame","monsterProjectionFutureGame","monsterProjectionLiveGame","monsterProjectionScheduleGames",
   "monsterProjectionSeasonScheduleIssue","monsterProjectionOwnershipReady","monsterProjectionFbaSeedReady","monsterProjectionOpponent","monsterProjectionProfileRatio",
-  "monsterProjectionRawFactor","monsterProjectionNormalizedFactors","monsterProjectionWeekActual",
-  "monsterProjectionWeeklyPlayer","monsterAvailability","monsterProjectionCategoryFactor","monsterProjectionB2bContext",
+  "monsterProjectionRawFactor","monsterProjectionNormalizedFactors","monsterProjectionWeekActual","monsterProjectionTeamWeekActual",
+  "monsterProjectionWeeklyPlayer","monsterProjectionOwnedWeeklyPlayer","monsterAvailability","monsterProjectionCategoryFactor","monsterProjectionB2bContext",
   "monsterScheduledWeekGames","monsterProjectionBasisIssue"
 ].forEach(name=>vm.runInContext(functionSource(name),context,{filename:`${name}.js`}));
 
@@ -112,6 +112,17 @@ assert.equal(weekly.PTS,60,
 assert.equal(weekly.FGM,22);
 assert.equal(weekly.FGA,51);
 assert.ok(Math.abs(weekly["FG%"]-22/51)<1e-12);
+
+const ownershipEngine={profiles:{status:"READY",teams:{}},actual:{ownershipAtGameReady:true,teamActualsByWeek:{
+  Wolves:{1:{gp:1,stats:firstGame,players:{wemby:{id:"wemby",name:"Victor Wembanyama",nba:"SAS",gp:1,stats:firstGame}}}}
+}}};
+const ownedByWolves=context.monsterProjectionOwnedWeeklyPlayer(wemby,"Wolves",1,normalizedGames,ownershipEngine,"SAS");
+assert.equal(ownedByWolves.actualGames,1);
+assert.equal(ownedByWolves.PTS,60,"Montag-Istwert plus zwei offene Spiele muss aus Sicht des damaligen Besitzers 60 PTS ergeben");
+const laterOwner=context.monsterProjectionOwnedWeeklyPlayer(wemby,"Pirates",1,normalizedGames,ownershipEngine,"SAS");
+assert.equal(laterOwner.actualGames,0);
+assert.equal(laterOwner.PTS,50,
+  "Ein spaeterer Besitzer darf das bereits fuer Wolves absolvierte Spiel nicht rueckwirkend erhalten");
 
 const noActual={id:"dnp",name:"DNP",nba:"SAS",projectedGp:70,base,actual:{gp:0,totals:{},byWeek:{}}};
 const dnpWeek=context.monsterProjectionWeeklyPlayer(noActual,1,normalizedGames.filter(game=>game._projectionKey==="final-okc"),{profiles:{teams:{}}},"SAS");
@@ -195,6 +206,13 @@ context.MONSTER_STATE.data={phase:"REGULAR_SEASON",projectionEngine:lifecycleEng
 const liveReady=context.monsterSeasonProjectionLifecycle();
 assert.equal(liveReady.seasonRunning,true);
 assert.equal(liveReady.allowed,true,"Ist + Restspiel-Modell muss die Saisonprojektion nach Saisonstart freischalten");
+
+context.MONSTER_STATE.data={phase:"REGULAR_SEASON",projectionEngine:{...lifecycleEngine,actual:{
+  ownershipAtGameReady:true,fbaResultsReady:true,currentMatchupPeriod:1,completedThroughWeek:0,completedFbaMatchups:[],teamActualsByWeek:{}
+}},nbaSeasonSchedule:lifecycleSchedule};
+const firstWeekReady=context.monsterSeasonProjectionLifecycle();
+assert.equal(firstWeekReady.allowed,true,
+  "In W1 muss ein bestaetigter leerer Ergebnis-Seed gueltig sein, damit Ist-Tage plus Restwoche berechnet werden koennen");
 
 context.MONSTER_STATE.data={phase:"REGULAR_SEASON",projectionEngine:{...lifecycleEngine,actual:{ownershipAtGameReady:false}},nbaSeasonSchedule:lifecycleSchedule};
 const ownershipWaiting=context.monsterSeasonProjectionLifecycle();

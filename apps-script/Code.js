@@ -1365,6 +1365,10 @@ function syncEspnData(lockWaitMs, forceProjectionProfiles) {
     if (!league || String(league.id) !== String(ESPN_SYNC_V1.leagueId)) {
       throw new Error('ESPN-Antwort gehört nicht zur erwarteten Liga.');
     }
+    props.setProperties({
+      FBA_ESPN_CURRENT_MATCHUP_PERIOD_V38:String(Number((league.status || {}).currentMatchupPeriod || 0)),
+      FBA_ESPN_CURRENT_SCORING_PERIOD_V38:String(Number((league.status || {}).currentScoringPeriod || 0))
+    });
     var playerResult = { status: 'NICHT_AUSGEFUEHRT', players: 0, roster: 0, transactions: 0, dailyRows: 0 };
     try {
       playerResult = syncEspnPlayerHubV2_(stamp, league, forceProjectionProfiles === true);
@@ -1824,7 +1828,7 @@ var ESPN_DAILY_HEADERS_V2 = [
   'season_id','nba_date','scoring_period','matchup_period','event_id','event_status','player_id','player_name',
   'nba_team','owner_team_id','owner_team','lineup_slot_id','active_lineup',
   'PTS','REB','AST','3PM','STL','BLK','FGM','FGA','FTM','FTA','FG%','FT%','headshot_url','updated_at'
-];
+].concat(['ownership_captured']);
 
 /* ================= FBA PROJECTION ENGINE v36 =================
  * Die Baseline kommt ausschliesslich aus ESPNs Projection-Zeile der laufenden
@@ -1875,10 +1879,23 @@ function ensureEspnPlayerHubSheetsV2_() {
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.rosterSheet, ESPN_ROSTER_HEADERS_V2);
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.rosterHistorySheet, ESPN_ROSTER_HISTORY_HEADERS_V2);
   ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.transactionsSheet, ESPN_TRANSACTION_HEADERS_V2);
-  ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.dailySheet, ESPN_DAILY_HEADERS_V2);
+  ensureEspnDailySheetV38_();
   ensureSimpleEspnSheetV1_(FBA_PROJECTION_ENGINE_V36.projectionSheet, ESPN_PROJECTION_HEADERS_V36);
   ensureSimpleEspnSheetV1_(FBA_PROJECTION_ENGINE_V36.teamProfilesSheet, NBA_TEAM_PROFILE_HEADERS_V36);
   ensureDraftPredictionSheetV3_();
+}
+
+/* ownership_captured is append-only so the existing ESPN_Player_Daily columns
+ * keep their positions. It distinguishes a real free agent from an old
+ * backfill for which the owner/lineup moment could no longer be reconstructed. */
+function ensureEspnDailySheetV38_() {
+  var sh = ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.dailySheet, ESPN_DAILY_HEADERS_V2);
+  var lastColumn = Math.max(1, sh.getLastColumn());
+  var header = sh.getRange(1,1,1,lastColumn).getValues()[0].map(function (value) { return String(value || ''); });
+  if (header.indexOf('ownership_captured') < 0) {
+    sh.getRange(1,lastColumn+1).setValue('ownership_captured').setFontWeight('bold').setBackground('#EAEAEA');
+  }
+  return sh;
 }
 
 /* Bestehende ESPN_Players-Daten bleiben bei der Schema-Erweiterung erhalten.
@@ -1950,8 +1967,8 @@ function upsertEspnRowsV2_(sheetName, header, rows, keyIndexes, preserveIndexes)
  * only the affected tail beginning at the earliest touched game row. */
 function upsertEspnDailyRowsV36_(rows) {
   if (!rows || !rows.length) return 0;
-  var header = ESPN_DAILY_HEADERS_V2, keyIndexes = [0,1,4,6], preserveIndexes = [9,10,11,12];
-  var sh = ensureSimpleEspnSheetV1_(ESPN_PLAYER_HUB_V2.dailySheet,header), last = sh.getLastRow(), existing = [], byKey = {};
+  var header = ESPN_DAILY_HEADERS_V2, keyIndexes = [0,1,4,6], ownerIndexes = [9,10,11,12], ownershipIndex = header.indexOf('ownership_captured');
+  var sh = ensureEspnDailySheetV38_(), last = sh.getLastRow(), existing = [], byKey = {};
   if (last > 1) existing = sh.getRange(2,1,last-1,header.length).getValues();
   existing.forEach(function (row,index) {
     byKey[keyIndexes.map(function (column) { return String(row[column] == null ? '' : row[column]); }).join('|')] = index;
@@ -1963,10 +1980,20 @@ function upsertEspnDailyRowsV36_(rows) {
     if (index === undefined) {
       index = existing.length; byKey[key] = index; existing.push(incoming.slice());
     } else {
-      var merged = incoming.slice();
-      preserveIndexes.forEach(function (column) {
-        if (existing[index][column] !== '' && existing[index][column] != null) merged[column] = existing[index][column];
-      });
+      var merged = incoming.slice(), previous = existing[index], previousCaptured = previous[ownershipIndex] === true || String(previous[ownershipIndex]).toUpperCase() === 'TRUE';
+      var incomingCaptured = incoming[ownershipIndex] === true || String(incoming[ownershipIndex]).toUpperCase() === 'TRUE';
+      /* The first confirmed at-game snapshot is authoritative. A legacy
+       * uncaptured backfill may still be upgraded when today/yesterday is read
+       * again, but it can never overwrite a captured owner afterwards. */
+      if (previousCaptured) {
+        ownerIndexes.forEach(function (column) { merged[column] = previous[column]; });
+        merged[ownershipIndex] = true;
+      } else if (!incomingCaptured) {
+        ownerIndexes.forEach(function (column) {
+          if (previous[column] !== '' && previous[column] != null) merged[column] = previous[column];
+        });
+        merged[ownershipIndex] = false;
+      }
       existing[index] = merged;
     }
     if (index < earliest) earliest = index;
@@ -2533,7 +2560,7 @@ function parseNbaSummaryRowsV2_(summary, eventMeta, ownerMap, stamp, scoring, ma
         rows.push([ESPN_SYNC_V1.seasonId,nbaDate,scoring,matchup,eventId,eventStatus,id,a.displayName || a.fullName || '',nbaTeam,
           owner.teamId || '',owner.team || '',owner.slotId == null ? '' : owner.slotId,owner.active === true,
           values.PTS,values.REB,values.AST,values['3PM'],values.STL,values.BLK,
-          values.FGM,values.FGA,values.FTM,values.FTA,fgp,ftp,(a.headshot || {}).href || espnHeadshotV2_(id),stamp]);
+          values.FGM,values.FGA,values.FTM,values.FTA,fgp,ftp,(a.headshot || {}).href || espnHeadshotV2_(id),stamp,eventMeta.captureOwner === true]);
       });
     });
   });
@@ -2773,7 +2800,7 @@ function replaceProjectionWithActualsV36_(projectedGp, base, actualGp, actualTot
 }
 
 function aggregateProjectionActualsV36_(dailyRows, unavailableEvents) {
-  var props = espnPropertiesV1_().getProperties(), byPlayer = {}, eventIds = {}, liveEventIds = {}, excludedFinalEventIds = {}, neutralizedEventIds = {}, seen = {}, throughDate = '', inProgressRows = 0, excludedFinalRows = 0, neutralizedRows = 0;
+  var props = espnPropertiesV1_().getProperties(), byPlayer = {}, byTeamWeek = {}, eventIds = {}, liveEventIds = {}, excludedFinalEventIds = {}, neutralizedEventIds = {}, ownershipCapturedEvents = {}, ownershipMissingEvents = {}, seen = {}, throughDate = '', inProgressRows = 0, excludedFinalRows = 0, neutralizedRows = 0, ownershipCapturedRows = 0, ownershipMissingRows = 0;
   (dailyRows || []).forEach(function (row) {
     if (Number(row.season_id) !== Number(ESPN_SYNC_V1.seasonId)) return;
     var eventId = String(row.event_id || ''), playerId = String(row.player_id || ''), status = String(row.event_status || '').toUpperCase();
@@ -2798,6 +2825,27 @@ function aggregateProjectionActualsV36_(dailyRows, unavailableEvents) {
       weekRow.gp++;
       FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function (key) { weekRow.stats[key] += Number(row[key] || 0); });
     }
+    var ownershipCaptured = row.ownership_captured === true || String(row.ownership_captured || '').toUpperCase() === 'TRUE';
+    if (ownershipCaptured) {
+      ownershipCapturedRows++;
+      if (!ownershipMissingEvents[eventId]) ownershipCapturedEvents[eventId] = true;
+    } else {
+      ownershipMissingRows++;
+      ownershipMissingEvents[eventId] = true;
+      delete ownershipCapturedEvents[eventId];
+    }
+    var active = row.active_lineup === true || String(row.active_lineup || '').toUpperCase() === 'TRUE', ownerTeam = String(row.owner_team || '').trim();
+    if (ownershipCaptured && active && ownerTeam && week > 0) {
+      if (!byTeamWeek[ownerTeam]) byTeamWeek[ownerTeam] = {};
+      var teamWeekKey = String(week), teamWeek = byTeamWeek[ownerTeam][teamWeekKey];
+      if (!teamWeek) teamWeek = byTeamWeek[ownerTeam][teamWeekKey] = {gp:0,stats:emptyProjectionStatsV36_(),players:{}};
+      teamWeek.gp++;
+      FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function (key) { teamWeek.stats[key] += Number(row[key] || 0); });
+      var teamPlayer = teamWeek.players[playerId];
+      if (!teamPlayer) teamPlayer = teamWeek.players[playerId] = {id:playerId,name:String(row.player_name || ''),nba:String(row.nba_team || ''),gp:0,stats:emptyProjectionStatsV36_()};
+      teamPlayer.gp++;
+      FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function (key) { teamPlayer.stats[key] += Number(row[key] || 0); });
+    }
     eventIds[eventId] = true;
     if (String(row.nba_date || '') > throughDate) throughDate = String(row.nba_date || '');
   });
@@ -2805,9 +2853,18 @@ function aggregateProjectionActualsV36_(dailyRows, unavailableEvents) {
     var player = byPlayer[id];
     return id + ':' + player.gp + ':' + FBA_PROJECTION_ENGINE_V36.projectionStats.map(function (key) { return player.totals[key]; }).join(',');
   }).join('|');
-  return {byPlayer:byPlayer,revision:stableHashV36_(revisionInput),completeGames:Object.keys(eventIds).length,completedEventIds:Object.keys(eventIds).sort(),inProgressEventIds:Object.keys(liveEventIds).sort(),
+  revisionInput += '|owners:' + Object.keys(byTeamWeek).sort().map(function (team) {
+    return team + ':' + Object.keys(byTeamWeek[team]).sort().map(function (week) {
+      var row = byTeamWeek[team][week];
+      return week + ':' + row.gp + ':' + FBA_PROJECTION_ENGINE_V36.projectionStats.map(function (key) { return row.stats[key]; }).join(',');
+    }).join(';');
+  }).join('|') + '|missing:' + Object.keys(ownershipMissingEvents).sort().join(',');
+  return {byPlayer:byPlayer,byTeamWeek:byTeamWeek,revision:stableHashV36_(revisionInput),completeGames:Object.keys(eventIds).length,completedEventIds:Object.keys(eventIds).sort(),inProgressEventIds:Object.keys(liveEventIds).sort(),
     excludedFinalEventIds:Object.keys(excludedFinalEventIds).sort(),neutralizedEventIds:Object.keys(neutralizedEventIds).sort(),throughDate:throughDate || null,
-    inProgressRows:inProgressRows,excludedFinalRows:excludedFinalRows,neutralizedRows:neutralizedRows};
+    inProgressRows:inProgressRows,excludedFinalRows:excludedFinalRows,neutralizedRows:neutralizedRows,
+    ownershipCapturedRows:ownershipCapturedRows,ownershipMissingRows:ownershipMissingRows,
+    ownershipCapturedEventIds:Object.keys(ownershipCapturedEvents).filter(function (id) { return !ownershipMissingEvents[id]; }).sort(),
+    ownershipMissingEventIds:Object.keys(ownershipMissingEvents).sort(),ownershipAtGameReady:ownershipMissingRows === 0};
 }
 
 function unavailableScheduleStatusV36_(value) {
@@ -2891,6 +2948,71 @@ function projectionProfilesPayloadV36_() {
     application:'Apply the selected opponent stat factor and the PACE factor exactly once.',positionEffects:false,teams:teams,message:status.message};
 }
 
+/* Completed FBA weeks are authoritative seeds. The current ESPN matchup is
+ * never frozen here: it remains Ist-to-date plus projected remaining NBA
+ * games until ESPN advances to the following matchup period. */
+function projectionFbaActualSeedsV38_(resultRows, statsRows, scheduleRows, currentMatchupPeriod, hasNbaActuals) {
+  var current = Number(currentMatchupPeriod || 0), cats = [
+    {cat:'PTS',a:'PTS_A',b:'PTS_B'},{cat:'REB',a:'REB_A',b:'REB_B'},{cat:'AST',a:'AST_A',b:'AST_B'},
+    {cat:'3PM',a:'3PM_A',b:'3PM_B'},{cat:'STL',a:'STL_A',b:'STL_B'},{cat:'BLK',a:'BLK_A',b:'BLK_B'},
+    {cat:'FG%',a:'FG%_A',b:'FG%_B'},{cat:'FT%',a:'FT%_A',b:'FT%_B'}
+  ];
+  function numeric(value) { return value !== '' && value != null && isFinite(Number(value)); }
+  function failure(message,through) { return {ready:false,status:'PARTIAL',currentMatchupPeriod:current,completedThroughWeek:through || 0,expectedMatchups:(through || 0)*4,completedFbaMatchups:[],issue:String(message || '')}; }
+  if (!isFinite(current) || current < 0 || current !== Math.floor(current)) return failure('ESPN currentMatchupPeriod fehlt oder ist ungueltig.',0);
+  if (!current && hasNbaActuals) return failure('NBA-Ist-Spiele sind vorhanden, aber ESPNs aktuelle FBA-Woche fehlt.',0);
+  var completedThrough = current > 1 ? Math.min(ESPN_SYNC_V1.regularSeasonEnd,current-1) : 0;
+  if (!completedThrough) return {ready:true,status:'READY',currentMatchupPeriod:current,completedThroughWeek:0,expectedMatchups:0,completedFbaMatchups:[],issue:''};
+  var expectedByWeek = {}, resultByKey = {}, statsByKey = {}, errors = [];
+  (scheduleRows || []).forEach(function (row) {
+    var week = Number(row.week || row.Week || row.Woche || 0), away = String(row.away_team || row.Away || '').trim(), home = String(row.home_team || row.Home || '').trim();
+    if (week < 1 || week > completedThrough || !away || !home) return;
+    expectedByWeek[week] = expectedByWeek[week] || [];
+    expectedByWeek[week].push({week:week,away:away,home:home,key:week+'|'+away+'|'+home});
+  });
+  (resultRows || []).forEach(function (row) {
+    var week = Number(row.Week || row.week || row.Woche || 0), away = String(row.Away || row.away || row['Team A'] || '').trim(), home = String(row.Home || row.home || row['Team B'] || '').trim();
+    if (week < 1 || week > completedThrough || !away || !home) return;
+    var key = week+'|'+away+'|'+home;
+    if (resultByKey[key]) errors.push('Doppeltes FBA-Ergebnis '+key+'.');
+    resultByKey[key] = row;
+  });
+  (statsRows || []).forEach(function (row) {
+    var week = Number(row.Woche || row.Week || row.week || 0), away = String(row['Team A'] || row.Away || '').trim(), home = String(row['Team B'] || row.Home || '').trim();
+    if (week < 1 || week > completedThrough || !away || !home) return;
+    var key = week+'|'+away+'|'+home;
+    if (statsByKey[key]) errors.push('Doppelte FBA-Istwerte '+key+'.');
+    statsByKey[key] = row;
+  });
+  var seeds = [];
+  for (var week = 1; week <= completedThrough; week++) {
+    var expected = expectedByWeek[week] || [];
+    if (expected.length !== 4) { errors.push('W'+week+': '+expected.length+'/4 Spielplan-Paarungen.'); continue; }
+    var appearances = {};
+    expected.forEach(function (game) { appearances[game.away] = (appearances[game.away] || 0)+1; appearances[game.home] = (appearances[game.home] || 0)+1; });
+    if (Object.keys(appearances).length !== 8 || Object.keys(appearances).some(function (team) { return appearances[team] !== 1; })) errors.push('W'+week+': Teamkreis im Spielplan ist nicht eindeutig.');
+    expected.forEach(function (game) {
+      var result = resultByKey[game.key], stats = statsByKey[game.key];
+      if (!result || !stats) { errors.push('W'+week+' '+game.away+' vs '+game.home+': Ergebnis oder Istwerte fehlen.'); return; }
+      var awayPoints = Number(result['Away Cats']), homePoints = Number(result['Home Cats']);
+      if (!numeric(result['Away Cats']) || !numeric(result['Home Cats']) || awayPoints < 0 || homePoints < 0 || Math.abs(awayPoints+homePoints-8) > 0.000001) { errors.push('W'+week+' '+game.away+' vs '+game.home+': Ergebnis ergibt nicht acht FBA-Punkte.'); return; }
+      var computedAway = 0, computedHome = 0, pointRows = [], missing = false;
+      cats.forEach(function (definition) {
+        var left = Number(stats[definition.a]), right = Number(stats[definition.b]);
+        if (!numeric(stats[definition.a]) || !numeric(stats[definition.b])) { missing = true; return; }
+        var winner = left > right ? 'left' : 'right', homeTie = left === right;
+        if (winner === 'left') computedAway++; else computedHome++;
+        pointRows.push({cat:definition.cat,left:left,right:right,winner:winner,homeTie:homeTie});
+      });
+      if (missing || pointRows.length !== 8) { errors.push('W'+week+' '+game.away+' vs '+game.home+': acht Istwerte fehlen.'); return; }
+      if (computedAway !== awayPoints || computedHome !== homePoints) { errors.push('W'+week+' '+game.away+' vs '+game.home+': Ergebnis und Istwerte widersprechen sich.'); return; }
+      seeds.push({week:week,away:game.away,home:game.home,awayPoints:awayPoints,homePoints:homePoints,categories:pointRows});
+    });
+  }
+  if (errors.length || seeds.length !== completedThrough*4) return failure(errors.join(' | ') || ('Nur '+seeds.length+'/'+(completedThrough*4)+' abgeschlossene FBA-Matchups.'),completedThrough);
+  return {ready:true,status:'READY',currentMatchupPeriod:current,completedThroughWeek:completedThrough,expectedMatchups:completedThrough*4,completedFbaMatchups:seeds,issue:''};
+}
+
 function buildProjectionEnginePayloadV36_(nbaSchedule, nbaSeasonSchedule) {
   var baselineRows = sheetObjectsV2_(FBA_PROJECTION_ENGINE_V36.projectionSheet).filter(function (row) {
     return Number(row.season_id) === Number(ESPN_SYNC_V1.seasonId);
@@ -2918,8 +3040,10 @@ function buildProjectionEnginePayloadV36_(nbaSchedule, nbaSeasonSchedule) {
       seasonFinish:projectedGp ? replaceProjectionWithActualsV36_(projectedGp,base,actual.gp,actual.totals) : null};
   });
   var baselineStatus = projectionBaselineStatusV36_(baselineRows.length), profiles = projectionProfilesPayloadV36_(), actualCompleteness = projectionActualCompletenessV36_();
+  var props = espnPropertiesV1_(), currentMatchupPeriod = Number(props.getProperty('FBA_ESPN_CURRENT_MATCHUP_PERIOD_V38') || 0);
+  var fbaActual = projectionFbaActualSeedsV38_(sheetObjectsV2_(ESPN_SYNC_V1.resultsSheet),sheetObjectsV2_(ESPN_SYNC_V1.statsSheet),sheetObjectsV2_(ESPN_SYNC_V1.scheduleSheet),currentMatchupPeriod,actualAggregate.completeGames > 0);
   var dailyFeedStatus = espnPropertiesV1_().getProperty('FBA_ESPN_DAILY_STATUS_V36') || 'UNKNOWN';
-  var revision = [baselineStatus.lastSuccess || baselineStatus.lastAttempt || 'none',profiles.lastSuccess || profiles.lastAttempt || 'none',actualAggregate.revision,players.length].join('|');
+  var revision = [baselineStatus.lastSuccess || baselineStatus.lastAttempt || 'none',profiles.lastSuccess || profiles.lastAttempt || 'none',actualAggregate.revision,players.length,currentMatchupPeriod,fbaActual.completedThroughWeek,fbaActual.completedFbaMatchups.length].join('|');
   var missingEventIds = actualCompleteness.allPendingEventIds.concat(actualAggregate.excludedFinalEventIds).filter(function (id,index,array) {
     return !unavailableEvents[String(id)] && array.indexOf(id) === index;
   });
@@ -2932,7 +3056,13 @@ function buildProjectionEnginePayloadV36_(nbaSchedule, nbaSeasonSchedule) {
     actual:{status:actualStatus,reason:actualReason,dailyFeedStatus:dailyFeedStatus,ready:actualReady,coverageReady:actualReady,pendingGames:missingEventIds.length,
       pendingEventIds:missingEventIds.slice(0,25),missingEventIds:missingEventIds,
       completeGames:actualAggregate.completeGames,completedEventIds:actualAggregate.completedEventIds,inProgressEventIds:actualAggregate.inProgressEventIds,
-      throughDate:actualAggregate.throughDate,inProgressRows:actualAggregate.inProgressRows,ownershipByWeekReady:false,ownershipAtGameReady:false,
+      throughDate:actualAggregate.throughDate,inProgressRows:actualAggregate.inProgressRows,
+      ownershipByWeekReady:actualAggregate.ownershipAtGameReady,ownershipAtGameReady:actualAggregate.ownershipAtGameReady,
+      ownershipCapturedRows:actualAggregate.ownershipCapturedRows,ownershipMissingRows:actualAggregate.ownershipMissingRows,
+      ownershipMissingEventIds:actualAggregate.ownershipMissingEventIds,teamActualsByWeek:actualAggregate.byTeamWeek,
+      fbaResultsReady:fbaActual.ready,fbaResultsStatus:fbaActual.status,fbaResultsIssue:fbaActual.issue,
+      currentMatchupPeriod:fbaActual.currentMatchupPeriod,completedThroughWeek:fbaActual.completedThroughWeek,
+      completedFbaMatchups:fbaActual.completedFbaMatchups,
       excludedFinalRows:actualAggregate.excludedFinalRows,neutralizedRows:actualAggregate.neutralizedRows,
       neutralizedEventIds:actualAggregate.neutralizedEventIds,policy:'ONLY_COMPLETE_FINAL_BOXSCORES'}};
 }
@@ -3730,7 +3860,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
   var projectionEngine=buildProjectionEnginePayloadV36_(nbaSchedule,nbaSeasonSchedule),projectionWaiting=projectionEngine.baseline.feedStatus==='WAITING_ESPN_PROJECTIONS';
   overlayProjectionEventStatusV36_(nbaSchedule,nbaSeasonSchedule,projectionEngine);
-  return {ok:true,version:37,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
+  return {ok:true,version:38,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -3753,7 +3883,7 @@ function refreshMonsterEspnV35_(requestedWeek) {
   if (!season || season.persistedFallback) throw new Error('Der NBA-Spielplan konnte nicht frisch bestätigt werden. Der letzte gültige Stand bleibt geschützt erhalten.');
   var dailyStatus = sync.dailyStatus || (sync.playerStatus === 'OK' ? 'READY' : 'PARTIAL');
   var fullSync = sync.playerStatus === 'OK' && dailyStatus === 'READY';
-  return {ok:true,version:37,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
+  return {ok:true,version:38,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
     lastSuccess:sync.lastSuccess||null,playerLastSuccess:sync.playerLastSuccess||null,playerStatus:sync.playerStatus||null,
     projectionStatus:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS',profileStatus:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES',
     rosterCount:Number(sync.rosterCount||0),playerCount:Number(sync.playerCount||0),scheduleGames:Number(season.gameCount||(season.games||[]).length||0),

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v37 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
+// v38 regression suite: Monster loading, live reset, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v37-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v38-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v37-20260904/,"Produktions-Build muss v37 ausweisen");
+assert.match(html,/war-room-monster-v38-20260904/,"Produktions-Build muss v38 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -74,6 +74,11 @@ assert.match(html,/function setMonsterWeek\(value\)[\s\S]*monsterScheduledOppone
   "Ein Wochenwechsel muss den echten Gegner des Analyse-Teams vorauswählen");
 assert.match(html,/function loadMonsterData\(force,fullSync\)[\s\S]*queuedWeek=requestedWeek[\s\S]*requestedWeek!==currentWeek[\s\S]*await loadMonsterData\(followupForce,followupFullSync\)/,
   "Ein Wochenwechsel während eines ESPN-Abrufs muss die neueste Woche nachladen und die alte Antwort verwerfen");
+assert.match(html,/weekPinned:false/);
+assert.match(functionSource("loadMonsterData"),/currentMatchupPeriod[\s\S]*!MONSTER_STATE\.weekPinned[\s\S]*MONSTER_STATE\.week=liveWeek[\s\S]*queuedWeek=liveWeek/,
+  "Beim ersten Öffnen muss das Monster ESPNs aktuelle FBA-Woche erkennen und genau diese Woche nachladen");
+assert.match(functionSource("setMonsterWeek"),/weekPinned=true/,
+  "Eine bewusste manuelle Wochenwahl darf nicht sofort wieder vom Auto-Fokus überschrieben werden");
 assert.match(html,/MONSTER_TEAM_KEY="fba_monster_analysis_team_v32"/,
   "Das gewählte Analyse-Team muss auf dem Gerät erhalten bleiben");
 
@@ -127,6 +132,13 @@ assert.match(html,/data-testid="monster-season-journey"/,
   "Der Season Simulator braucht eine eigene Season Journey");
 assert.match(html,/\.monster-season-category-grid\{[^}]*repeat\(4,minmax\(0,1fr\)\)/,
   "Desktop muss die acht Kategorien einer Woche als kompaktes 4×2-Raster zeigen");
+assert.match(html,/\.monster-season-week summary\{[^}]*grid-template-columns:132px/,
+  "Woche und Datum brauchen eine feste, vom ersten Teamlogo getrennte Spalte");
+assert.match(html,/\.monster-season-fixture-score \.away,\.monster-season-fixture-score \.home\{color:inherit\}/,
+  "Das Ergebnis in der Mitte muss neutral weiß statt in Teamfarben erscheinen");
+assert.match(html,/\.monster-season-category\{[^}]*text-align:center/);
+assert.match(html,/\.monster-season-category-head\{[^}]*justify-content:center/,
+  "Der Name des FBA-Punkts muss mittig im Detailfeld stehen");
 const journeyMarkup=loadFunction("monsterSeasonJourneyMarkup",{
   T:team=>({s:team,c:team==="Pirates"?"#7657ef":"#b21f35"}),
   E:value=>String(value),
@@ -152,9 +164,15 @@ assert.match(journeyMarkup,/monster-season-week-side">Heim/,
   "Ein ausgewähltes Heimteam muss in der Journey als Heim und der Gegner links erscheinen");
 assert.ok(journeyMarkup.indexOf("[Pirates]")<journeyMarkup.indexOf("[Wolves]"),
   "Die Journey muss immer Auswärts links und Heim rechts darstellen");
-assert.match(journeyMarkup,/34 : 40 Kader-Einsätze/,
-  "Das echte Wochenvolumen beider Kader muss direkt in der geschlossenen Zeile stehen");
+assert.match(journeyMarkup,/<b>40 GP<\/b><span class="good">\+6<\/span>/,
+  "Auswärts-GP und die grüne positive Differenz müssen direkt unter dem Team stehen");
+assert.match(journeyMarkup,/<b>34 GP<\/b><span class="bad">−6<\/span>/,
+  "Heim-GP und die rote negative Differenz müssen direkt unter dem Team stehen");
 assert.match(journeyMarkup,/Niederlage/);
+assert.match(journeyMarkup,/monster-season-week outcome-bad/,
+  "Die komplette Wochenzeile muss aus Sicht des Analyse-Teams dezent als Niederlage eingefärbt sein");
+assert.doesNotMatch(journeyMarkup,/Pirates \+1|Wolves \+1|Heim-Tie/,
+  "Die Detailfelder dürfen oben rechts keinen zusätzlichen Punktgewinner mehr ausschreiben");
 assert.equal((journeyMarkup.match(/monster-season-category"/g)||[]).length,8,
   "Aufgeklappt muss eine Woche genau acht Kategorievergleiche enthalten");
 assert.doesNotMatch(journeyMarkup,/<details[^>]*\sopen(?:\s|>)/,
@@ -385,4 +403,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v37 frontend regression tests");
+console.log("PASS · Matchup Monster v38 frontend regression tests");

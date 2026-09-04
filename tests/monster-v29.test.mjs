@@ -355,7 +355,7 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:37"),true,"Backend-Payload muss den v37-Release-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:38"),true,"Backend-Payload muss den v38-Release-Stand kennzeichnen");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("projectionEngine:projectionEngine"),true,"Der geschützte Monster-Payload muss den Projection-Engine-Status liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("nbaSeasonSchedule:nbaSeasonSchedule"),true,"geschützter Monster-Payload enthält den vollständigen Saisonplan");
 const refreshEvents=[];
@@ -422,4 +422,4 @@ assert.equal(context.ESPN_PLAYER_HUB_V2.nightIntervalMinutes,30,"Während des NB
 assert.match(context.installEspnSync.toString(),/everyMinutes\(30\)/,"Der Trigger muss eng genug für den 30-Minuten-Spielbetrieb laufen");
 assert.doesNotMatch(context.installEspnSync.toString(),/everyMinutes\([123]\)/,"Ein riskanter Vollsync im Ein- bis Drei-Minuten-Takt darf nicht aktiviert werden");
 
-console.log("PASS · Matchup Monster v37 backend tests");
+console.log("PASS · Matchup Monster v38 backend tests");

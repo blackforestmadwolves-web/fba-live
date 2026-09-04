@@ -9,9 +9,10 @@ new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const start=inline[1].indexOf("function monsterSeasonProjectionCalculate(input){");
 const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs(",start);
-assert.ok(start>=0&&end>start,"Der reine v37-Saisonprognose-Rechner muss vorhanden sein");
+assert.ok(start>=0&&end>start,"Der reine v38-Saisonprognose-Rechner muss vorhanden sein");
 const model="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
-const calculate=vm.runInNewContext(`(${inline[1].slice(start,end)})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
+const calculatorSource=inline[1].slice(start,end);
+const calculate=vm.runInNewContext(`(${calculatorSource})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
 
 const teams=Array.from({length:8},(_,index)=>`Team ${index+1}`);
 const nbaTeams=["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"];
@@ -278,4 +279,68 @@ const boundaryTeam=makeRoster().find(player=>player.nba===boundaryGame.away).tea
 assert.equal(boundaryResult.weekly[boundaryTeam][1].games,result.weekly[boundaryTeam][1].games,
   "00:30 UTC am 26. Oktober ist in New York noch W1; scoringPeriod darf nicht als Woche dienen");
 
-console.log("PASS · Matchup Monster v37 season projection frontend tests");
+// In-season contract: a completed FBA week is an immutable result seed. In the
+// active week, captured owner-at-game stats are fixed and only open NBA games
+// are projected. A later pickup must never inherit or rewrite the old games.
+const liveStatFields=["PTS","REB","AST","3PM","STL","BLK","FGM","FGA","FTM","FTA"];
+const zeroLiveStats=()=>Object.fromEntries(liveStatFields.map(field=>[field,0]));
+const liveCalculate=vm.runInNewContext(`(${calculatorSource})`,{
+  MONSTER_SEASON_MODEL:model,
+  canonicalTeamName:value=>String(value||""),
+  monsterProjectionUsableNode:node=>Boolean(node&&node.status==="READY"),
+  monsterProjectionPlayerRecord:(id,engine)=>(engine.players||[]).find(row=>String(row.id)===String(id))||null,
+  monsterProjectionBase:record=>record&&record.base||{},
+  monsterProjectionRecordIssue:record=>record?"":"ESPN-Projektion fehlt.",
+  monsterProjectionRecordNba:record=>String(record&&record.nba||""),
+  monsterProjectionWeeklyPlayer:(record,week,games,engine,nba)=>{
+    const future=(games||[]).filter(game=>Number(game.week)===Number(week)&&(game.away===nba||game.home===nba)&&!/FINAL|POST_GAME|IN[_ -]?PROGRESS|HALFTIME|END_PERIOD|POSTPONED|SUSPENDED|CANCELLED|CANCELED|REMOVED/i.test(String(game.status||"")));
+    const futureTotals=zeroLiveStats();liveStatFields.forEach(field=>futureTotals[field]=Number(record.base[field]||0)*future.length);
+    return {games:future.length,actualGames:0,remainingGames:future.length,scheduledRemainingGames:future.length,actualTotals:zeroLiveStats(),futureTotals,totals:Object.assign({},futureTotals)};
+  }
+},{filename:"monster-season-projection-live.js"});
+
+const liveGames=makeNbaGames(),completedEventIds=liveGames.filter(game=>game.date<=isoDateForWeek(2,1)).map(game=>game.gameId);
+const liveRoster=makeRoster(),engineRecords=liveRoster.map(row=>({id:row.id,name:row.name,nba:row.nba,projectedGp:70,base:Object.assign({},row.stats),actual:{gp:0,totals:zeroLiveStats(),byWeek:{}}}));
+const awayWeekStats={PTS:120,REB:50,AST:30,"3PM":15,STL:10,BLK:4,FGM:50,FGA:100,FTM:70,FTA:100};
+const homeWeekStats={PTS:100,REB:40,AST:20,"3PM":10,STL:8,BLK:6,FGM:55,FGA:100,FTM:80,FTA:100};
+const teamActualsByWeek={};
+teams.forEach((team,teamIndex)=>{
+  const stats=Object.assign({},teamIndex%2===0?awayWeekStats:homeWeekStats),players={};
+  liveRoster.filter(row=>row.team===team).forEach(row=>{players[row.id]={id:row.id,name:row.name,nba:row.nba,gp:1,stats:Object.fromEntries(liveStatFields.map(field=>[field,stats[field]/13]))}});
+  teamActualsByWeek[team]={"1":{gp:13,stats,players}};
+});
+const w2Actual={PTS:25,REB:10,AST:7,"3PM":3,STL:2,BLK:1,FGM:10,FGA:22,FTM:2,FTA:3};
+teamActualsByWeek[teams[0]]["2"]={gp:2,stats:w2Actual,players:{
+  "P1-1":{id:"P1-1",name:"Spieler 1-1",nba:liveRoster[0].nba,gp:1,stats:{PTS:10,REB:4,AST:3,"3PM":1,STL:1,BLK:0,FGM:4,FGA:10,FTM:1,FTA:1}},
+  "P1-2":{id:"P1-2",name:"Spieler 1-2",nba:liveRoster[1].nba,gp:1,stats:{PTS:15,REB:6,AST:4,"3PM":2,STL:1,BLK:1,FGM:6,FGA:12,FTM:1,FTA:2}}
+}};
+const seedValue=(stats,cat)=>cat==="FG%"?stats.FGM/stats.FGA:cat==="FT%"?stats.FTM/stats.FTA:stats[cat];
+const completedFbaMatchups=makeMatchups().filter(game=>game.week===1).map(game=>{
+  const left=teamActualsByWeek[game.away]["1"].stats,right=teamActualsByWeek[game.home]["1"].stats,categories=["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"].map(cat=>({cat,left:seedValue(left,cat),right:seedValue(right,cat),winner:seedValue(left,cat)>seedValue(right,cat)?"left":"right",homeTie:seedValue(left,cat)===seedValue(right,cat)}));
+  return {week:1,away:game.away,home:game.home,awayPoints:5,homePoints:3,categories};
+});
+const liveEngine={active:true,status:"READY",season:"2027",baseline:{status:"READY",season:"2027"},players:engineRecords,actual:{ownershipAtGameReady:true,fbaResultsReady:true,currentMatchupPeriod:2,completedThroughWeek:1,completedEventIds,completedFbaMatchups,teamActualsByWeek}};
+const liveResult=liveCalculate(fixture({roster:liveRoster,nbaSeasonSchedule:{games:liveGames},projectionEngine:liveEngine}));
+assert.equal(liveResult.seededMatchups,4,"Nach Beginn von W2 müssen alle vier W1-Matchups als echte Ergebnisse fixiert sein");
+assert.ok(liveResult.matchupResults.filter(game=>game.week===1).every(game=>game.seeded&&game.awayPoints===5&&game.homePoints===3),
+  "Die Endtabelle muss die vier bestätigten W1-Ergebnisse statt einer Rückprojektion verwenden");
+assert.equal(liveResult.weekly[teams[0]][1].PTS,awayWeekStats.PTS,"W1-Istwerte dürfen nicht erneut aus dem heutigen Kader berechnet werden");
+assert.equal(liveResult.weekly[teams[0]][2].actualGames,2,"Die abgeschlossenen Tage der laufenden Woche müssen absolut in der Wochenbasis stehen");
+assert.ok(liveResult.weekly[teams[0]][2].PTS>w2Actual.PTS,"Zur laufenden W2 dürfen ausschließlich die noch offenen Tage hinzukommen");
+
+const livePickupRoster=liveRoster.map(row=>Object.assign({},row)),pickupEngineRecords=engineRecords.map(row=>Object.assign({},row,{base:Object.assign({},row.base)}));
+livePickupRoster[0]=Object.assign({},livePickupRoster[0],{id:"NEW-P1",name:"Mittwochs-Pickup"});
+pickupEngineRecords.push({id:"NEW-P1",name:"Mittwochs-Pickup",nba:livePickupRoster[0].nba,projectedGp:70,base:Object.assign({},livePickupRoster[0].stats,{PTS:60}),actual:{gp:0,totals:zeroLiveStats(),byWeek:{}}});
+const pickupEngine=Object.assign({},liveEngine,{players:pickupEngineRecords});
+const pickupLiveResult=liveCalculate(fixture({roster:livePickupRoster,nbaSeasonSchedule:{games:liveGames},projectionEngine:pickupEngine}));
+assert.deepEqual(JSON.parse(JSON.stringify(pickupLiveResult.weekly[teams[0]][1])),JSON.parse(JSON.stringify(liveResult.weekly[teams[0]][1])),
+  "Ein Pickup in W2 darf die bestätigten Team-Istwerte aus W1 niemals rückwirkend verändern");
+assert.deepEqual(JSON.parse(JSON.stringify(pickupLiveResult.matchupResults.filter(game=>game.week===1))),JSON.parse(JSON.stringify(liveResult.matchupResults.filter(game=>game.week===1))),
+  "Ein Pickup in W2 darf die vier bestätigten W1-Matchups niemals rückwirkend verändern");
+assert.ok(pickupLiveResult.weekly[teams[0]][2].PTS>liveResult.weekly[teams[0]][2].PTS,
+  "Der neue Spieler darf ab den offenen W2-Tagen sehr wohl die Restprojektion verändern");
+assert.equal(pickupLiveResult.weekly[teams[0]][2].actualGames,2,"Montag und Dienstag müssen auch nach dem Pickup unverändert bleiben");
+assert.ok(pickupLiveResult.weeklyPlayers[teams[0]][2].some(row=>row.id==="P1-1"&&row.actualOnly===true),
+  "Der vor dem Pickup aktive Spieler muss als historischer W2-Ist-Beitrag erhalten bleiben");
+
+console.log("PASS · Matchup Monster v38 season projection frontend tests");
