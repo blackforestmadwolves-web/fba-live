@@ -8,8 +8,8 @@ assert.ok(inline,"Das vollständige Inline-Frontend muss vorhanden sein");
 new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const start=inline[1].indexOf("function monsterSeasonProjectionCalculate(input){");
-const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs()",start);
-assert.ok(start>=0&&end>start,"Der reine v33-Saisonprognose-Rechner muss vorhanden sein");
+const end=inline[1].indexOf("\nfunction monsterSeasonProjectionInputs(",start);
+assert.ok(start>=0&&end>start,"Der reine v34-Saisonprognose-Rechner muss vorhanden sein");
 const model="ESPN-Spielplan 2026/27 × ESPN-Statistikbasis 2025/26 · Kader eingefroren · keine Garantie";
 const calculate=vm.runInNewContext(`(${inline[1].slice(start,end)})`,{MONSTER_SEASON_MODEL:model},{filename:"monster-season-projection.js"});
 
@@ -117,6 +117,12 @@ assert.equal(result.rows.reduce((sum,row)=>sum+row.fbaAgainst,0),576);
 assert.equal(result.rows.reduce((sum,row)=>sum+row.w,0),result.rows.reduce((sum,row)=>sum+row.l,0));
 assert.equal(result.rows.reduce((sum,row)=>sum+row.allPlayFor,0),4032,"18 Wochen × 28 Paarungen × 8 Punkte müssen im All-Play vergeben werden");
 assert.equal(result.rows.reduce((sum,row)=>sum+row.allPlayAgainst,0),4032);
+
+const pickupRoster=makeRoster(),dropIndex=pickupRoster.findIndex(player=>player.team===teams[0]);
+pickupRoster[dropIndex]={team:teams[0],id:"FREE-AGENT-1",name:"Pickup Upgrade",nba:pickupRoster[dropIndex].nba,projectionReady:true,stats:{PTS:45,REB:18,AST:14,"3PM":7,STL:4,BLK:4,FGM:16,FGA:25,FTM:9,FTA:10}};
+const pickupResult=calculate(fixture({roster:pickupRoster})),beforePickup=result.rows.find(row=>row.team===teams[0]),afterPickup=pickupResult.rows.find(row=>row.team===teams[0]);
+assert.ok(afterPickup.fbaFor>beforePickup.fbaFor,"Ein belastbarer Pickup muss die komplette 18-Wochen-Endtabelle neu berechnen können");
+assert.notDeepEqual(JSON.parse(JSON.stringify(afterPickup)),JSON.parse(JSON.stringify(beforePickup)),"Season Impact darf nicht nur das aktuelle Wochen-Matchup verändern");
 
 for(const conference of [result.conferences.East,result.conferences.West])for(let index=1;index<conference.length;index++){
   const before=conference[index-1],after=conference[index];
@@ -236,4 +242,4 @@ const boundaryTeam=makeRoster().find(player=>player.nba===boundaryGame.away).tea
 assert.equal(boundaryResult.weekly[boundaryTeam][1].games,result.weekly[boundaryTeam][1].games,
   "00:30 UTC am 26. Oktober ist in New York noch W1; scoringPeriod darf nicht als Woche dienen");
 
-console.log("PASS · Matchup Monster v33 season projection frontend tests");
+console.log("PASS · Matchup Monster v34 season projection frontend tests");

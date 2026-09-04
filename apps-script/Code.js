@@ -1764,7 +1764,7 @@ function showEspnSyncStatus() {
     '\nMatchups: ' + s.lastRows +
     '\nPlayer Hub: ' + (s.playerStatus || '–') +
     '\nSpieler / Kader / Transaktionen: ' + (s.playerCount || 0) + ' / ' + (s.rosterCount || 0) + ' / ' + (s.transactionCount || 0) +
-    '\nNächster Prüftakt: ' + (s.nextIntervalMinutes || 120) + ' Minuten' +
+    '\nNächster Prüftakt: ' + (s.nextIntervalMinutes || 60) + ' Minuten' +
     (s.lastError ? '\nFehler: ' + s.lastError : '');
   try { SpreadsheetApp.getUi().alert('ESPN Sync', text, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
   return text;
@@ -1789,7 +1789,7 @@ var ESPN_PLAYER_HUB_V2 = {
   nightStartHour: 20,
   nightEndHour: 10,
   nightIntervalMinutes: 30,
-  dayIntervalMinutes: 120
+  dayIntervalMinutes: 60
 };
 
 var ESPN_PLAYER_HEADERS_V2 = [
@@ -2409,13 +2409,14 @@ function matchupMonsterResponseV29_(p) {
   return monsterJsonResponseV29_({ok:false,error:'Unbekannte Monster-Aktion.'},p.callback);
 }
 
-/* ================= MATCHUP MONSTER v33 =================
+/* ================= MATCHUP MONSTER v34 =================
  * ESPN Fantasy und die ESPN-Site-API bezeichnen 2026/27 als Saison 2027.
  * Die FBA-Zeiträume sind feste Matchup-Fenster; niemals wird das heutige
  * Datum als stiller Ersatz verwendet. Für die ersten beiden Wochen liegt
  * zusätzlich ein am 04.09.2026 gegen NBA.com verifizierter Fallback vor.
  * v33 hält den vollständigen ESPN-Fantasy-NBA-Spielplan als validierten
- * Last-known-good-Snapshot vor und liefert ihn zusätzlich im Monster-Payload.
+ * Last-known-good-Snapshot vor; v34 prüft tagsüber stündlich und in der
+ * NBA-Kernzeit alle 30 Minuten, ohne einen quota-riskanten Minutentakt.
  */
 var MATCHUP_MONSTER_V30 = {
   nbaSiteSeasons: [2027],
@@ -2888,7 +2889,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
   try{seasonSnapshot=refreshEspnNbaScheduleV33_(force);}catch(error){seasonError=String(error&&error.message?error.message:error);}
   var schedule=monsterFbaScheduleV30_(),nbaSchedule=nbaWeekScheduleV30_(requestedWeek,force,seasonSnapshot,seasonError);
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
-  return {ok:true,version:33,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,
+  return {ok:true,version:34,generated:new Date().toISOString(),roster:compactRoster,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -2928,7 +2929,7 @@ function installEspnSync() {
   ScriptApp.newTrigger('syncEspnScheduled').timeBased().everyMinutes(30).create();
   espnPropertiesV1_().setProperty('FBA_ESPN_ENABLED','1');
   var result=syncEspnData();
-  try{SpreadsheetApp.getUi().alert('ESPN-Automatik aktiv','Tagsüber Prüfung alle 2 Stunden, nachts alle 30 Minuten.\nStatus: '+result.lastStatus+'\nMatchups: '+result.lastRows+'\nPlayer Hub: '+result.playerStatus,SpreadsheetApp.getUi().ButtonSet.OK);}catch(e){}
+  try{SpreadsheetApp.getUi().alert('ESPN-Automatik aktiv','Tagsüber Prüfung stündlich, nachts alle 30 Minuten.\nStatus: '+result.lastStatus+'\nMatchups: '+result.lastRows+'\nPlayer Hub: '+result.playerStatus,SpreadsheetApp.getUi().ButtonSet.OK);}catch(e){}
   return result;
 }
 function getEspnSyncStatus_() {

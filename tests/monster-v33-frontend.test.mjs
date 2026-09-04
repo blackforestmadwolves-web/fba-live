@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v33 regression suite: Monster loading, navigation, responsive layout and pickup tools.
+// v34 regression suite: Monster loading, navigation, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v33-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v34-20260904/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v33-20260904/,"Produktions-Build muss v33 ausweisen");
+assert.match(html,/war-room-monster-v34-20260904/,"Produktions-Build muss v34 ausweisen");
 assert.match(html,/function navigatePage\(key\)[\s\S]*openMonsterGate\(\)/,
   "Der sichtbare Monster-Tab muss den geschützten Datensatz laden");
 assert.match(html,/onclick="navigatePage\('\$\{k\}'\)"/,
@@ -80,9 +80,17 @@ assert.match(html,/MONSTER_TEAM_KEY="fba_monster_analysis_team_v32"/,
 assert.match(html,/function monsterB2bGroups\(list\)/,"B2B-Einträge müssen nach Tagespaar gruppiert werden");
 assert.match(html,/monsterWeekdayPair\(group\.first,group\.second\)/,"Der Wochentag muss im Radar vor den NBA-Teams stehen");
 assert.match(html,/toggleMonsterB2b\('\$\{E\(group\.key\)\}'\)/,"B2B-Zeilen müssen aufklappbar sein");
-assert.match(html,/function monsterB2bFreeAgents\(teams,cat\)/,"Aufgeklappte B2B-Zeilen brauchen freie Spieler der betroffenen NBA-Teams");
-assert.match(html,/MONSTER_STATE\.b2bHunt=DRAFT_CATS\.includes\(cat\)\?cat:null/,
-  "Das B2B-Radar muss Gesamtprofil und jeden einzelnen FBA-Punkt unterstützen");
+assert.match(html,/function monsterB2bFreeAgents\(teams,points\)/,"Aufgeklappte B2B-Zeilen brauchen freie Spieler der betroffenen NBA-Teams");
+assert.match(html,/b2bHunts:\[\]/,"Das B2B-Radar muss mit einer leeren Mehrfachauswahl starten");
+assert.match(functionSource("setMonsterB2bHunt"),/selected\.splice[\s\S]*selected\.push[\s\S]*DRAFT_CATS\.filter/,
+  "Mehrere FBA-Punkte müssen unabhängig an- und abwählbar sein");
+assert.match(functionSource("monsterB2bContribution"),/values\.reduce\([\s\S]*\/values\.length/,
+  "Kombinierte B2B-Sortierung muss den gleichgewichteten z-Score-Durchschnitt bilden");
+assert.match(html,/FBA-Punkte kombinieren · mehrere wählbar/);
+assert.match(html,/monsterB2bDate\(group\.first\)[\s\S]* auf [\s\S]*monsterB2bDate\(group\.second\)/,
+  "Das Radar braucht das kompakte numerische Datum unter dem Tagespaar");
+assert.doesNotMatch(functionSource("monsterB2bMarkup"),/Atlanta Hawks|Chicago Bulls|MONSTER_NBA_NAMES/,
+  "Die B2B-Teamzeile darf Kürzel und ausgeschriebenen Namen nicht doppelt zeigen");
 
 assert.match(html,/hunt:null/,"Das Pickup Impact Lab muss ohne ausgewählten FBA-Punkt starten");
 assert.match(html,/setMonsterHunt\(''\).*GESAMT/,
@@ -99,6 +107,16 @@ assert.match(html,/Keine verbleibenden NBA-Spiele/,
   "Ein Kader ohne verbleibende NBA-Spiele darf keine Nullwert-Prognose auslösen");
 
 assert.match(html,/<h2>Vorsaison-Simulation<\/h2>/,"Die geheime Conference-Rechnung muss klar als Vorsaison-Simulation bezeichnet sein");
+assert.match(html,/<h2>Meta Projection<\/h2>/,"Die Matchup-Karte muss Meta Projection heißen");
+assert.doesNotMatch(html,/Wahrscheinlichstes Szenario|Ein Balance-Balken je FBA-Punkt/,
+  "Doppelte Meta-Erklärungen müssen aus der kompakten Ansicht entfernt sein");
+assert.match(html,/monster-vs-v30">:<\/div>/,"Der Score trennt beide Teams platzsparend mit einem Doppelpunkt");
+assert.match(html,/data-testid="monster-season-pickup-impact"/,
+  "Ein gewählter Pickup muss einen eigenen Season-Impact-Vergleich erhalten");
+assert.match(functionSource("monsterSeasonProjectionPickupImpact"),/monsterSeasonProjectionCalculate\(monsterSeasonProjectionInputs\(pickup\)\)/,
+  "Season Impact muss die vollständige Saisonprojektion mit dem Tausch neu berechnen");
+assert.match(functionSource("monsterSeasonProjectionMarkup"),/impact\.result[\s\S]*highlightTeam/,
+  "Die Conference-Tabellen müssen das neue Pickup-Szenario anzeigen und markieren");
 assert.match(html,/volle Spielerverfügbarkeit; Rückkehrdaten werden nicht erfunden/,
   "Die Verfügbarkeitsannahme der Vorsaison-Simulation muss sichtbar sein");
 assert.match(html,/Saison läuft – Endprognose wartet auf Ist \+ Restspiel-Modell; keine Werte werden simuliert\./,
@@ -205,6 +223,19 @@ assert.equal(groups.length,2,"NBA-Teams mit demselben Tagespaar gehören in ein 
 assert.deepEqual(JSON.parse(JSON.stringify(groups[0].teams)),["ATL","BKN"]);
 assert.equal(groups[1].crossWeek,true,"Sonntag-zu-Montag muss als Lookahead erhalten bleiben");
 
+const b2bPoints=["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],b2bProfiles=new Map([
+  ["edey",{overall:8,overallRank:20,z:{BLK:2,"3PM":0}}],
+  ["turner",{overall:10,overallRank:15,z:{BLK:1.5,"3PM":1.5}}]
+]);
+const b2bContribution=loadFunction("monsterB2bContribution",{
+  draftValueModel:()=>({byId:b2bProfiles}),monsterAvailability:()=>1,DRAFT_CATS:b2bPoints,de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),Array,Number,Math
+});
+const edeyCombo=b2bContribution({id:"edey",BLK:2,"3PM":0},["3PM","BLK"]),turnerCombo=b2bContribution({id:"turner",BLK:1.5,"3PM":1.5},["3PM","BLK"]);
+assert.equal(edeyCombo.value,2,"2,0 BLK-z und 0,0 3PM-z müssen über zwei B2B-Spiele den Wert 2 ergeben");
+assert.equal(turnerCombo.value,3,"Zwei gleichmäßig starke FBA-Punkte müssen den Spezialisten im Kombi-Ranking schlagen");
+assert.ok(turnerCombo.value>edeyCombo.value);
+assert.match(edeyCombo.label,/\+1,0 z Ø/);
+
 const impactClass=loadFunction("monsterImpactClass");
 assert.equal(impactClass(.08),"good");
 assert.equal(impactClass(-.08),"bad");
@@ -232,4 +263,13 @@ assert.match(html,/FantasyPros[^\n]+Adapter[^\n]+false|FantasyPros API vorbereit
 assert.match(html,/Hashtag[^\n]+Adapter[^\n]+false|Hashtag Export vorbereitet/,
   "Hashtag darf weiterhin nur als vorbereitete Quelle erscheinen");
 
-console.log("PASS · Matchup Monster v33 frontend regression tests");
+assert.match(functionSource("hardReloadApp"),/caches\.keys\(\)[\s\S]*caches\.delete/,
+  "Hard Reset muss Cache Storage leeren");
+assert.match(functionSource("hardReloadApp"),/serviceWorker\.getRegistrations\(\)[\s\S]*registration\.unregister/,
+  "Hard Reset muss eventuell aktive Service Worker entfernen");
+assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_fba_refresh[\s\S]*location\.replace/,
+  "Hard Reset muss öffentliche und geschützte Live-Daten mit Cachebuster neu laden");
+assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
+  "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
+
+console.log("PASS · Matchup Monster v34 frontend regression tests");
