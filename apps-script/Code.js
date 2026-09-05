@@ -6,7 +6,7 @@
 
 var SPREADSHEET_ID = '';
 var CACHE_MINUTES = 10;
-var DATA_CACHE_PREFIX = 'fba_v3_';
+var DATA_CACHE_PREFIX = 'fba_v43_';
 var SEASON = 'S25_26';
 var SEASON_LABEL = '2025-26';
 var RS_MAX_WEEK = 18;
@@ -3273,34 +3273,28 @@ function enhancePayloadPhaseV1(data, cfg) {
   data.playerHub = buildPlayerHubPayloadV2_();
   data.draftPredictions = buildDraftPredictionsV3_();
   data.adpTrend = buildEspnAdpTrendPayloadV40_();
-  data.draftTop10 = buildDraftTop10V5_(data.adpTrend);
-  data.draftTop3 = data.draftTop10.slice(0,3);
+  data.draftTop25 = buildDraftRadar_(data.adpTrend);
   return data;
 }
 
-/* Aktueller externer Draft-Konsens. Bewusst getrennt von Maiks persönlicher
- * Acht-Pick-Prognose. score = transparenter Heat-Index, keine Wahrscheinlichkeit. */
-function buildDraftTop10V5_(adpPayload) {
-  var rows = [
-    {rank:1,id:'3112335',name:'Nikola Jokić',nba:'DEN',score:99,adp:'1,8',reason:'Sicherster Allrounder: Elite bei Punkten, Rebounds, Assists und beiden Quoten.',report:'Jokić bleibt der verlässlichste 1.01-Kandidat: Vor der vergangenen Saison hatte er fünf Jahre in Folge als Nummer 1 beendet. Hashtag projiziert 28,4 Punkte, 12,7 Rebounds und 10,4 Assists bei 57,3 % aus dem Feld – praktisch kein anderer Spieler greift so breit in das FBA-Duell ein.',strengths:'Punkte · Rebounds · Assists · FG% · Steals',risk:'Er verpasste zuletzt erstmals deutlich mehr Spiele (17); bei Pick 1 ist Verfügbarkeit der einzige echte Vorbehalt.',fit:'Sicherster Teamanker ohne erzwungene Schwachstelle.',active:true},
-    {rank:2,id:'5104157',name:'Victor Wembanyama',nba:'SAS',score:97,adp:'2,9',reason:'Historischer Blocks-Vorteil plus Dreier und starke Quoten; realer 1.01-Kandidat.',report:'Wembanyama kann einen kompletten FBA-Punkt nahezu allein drehen: projiziert sind 3,2 Blocks bei gleichzeitig 25,6 Punkten, 11,8 Rebounds und 2,2 Dreiern. Sein Profil aus Ringbeschützer, Shooter und gutem Freiwurfschützen ist einzigartig und besitzt sogar noch Entwicklungspotenzial.',strengths:'Blocks · Rebounds · Punkte · Dreier · FT%',risk:'In jeder seiner ersten drei Saisons fehlte er länger; Hashtag kalkuliert vorsichtig mit 66 Spielen.',fit:'Höchste Decke im Draft und sofortiger Blocks-Anker.',active:true},
-    {rank:3,id:'4278073',name:'Shai Gilgeous-Alexander',nba:'OKC',score:91,adp:'3,1',reason:'Elite-Scoring und Effizienz ohne echte Schwäche im FBA-Profil.',report:'SGA gilt bei RotoWire als klarer dritter Spieler hinter Jokić und Wemby. Projiziert werden 32,1 Punkte bei 53,4 % FG und 88,9 % FT sowie 1,6 Steals – dazu kommen eine stabile Rolle in OKC und eine starke Verfügbarkeitsbilanz.',strengths:'Punkte · FG% · FT% · Steals · Assists',risk:'Weniger Rebound- und Dreier-Volumen als einige direkte Konkurrenten; an Pick 3 ist sein fast fehlerfreies Profil bereits voll eingepreist.',fit:'Ideal für einen ausgeglichenen Build ohne spätere Reparaturarbeit.',active:true},
-    {rank:4,id:'3945274',name:'Luka Dončić',nba:'LAL',score:90,adp:'4,6',reason:'Ohne Turnovers wird sein Monster-Volumen noch wertvoller: Punkte, Assists, Rebounds und Dreier.',report:'Nach LeBrons Wechsel nach Philadelphia läuft die Lakers-Offense noch klarer durch Luka. Hashtag projiziert 32,7 Punkte, 8,7 Rebounds, 8,8 Assists und 4,0 Dreier; weil Ballverluste in der FBA nicht zählen, rückt er sehr nah an Shai heran.',strengths:'Punkte · Assists · Rebounds · Dreier · Steals',risk:'46,5 % FG, 78,1 % FT und wenig Blocks können die enorme Produktion an einzelnen Stellen bremsen; zusätzlich nur 68 projizierte Spiele.',fit:'Perfekt, wenn der Draft danach gezielt Quoten und Defense ergänzt.',active:true},
-    {rank:5,id:'4432166',name:'Cade Cunningham',nba:'DET',score:85,adp:'8,2',reason:'Assist-Motor mit 25/10-Upside; ohne Turnovers ein klarer Top-5-Kandidat.',report:'Detroit hat mehr Shooting um Cade gestellt, was sauberere Abschlüsse und noch mehr Assists ermöglichen soll. Nach 17,3 potenziellen Assists pro Spiel im Vorjahr projiziert Hashtag 25,0 Punkte und 9,8 Assists – sein größter üblicher Nachteil, die Ballverluste, existiert in der FBA nicht.',strengths:'Assists · Punkte · Rebounds · FT%',risk:'Die FG% bleibt weniger stabil als bei den Top 3; seine frühere Verletzungshistorie verhindert völlige Sicherheit.',fit:'Starker Guard-Anker mit echter Chance auf Liga-Spitze bei Assists.',active:true},
-    {rank:6,id:'4065648',name:'Jayson Tatum',nba:'BOS',score:81,adp:'11,4',reason:'Breites Profil mit Dreiern, Rebounds und Assists – wieder klare Nummer 1 in Boston.',report:'Tatum stand nach seinem Achillessehnenriss bereits am Ende der vergangenen Saison wieder auf dem Feld. Nach dem Brown-Trade baut Boston erneut eindeutig um ihn; projiziert werden 26,1 Punkte, 8,8 Rebounds, 6,1 Assists und 3,3 Dreier.',strengths:'Punkte · Dreier · Rebounds · Assists · FT%',risk:'Belastungssteuerung nach dem Achillessehnenriss und eine projizierte FG% von 46,4 %.',fit:'Sehr stabiler First-Rounder, der in fast jedem Aufbau funktioniert.',active:true},
-    {rank:7,id:'4594268',name:'Anthony Edwards',nba:'MIN',score:78,adp:'6,8',reason:'Elite-Scoring und Dreier, hohe Verfügbarkeit und zusätzlicher Pace-Schub mit LaMelo.',report:'Edwards’ Scoring stieg bislang in jeder Saison; Hashtag erwartet 28,7 Punkte, 3,7 Dreier und starke 48,7 % FG. LaMelo Ball dürfte das Tempo erhöhen und ihm leichtere Looks verschaffen, während Edwards weiterhin zu den verlässlichsten Stars bei den Spielen zählt.',strengths:'Punkte · Dreier · FG% · Verfügbarkeit',risk:'Rebounds und Assists sind zuletzt gesunken; die neue High-Usage-Kombination mit LaMelo muss sich einspielen.',fit:'Premium-Scorer, der früh Big-Man- und Assist-Hilfe braucht.',active:true},
-    {rank:8,id:'3032977',name:'Giannis Antetokounmpo',nba:'MIA',score:76,adp:'5,3',reason:'Massive Punkte-, Rebound- und FG%-Basis; Turnovers spielen in der FBA keine Rolle.',report:'In Miami bleibt Giannis die Nummer 1 und Hashtag projiziert 31,4 Punkte, 11,9 Rebounds, 6,5 Assists sowie 60,8 % FG. Der Wegfall der Turnovers hilft ihm in eurem Format enorm, trotzdem verlangt sein Profil einen klaren Plan für die Quoten.',strengths:'Punkte · Rebounds · FG% · Assists · Blocks',risk:'Nur 62,8 % FT, kaum Dreier und ein neues Frontcourt-Fit mit Bam; zudem spielte er vergangene Saison nur 36 Partien.',fit:'Dominanter Punt-FT%-Anker mit enormer physischer Produktion.',active:true},
-    {rank:9,id:'4431678',name:'Tyrese Maxey',nba:'PHI',score:74,adp:'16,6',reason:'Punkte, Dreier, Elite-FT% und Steals – aber neues Star-Gedränge in Philadelphia.',report:'Maxey lieferte zuletzt 28,3 Punkte, 6,6 Assists, 1,9 Steals und 89,2 % FT. Mit LeBron James und Jaylen Brown erwartet RotoWire jedoch weniger Ballbesitz und eventuell weniger Minuten; deshalb bleibt sein Potenzial erstklassig, aber seine Rolle weniger sicher.',strengths:'Punkte · FT% · Dreier · Steals · Assists',risk:'Deutlich mehr Konkurrenz um Würfe und Spielmacher-Anteile in Philadelphia.',fit:'Sehr sauberer Guard-Baustein am Ende der ersten Runde.',active:true},
-    {rank:10,id:'4701230',name:'Jalen Johnson',nba:'ATL',score:72,adp:'32,3',reason:'Allround-Breakout mit fast 23/10/8 – starke Rebounds, Assists und FG%.',report:'Johnson spielte 72 Partien und kam laut ESPN auf 22,5 Punkte, 10,3 Rebounds und 7,9 Assists bei 48,9 % FG. RotoWire sieht diese Entwicklung als nachhaltig und Atlanta klar als sein Team; der extrem späte ESPN-ADP macht ihn zugleich zum auffälligsten Value-Namen des Radars.',strengths:'Rebounds · Assists · Punkte · FG% · Steals',risk:'Der Markt ist noch uneins (ESPN-ADP 32,3); FT% und defensive Zahlen sind nicht auf Top-10-Niveau.',fit:'Der mögliche Value-Steal der ersten Runde.',active:true}
-  ], trends = adpPayload && adpPayload.players ? adpPayload.players : {};
-  return rows.map(function (row) {
-    var trend = trends[String(row.id || '')];
-    if (!trend) return row;
-    var current = Number(trend.current);
-    if (isFinite(current) && current > 0) row.adp = current.toFixed(1).replace('.',',');
-    row.adpTrend = trend;
-    return row;
+/* Public Draft Radar: the 25 lowest confirmed ESPN ADPs in the latest
+ * daily snapshot. Editorial notes are not ranking inputs. */
+function buildDraftRadar_(adpPayload) {
+  var trends = adpPayload && adpPayload.players || {}, latestDate = String(adpPayload && adpPayload.latestDate || ''), playersById = {};
+  if (!latestDate) return [];
+  sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet).forEach(function (player) {
+    var id = String(player.player_id || '');
+    if (id && Number(player.season_id) === Number(ESPN_SYNC_V1.seasonId)) playersById[id] = player;
   });
+  return Object.keys(playersById).map(function (id) {
+    var player = playersById[id], trend = trends[id], name = String(player.full_name || ''), adp = Number(trend && trend.current);
+    if (!name || !trend || trend.currentDate !== latestDate || !isFinite(adp) || adp <= 0) return null;
+    return {id:id,name:name,nba:nbaAbbreviationV3_(player.nba_team_id),adp:adp,adpDate:latestDate,adpTrend:trend,
+      primaryPosition:String(player.primary_position || ''),fantasyPositions:String(player.fantasy_positions || player.primary_position || ''),
+      active:true};
+  }).filter(function (row) { return row !== null; })
+    .sort(function (a,b) { return a.adp-b.adp || a.name.localeCompare(b.name) || a.id.localeCompare(b.id); })
+    .slice(0,25).map(function (row,index) { row.rank=index+1; return row; });
 }
 
 /* ================= MATCHUP MONSTER v29 =================
@@ -3987,7 +3981,7 @@ function buildMonsterPayloadV30_(requestedWeek,force) {
   var nbaSeasonSchedule=compactEspnNbaSeasonScheduleV33_(seasonSnapshot,seasonError);
   var projectionEngine=buildProjectionEnginePayloadV36_(nbaSchedule,nbaSeasonSchedule),projectionWaiting=projectionEngine.baseline.feedStatus==='WAITING_ESPN_PROJECTIONS';
   overlayProjectionEventStatusV36_(nbaSchedule,nbaSeasonSchedule,projectionEngine);
-  return {ok:true,version:42,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,espnPlayerPool:espnPlayerPool,adpTrend:adpPayload,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
+  return {ok:true,version:43,generated:new Date().toISOString(),currentMatchupPeriod:Number(projectionEngine.actual&&projectionEngine.actual.currentMatchupPeriod||0),roster:compactRoster,espnFantasyPositions:fantasyPositions,espnPlayerPool:espnPlayerPool,adpTrend:adpPayload,schedule:schedule,nbaSchedule:nbaSchedule,nbaSeasonSchedule:nbaSeasonSchedule,projectionEngine:projectionEngine,
     scheduleMeta:{season:ESPN_SYNC_V1.seasonLabel,matchups:schedule.length,weeks:schedule.reduce(function(max,row){return Math.max(max,row.week||0);},0),source:'ESPN Fantasy Schedule'},
     sourceStatus:[
       {id:'espn',label:'ESPN Liga, Kader und '+schedule.length+' FBA-Matchups',active:true},
@@ -4010,7 +4004,7 @@ function refreshMonsterEspnV35_(requestedWeek) {
   if (!season || season.persistedFallback) throw new Error('Der NBA-Spielplan konnte nicht frisch bestätigt werden. Der letzte gültige Stand bleibt geschützt erhalten.');
   var dailyStatus = sync.dailyStatus || (sync.playerStatus === 'OK' ? 'READY' : 'PARTIAL');
   var fullSync = sync.playerStatus === 'OK' && dailyStatus === 'READY';
-  return {ok:true,version:42,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
+  return {ok:true,version:43,status:fullSync?'OK':'PARTIAL',fullSync:fullSync,rosterSync:true,generated:new Date().toISOString(),week:Number(requestedWeek)||1,
     lastSuccess:sync.lastSuccess||null,playerLastSuccess:sync.playerLastSuccess||null,playerStatus:sync.playerStatus||null,
     projectionStatus:sync.projectionStatus||'WAITING_ESPN_PROJECTIONS',profileStatus:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES',
     rosterCount:Number(sync.rosterCount||0),playerCount:Number(sync.playerCount||0),scheduleGames:Number(season.gameCount||(season.games||[]).length||0),

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-// v42 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
+// v43 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
 
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v42-20260904/);
+assert.match(manifest.start_url,/war-room-monster-v43-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v42-20260904/,"Produktions-Build muss v42 ausweisen");
+assert.match(html,/war-room-monster-v43-20260905/,"Produktions-Build muss v43 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -547,6 +547,67 @@ assert.match(functionSource("draftRadarHome"),/ESPN-ADP täglich · 3T-Trend vs\
 assert.doesNotMatch(functionSource("draftRadarHome"),/Stand 03\.09/,
   "Der Draft Radar darf kein statisches Tages-Standbild mehr behaupten");
 
+const draftRadarCueRules=[...html.matchAll(/\.draft-radar-open\s*\{([^}]+)\}/g)].map(match=>match[1]);
+assert.ok(draftRadarCueRules.length,"Der Analyse-Hinweis braucht eine eigene Layout-Regel");
+assert.match(draftRadarCueRules[0],/position:relative;/,
+  "Analyse muss mit der Beschreibung mitfließen, damit mehrzeilige ADP-Hinweise keinen Text überlagern");
+assert.match(draftRadarCueRules[0],/display:flex;[\s\S]*margin-top:10px;/,
+  "Analyse muss eine eigene Zeile mit Abstand unter der Beschreibung bekommen");
+for(const rule of draftRadarCueRules){
+  assert.doesNotMatch(rule,/(?:position:(?:absolute|fixed)|(?:^|;)(?:top|right|bottom|left|inset):)/,
+    "Auch mobile Regeln dürfen Analyse nicht wieder fest über dem Text positionieren");
+}
+assert.match(html,/\.draft-radar-summary\{[^}]*padding:17px 17px 32px;/,
+  "Desktop-Karten müssen unter Analyse Platz für die Draft-Heat-Leiste lassen");
+assert.match(html,/@media\(max-width:680px\)\{[\s\S]*?\.draft-radar-summary\{[^}]*padding:14px 14px 30px(?:;|\})/,
+  "Mobile Karten müssen unter Analyse Platz für die Draft-Heat-Leiste lassen");
+const renderDraftRadarCard=loadFunction("draftRadarCard",{
+  E:value=>String(value),espnPlayerHeadshot:id=>`headshot-${id}.png`,imageFallbackAttr:()=>"",
+  playerInitials:()=>"SG",draftAdpTrendMarkup:adpTrendMarkup,monsterEspnFantasyPositionLabel:espnPositionLabel,Number,Math,
+  draftRadarAdpLabel:loadFunction("draftRadarAdpLabel",{Number}),DRAFT_RADAR_EDITORIAL:[],monsterB2bDate:value=>value
+});
+for(const adpTrend of [undefined,{ready:true,change:2.25}]){
+  const reason="Elite-Scoring und Effizienz ohne echte Schwäche im FBA-Profil. Auch längere Beschreibungen brauchen Platz.";
+  const card=renderDraftRadarCard({id:"sga",name:"Shai Gilgeous-Alexander",reason,adpTrend},2);
+  assert.match(card,/<details class="draft-radar-card" name="draft-radar"><summary class="draft-radar-summary">/,
+    "Die gesamte Karte muss weiterhin nativ aufklappbar sein");
+  assert.ok(card.includes(`<p>${reason}</p></div><span class="draft-radar-open">Analyse`),
+    "Analyse muss nach der vollständigen Beschreibung und außerhalb des Textblocks stehen");
+  assert.match(card,/<span class="draft-radar-open">Analyse <i>⌄<\/i><\/span><div class="draft-radar-bar" aria-hidden="true">[\s\S]*?<\/summary>\s*<div class="draft-radar-report">/,
+    "Analyse, Heat-Leiste und aufklappbarer Bericht müssen ihre getrennten Bereiche behalten");
+}
+const radarPositionCard=renderDraftRadarCard({id:"guard",name:"ESPN Guard",nba:"OKC",adp:3.1,primaryPosition:"PG",fantasyPositions:"SG,PG,UTIL,BE"},0);
+assert.match(radarPositionCard,/<h3>ESPN Guard<\/h3><div class="draft-radar-meta"><span class="draft-radar-team">OKC · <span title="ESPN-Fantasy-Positionen">PG, SG<\/span>/,
+  "Die Startkarte muss die vollständigen ESPN-Positionen unter dem Namen beim Team zeigen");
+assert.doesNotMatch(radarPositionCard,/UTIL|BE/,
+  "Flex- und Bank-Slots dürfen auch auf den Startkarten nicht als Position erscheinen");
+assert.match(renderDraftRadarCard({primaryPosition:"C"},0),/title="ESPN-Fantasy-Positionen">C<\/span>/,
+  "Bei älteren ESPN-Sheetzeilen darf ESPNs eigene Hauptposition einspringen");
+assert.doesNotMatch(renderDraftRadarCard({},0),/ESPN-Fantasy-Positionen|ESPN-Sync/,
+  "Ohne echte ESPN-Daten darf die Startkarte keine Position erfinden oder einen technischen Platzhalter zeigen");
+assert.match(radarPositionCard,/<b>3,1<\/b><small>ESPN ADP<\/small>/,
+  "Die rechte Kennzahl muss den tatsächlichen ESPN-ADP statt erfundener Heat-Punkte zeigen");
+assert.match(radarPositionCard,/Markt-Reihenfolge, keine FBA-Leistungsprojektion/,
+  "Die Analyse muss Marktposition und FBA-Leistungsprognose verständlich unterscheiden");
+assert.doesNotMatch(html,/Draft Heat|50 % Experten-Ränge|DRAFT_RADAR_FALLBACK/,
+  "Weder unbelegte Gewichte noch statische Heat-Ranglisten dürfen als Live-Modell erscheinen");
+const radarInput=Array.from({length:30},(_,i)=>({id:`P${i}`,name:`Player ${i}`,adp:40-i,rank:99,score:100}));
+const radarState={draftTop25:radarInput};
+const sortedRadar=loadFunction("draftRadarData",{D:radarState,Set,Number,String,Object});
+const sortedRadarRows=sortedRadar();
+assert.equal(sortedRadarRows.length,25);
+assert.equal(sortedRadarRows[0].id,"P29");
+assert.deepEqual(Array.from(sortedRadarRows,row=>row.rank),Array.from({length:25},(_,i)=>i+1));
+assert.equal(radarInput[0].rank,99,"Das Sortieren darf die Quelldaten nicht überschreiben");
+radarState.draftTop25=[{id:"giannis",name:"Giannis",adp:5.3,score:76},{id:"edwards",name:"Edwards",adp:6.8,score:78},
+  {id:"zero",adp:0},{id:"nan",adp:"ungültig"},{id:"inactive",adp:1,active:false},{id:"giannis",adp:5.3}];
+assert.deepEqual(Array.from(sortedRadar(),row=>row.id),["giannis","edwards"],
+  "Nur gültige eindeutige Spieler dürfen erscheinen; der alte Heat-Score darf keinen Einfluss haben");
+radarState.draftTop25[1].adp=4.9;
+assert.equal(sortedRadar()[0].id,"edwards","Ein geänderter ADP muss die sichtbare Reihenfolge ändern");
+radarState.draftTop25=[];
+assert.equal(sortedRadar().length,0,"Fehlende Daten dürfen nicht mit einer festen Rangliste kaschiert werden");
+
 assert.match(functionSource("hardReloadApp"),/caches\.keys\(\)[\s\S]*caches\.delete/,
   "Hard Reset muss Cache Storage leeren");
 assert.match(functionSource("hardReloadApp"),/serviceWorker\.getRegistrations\(\)[\s\S]*registration\.unregister/,
@@ -560,4 +621,4 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v42 frontend regression tests");
+console.log("PASS · Matchup Monster v43 frontend regression tests");

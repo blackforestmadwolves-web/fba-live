@@ -44,6 +44,39 @@ assert.match(String(context.buildProjectionEnginePayloadV36_),/fantasyPositions:
 assert.match(String(context.buildMonsterPayloadV30_),/espnFantasyPositions:fantasyPositions/,
   "Der Monster-Payload muss die Positionen des vollständigen ESPN-Spielerpools und nicht nur des Kaders liefern");
 
+const radarMetadata=[
+  {season_id:2027,player_id:"3032977",full_name:"Giannis Antetokounmpo",nba_team_id:14,primary_position:"PF",fantasy_positions:"PF,C",owner_team:"Wolves"},
+  {season_id:2027,player_id:"4594268",full_name:"Anthony Edwards",nba_team_id:16,primary_position:"SG",fantasy_positions:"SG,SF",owner_team:"Pirates"},
+  ...Array.from({length:30},(_,i)=>({season_id:2027,player_id:`P${i}`,full_name:`Player ${i}`,nba_team_id:6,primary_position:"PG",fantasy_positions:i===0?"PG,SG":""})),
+  {season_id:2026,player_id:"old-season",full_name:"Old season",fantasy_positions:"C"},
+  {season_id:2027,player_id:"old-day",full_name:"Old day"},
+  {season_id:2027,player_id:"invalid",full_name:"Invalid ADP"}
+];
+const radarAdp={latestDate:"2026-09-05",players:{
+  "3032977":{current:5.3,currentDate:"2026-09-05",ready:false},
+  "4594268":{current:6.8,currentDate:"2026-09-05",ready:false},
+  ...Object.fromEntries(Array.from({length:30},(_,i)=>[`P${i}`,{current:10+i+.25,currentDate:"2026-09-05",ready:false}])),
+  "old-season":{current:1,currentDate:"2026-09-05"},"old-day":{current:2,currentDate:"2026-09-04"},
+  invalid:{current:0,currentDate:"2026-09-05"},"missing-metadata":{current:3,currentDate:"2026-09-05"}
+}};
+context.sheetObjectsV2_=sheetName=>sheetName===context.ESPN_PLAYER_HUB_V2.playersSheet?radarMetadata:[];
+const radarPlayers=context.buildDraftRadar_(radarAdp);
+assert.equal(radarPlayers.length,25,"Der Radar muss die besten 25 ADPs aus dem vollständigen Pool liefern");
+assert.deepEqual(Array.from(radarPlayers.slice(0,2),player=>player.id),["3032977","4594268"],
+  "Giannis mit ADP 5,3 muss vor Edwards mit ADP 6,8 stehen");
+assert.equal(radarPlayers[0].fantasyPositions,"PF,C","Alle ESPN-Fantasy-Positionen müssen per Spieler-ID durchgereicht werden");
+assert.equal(radarPlayers[1].nba,context.nbaAbbreviationV3_(16),"Auch NBA-Teams müssen aus dem aktuellen ESPN-Spielerpool stammen");
+assert.equal(radarPlayers.find(player=>player.id==="P0").adp,10.25,"Die Sortierung muss den ungerundeten ESPN-ADP verwenden");
+assert.equal(radarPlayers.find(player=>player.id==="P1").fantasyPositions,"PG","ESPN-Hauptpositionen dürfen bei älteren Sheetzeilen einspringen");
+assert.deepEqual(Array.from(radarPlayers,player=>player.rank),Array.from({length:25},(_,i)=>i+1));
+assert.equal(radarPlayers.some(player=>["old-season","old-day","invalid","missing-metadata"].includes(player.id)),false,
+  "Andere Saisons, alte Tagesstände, ungültige ADPs und fehlende Identitäten dürfen die Top 25 nicht verfälschen");
+assert.equal(radarPlayers.some(player=>"owner_team" in player||"score" in player),false,
+  "Öffentliche Draft-Karten dürfen weder private Kaderdaten noch erfundene Heat-Punkte liefern");
+radarAdp.players["4594268"].current=4.9;
+assert.equal(context.buildDraftRadar_(radarAdp)[0].id,"4594268","Ein neuer ADP muss auch die Reihenfolge neu berechnen");
+assert.equal(context.buildDraftRadar_({}).length,0,"Ohne bestätigten Tagesstand darf keine statische Rangliste einspringen");
+
 assert.equal(context.espnAdpValueV40_({playerPoolEntry:{player:{ownership:{averageDraftPosition:27.4}}}}),27.4,
   "Der Tages-Snapshot muss ESPNs Average Draft Position direkt aus dem Fantasy-Spielerobjekt lesen");
 assert.equal(context.espnAdpValueV40_({player:{ownership:{averageDraftPosition:0}}}),null,
