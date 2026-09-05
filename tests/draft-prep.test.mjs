@@ -14,6 +14,40 @@ const players = Object.freeze([
 ]);
 const valueFor = row => ({primary: {value: ({'1': -0.4, '2': -0.2, '3': 0.1})[row.id], kind: 'history'}});
 
+test('Merge Value is a 50/50 rank mean, not a blend of raw scales; missing values stay unranked and last',()=>{
+  const rows=Object.freeze([
+    Object.freeze({id:'a',adp:10}),Object.freeze({id:'b',adp:20}),
+    Object.freeze({id:'c',adp:30}),Object.freeze({id:'d',adp:40}),
+    Object.freeze({id:'missing',adp:5})
+  ]);
+  const lookup=p=>({primary:{value:({a:0.5,b:1,c:-2,d:0})[p.id]}});
+  const scores=prep.mergeValues(rows,lookup);
+  assert.deepEqual(scores.get('a'),{adp:10,fba:0.5,adpRank:2,fbaRank:2,value:2});
+  assert.deepEqual(scores.get('b'),{adp:20,fba:1,adpRank:3,fbaRank:1,value:2});
+  assert.equal(scores.get('d').value,4,'a genuine zero remains ranked');
+  assert.equal(scores.get('missing').adpRank,1);
+  assert.equal(scores.get('missing').fbaRank,null);
+  assert.equal(scores.get('missing').value,null);
+  assert.deepEqual(ids(prep.sortPlayers(rows,'merge',lookup)),['a','b','c','d','missing']);
+  assert.deepEqual(ids(prep.sortPlayers([...rows].reverse(),'merge',lookup)),['a','b','c','d','missing']);
+  assert.strictEqual(prep.sortPlayers(rows,'merge',lookup)[0],rows[0]);
+  for(const bad of [null,undefined,'',false,NaN,Infinity]){
+    assert.equal(prep.mergeValues([{id:'x',adp:1}],()=>({primary:{value:bad}})).get('x').value,null);
+    assert.equal(prep.mergeValues([{id:'x',adp:bad}],()=>({primary:{value:1}})).get('x').value,null);
+  }
+});
+
+test('tied raw ADPs and FBA values share the average occupied rank without rounding the underlying scores',()=>{
+  const rows=[{id:'a',adp:1},{id:'b',adp:2},{id:'c',adp:2},{id:'d',adp:4}];
+  const lookup=p=>({primary:{value:({a:1,b:0,c:0,d:-1})[p.id]}});
+  const scores=prep.mergeValues(rows,lookup);
+  assert.equal(scores.get('a').value,1);
+  assert.equal(scores.get('b').adpRank,2.5);assert.equal(scores.get('b').fbaRank,2.5);
+  assert.equal(scores.get('c').value,2.5);assert.equal(scores.get('d').value,4);
+  assert.equal(prep.mergeValues([{id:'a',adp:1},{id:'b',adp:2}],p=>({primary:{value:p.id==='a'?0.001:0.002}})).get('b').fbaRank,1);
+  assert.equal(prep.readSort({getItem:()=> 'merge'}),'merge');
+});
+
 test('ADP, Maik and name sorts change only display order and keep negative scores ahead of missing values', () => {
   const extra = Object.freeze({id: '4', name: 'Aaron', adp: 1, rank: 4});
   const rows = Object.freeze([...players, extra]);
@@ -114,6 +148,20 @@ test('the new page retains existing card analyses, pictures and positions while 
   assert.match(result, /# = Position in dieser Liste/);
   assert.equal((result.match(/<details data-draft-player=/g) || []).length, players.length);
   assert.match(harness([], 'bad-sort').context.pgDraftPreparation(), /id="draft-prep-empty" class="model-note">Die Spieler erscheinen/);
+});
+
+test('merge display uses the full pool before filtering and preserves its exact formula across search',()=>{
+  const {context}=harness(players,'merge');
+  const all=context.pgDraftPreparation();
+  assert.match(all,/value="merge" selected/);
+  assert.equal((all.match(/class="draft-merge-value"/g)||[]).length,3);
+  assert.match(all,/\(ADP-Rang 2 \+ FBA-Rang 2\) ÷ 2/);
+  context.draftPreparationSetQuery('Anna');
+  const filtered=context.pgDraftPreparation();
+  assert.equal((filtered.match(/<details data-draft-player=/g)||[]).length,1);
+  assert.match(filtered,/\(ADP-Rang 2 \+ FBA-Rang 2\) ÷ 2/);
+  assert.match(filtered,/Merge Value: \(2 ADP-Rang \+ 2 FBA-Rang\) ÷ 2 = 2/);
+  assert.doesNotMatch(filtered,/\(ADP-Rang 1 \+ FBA-Rang 1\)/);
 });
 
 test('sort interaction retains the selector and open player, updates only local view, and stores only the chosen sort', () => {

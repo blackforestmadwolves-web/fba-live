@@ -112,13 +112,13 @@ test('engine focus uses only future totals, with identical weighting and attempt
 
 test('a B2B transfer preserves the drop and remains selected even outside the first 120 weekly candidates',()=>{
   let rendered=0;
-  const {c}=harness({document:{getElementById:()=>null},render:()=>rendered++,maikValueText:()=>'+0,00 FBA-Value',monsterRosterFor:()=>[]});
+  const {c}=harness({document:{getElementById:()=>null},render:()=>rendered++,maikValuePlayerColor:()=>"rgb(135,147,167)",maikValueText:()=>'+0,00 FBA-Value',monsterRosterFor:()=>[]});
   c.MONSTER_STATE.dropId='owned';c.selectMonsterPickup('2');
   assert.equal(c.MONSTER_STATE.addId,'2');assert.equal(c.MONSTER_STATE.dropId,'owned');assert.equal(rendered,1);
   c.selectMonsterPickup('unknown');assert.equal(rendered,1);
   c.monsterFreeAgents=()=>Array.from({length:150},(_,i)=>({id:String(i+1),name:'Profil '+(i+1)}));
   c.MONSTER_STATE.addId='150';c.monsterWeeklyContribution=()=>({effectiveGames:2,value:1,label:'+1,00 Such-Value'});
-  assert.match(c.monsterSimulatorMarkup('Wolves','Pirates',null,null),/<option value="150" selected>/);
+  assert.match(c.monsterSimulatorMarkup('Wolves','Pirates',null,null),/<option value="150"[^>]* selected>/);
   assert.match(c.monsterSimulatorMarkup('Wolves','Pirates',null,null),/Profil 150 ist ausgewählt/);
 });
 

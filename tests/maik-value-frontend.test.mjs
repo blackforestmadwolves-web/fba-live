@@ -134,6 +134,37 @@ test('FBA-Value badges read number, label, then the actual statistical basis', (
     'visible labels in the complete app consistently use the new name');
 });
 
+test('the shared value color is neutral at displayed zero and becomes stronger in both directions on a fixed scale',()=>{
+  const {context:c}=harness();
+  assert.equal(c.maikValueColor(0),'rgb(242,242,242)');
+  assert.equal(c.maikValueColor(-0.001),c.maikValueColor(0));
+  for(const value of [null,undefined,'',false,NaN,Infinity])assert.equal(c.maikValueColor(value),'rgb(135,147,167)');
+  const rgb=v=>c.maikValueColor(v).match(/\d+/g).map(Number);
+  const distance=v=>Math.hypot(...rgb(v).map((channel,i)=>channel-[242,242,242][i]));
+  let previous=0;
+  for(const value of [0.01,0.1,0.25,0.5,1,2,5]){
+    assert.ok(distance(value)>previous);previous=distance(value);
+    assert.ok(rgb(value)[1]>rgb(value)[0],'positive is green');
+    assert.ok(rgb(-value)[0]>rgb(-value)[1],'negative is red');
+    // Readable on the existing dark card background even at high saturation.
+    const lum=rgb(value).map(v=>v/255).map(v=>v<=0.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+    assert.ok((lum+.05)/.06>4.5);
+  }
+  previous=0;for(const value of [-0.01,-0.1,-0.25,-0.5,-1,-2,-5]){assert.ok(distance(value)>previous);previous=distance(value);}
+});
+
+test('badges, historical and projected totals, and inline values use the same FBA color without changing scores',()=>{
+  const {context:c}=harness({unlocked:true,data:projectionData()}),player={id:wembyId};
+  const before=c.maikValueFor(player),color=c.maikValueColor(before.primary.value);
+  assert.ok(c.maikValueMarkup(player).includes(`--fba-value-color:${color}`));
+  assert.ok(c.maikValueInlineMarkup(player).includes(`style="color:${color}"`));
+  assert.ok(c.maikValueDetailsMarkup(player).includes(`style="color:${color}"`));
+  assert.ok(c.maikValueDetailsMarkup(player).includes(`style="color:${c.maikValueColor(before.history.value)}"`));
+  assert.equal(c.maikValuePlayerColor(player),color);
+  assert.strictEqual(c.maikValueFor(player),before);
+  assert.match(html,/\.maik-value>strong\{color:var\(--fba-value-color,/);
+});
+
 test('draft stats, filters and ownership cannot move the frozen historical reference', () => {
   const {context: ctx} = harness();
   const view = ctx.maikValueContext(), originalModel = view.model;

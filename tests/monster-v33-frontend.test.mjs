@@ -20,7 +20,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v56-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v57-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,6 +51,7 @@ function functionSource(name){
 const maikUiStubs={
   maikValueMarkup:()=>'<span class="maik-value">FBA-Value –</span>',
   maikValueText:()=>"FBA-Value –",
+  maikValueInlineMarkup:()=>"FBA-Value –",maikValuePlayerColor:()=>"rgb(135,147,167)",
   maikValueDetailsMarkup:()=>"",
   maikValueSettingsMarkup:()=>"",
   maikValueFor:player=>({id:String(player&&player.id||""),history:null,current:null,primary:null}),
@@ -71,7 +72,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v56-20260905/,"Vorbereiteter Build muss v56 ausweisen");
+assert.match(html,/war-room-monster-v57-20260905/,"Vorbereiteter Build muss v57 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
