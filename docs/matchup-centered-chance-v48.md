@@ -1,6 +1,8 @@
 # Matchup Projection: mittige Kategorie-Siegchance — v48
 
 Vorbereiteter Stand vom 05.09.2026, noch nicht veröffentlicht.
+Die anschließende Maik-Value-Erweiterung nimmt diese Änderung in die gemeinsame
+v49-Vorbereitung auf; siehe `maik-value-v49.md`. v48 wurde nicht separat live geschaltet.
 Basis: Main `64897c231b5f6d06ce2da58e99421aca032f21f9`, produktive v47.
 Frontend-Build: `war-room-monster-v48-20260905`.
 

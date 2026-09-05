@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v48-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v49-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -44,14 +44,33 @@ function functionSource(name){
   throw new Error(`Funktion ${name} ist unvollständig`);
 }
 
+// Maik-Value arithmetic has its own suite. These isolated render/loader tests
+// retain controlled presentation dependencies while exercising their original
+// behavior and the same shared VM context (especially navigation and preload).
+const maikUiStubs={
+  maikValueMarkup:()=>'<span class="maik-value">Maik-Value –</span>',
+  maikValueText:()=>"Maik-Value –",
+  maikValueDetailsMarkup:()=>"",
+  maikValueSettingsMarkup:()=>"",
+  maikValueFor:player=>({id:String(player&&player.id||""),history:null,current:null,primary:null}),
+  resetMaikValueContext:()=>{}
+};
+function addMaikUiStubs(context){
+  for(const [name,stub] of Object.entries(maikUiStubs)){
+    if(!Object.prototype.hasOwnProperty.call(context,name))context[name]=stub;
+  }
+  return context;
+}
 function loadFunction(name,context={}){
+  addMaikUiStubs(context);
   return vm.runInNewContext(`(${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 function loadAsyncFunction(name,context={}){
+  addMaikUiStubs(context);
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v48-20260905/,"Vorbereiteter Build muss v48 ausweisen");
+assert.match(html,/war-room-monster-v49-20260905/,"Vorbereiteter Build muss v49 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -493,8 +512,8 @@ assert.match(html,/FantasyPros[^\n]+Adapter[^\n]+false|FantasyPros API vorbereit
 assert.match(html,/Hashtag[^\n]+Adapter[^\n]+false|Hashtag Export vorbereitet/,
   "Hashtag darf weiterhin nur als vorbereitete Quelle erscheinen");
 
-assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Rest-of-Season[\s\S]*Upside/,
-  "Free Agency braucht eine echte ROS-Hot-Zone und Upside ohne Wochen-B2B-Fokus");
+assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Maik-Value[\s\S]*Upside/,
+  "Free Agency muss die Hot Zone nach dem Maik-Value benennen und Upside behalten");
 assert.doesNotMatch(functionSource("freeAgencyZones"),/B2B Edge|Wochen-Impact/,
   "Das allgemeine Free-Agent-Board darf keinen B2B- oder Wochenfokus mehr haben");
 assert.match(functionSource("pgFreeAgency"),/Free-Agent Board/,
@@ -571,15 +590,22 @@ assert.equal(cardClasses.has("open"),false);
 assert.equal(toggleState.openIds.has("kpj"),false);
 assert.equal(buttonAttributes["aria-expanded"],"false");
 assert.equal(detailAttributes["aria-hidden"],"true");
-const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"ros"};
+const freeAgencyFilterState={query:"",position:"ALL",nba:"ALL",sort:"maik"};
 const filterFreeAgents=loadFunction("freeAgencyFilteredRows",{
   FREE_AGENCY_STATE:freeAgencyFilterState,
+  maikValueFor:player=>({primary:player.maikScore==null?null:{value:player.maikScore}}),
   monsterNbaKey:value=>String(value||"").toUpperCase(),
   draftNormalize:value=>String(value||"").toLowerCase(),DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],
   String,Number
 });
-const filterRows=Array.from({length:130},(_,index)=>({fbaRank:index+1,espnRank:130-index,upside:index,positions:index%2?"PG, SG":"C",projection:{perGame:{PTS:index}},player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL"}}));
+const filterRows=Array.from({length:130},(_,index)=>({fbaRank:index+1,espnRank:130-index,upside:index,positions:index%2?"PG, SG":"C",projection:{perGame:{PTS:index}},player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL",maikScore:index}}));
 assert.equal(filterFreeAgents(filterRows.slice()).length,100,"Auch ein großer ESPN-Pool darf maximal 100 Free Agents rendern");
+assert.equal(filterFreeAgents(filterRows.slice())[0].player.name,"Player 130",
+  "Maik-Sortierung muss den stärksten Maik-Value zuerst zeigen, unabhängig vom bisherigen FBA-Rang");
+freeAgencyFilterState.sort="fba";
+assert.equal(filterFreeAgents(filterRows.slice())[0].player.name,"Player 1",
+  "Die ausdrücklich gewählte bisherige FBA-Sortierung muss erhalten bleiben");
+freeAgencyFilterState.sort="maik";
 freeAgencyFilterState.position="C";
 assert.equal(filterFreeAgents(filterRows.slice()).length,65,"ESPN-Positionsfilter müssen Mehrfachberechtigungen exakt berücksichtigen");
 freeAgencyFilterState.position="ALL";freeAgencyFilterState.nba="ATL";
