@@ -1,0 +1,33 @@
+# Draft Radar — 25 ausführliche Einordnungen
+
+Vorbereitet am 05.09.2026 auf Main `153ca1bdb7930825a243f99b9eae8884422fd9d6`.
+Noch nicht produktiv veröffentlicht; Frontend-Buildkennung bleibt bis zum Release v44.
+
+Alle 25 Spieler des öffentlichen ESPN-ADP-Radars vom 05.09.2026 sind abgedeckt.
+Jeder erhält einen eigenen Bericht, Ausblick auf 2026/27, Stärken, Risiken,
+FBA-Fit und Draft-Plan (insgesamt 136–152 Wörter ohne Kurzbeschreibung).
+Der bisherige zusätzliche Eintrag für Jalen Johnson bleibt erhalten und ist
+weiter als ältere, nicht live aktualisierte redaktionelle Einordnung gekennzeichnet.
+
+Die 25 neuen Einträge verlinken jeweils das geprüfte ESPN-Spielerprofil und tragen
+den Prüfstand 05.09.2026. Numerische Angaben sind ausdrücklich Regular-Season-Werte
+2025/26, keine neuen Projektionen. ESPN-Spielerprofile/Statistikseiten wurden per
+Webrecherche geprüft; die Werte wurden zusätzlich mit dem am selben Tag bereits
+abgerufenen öffentlichen ESPN-Hub abgeglichen (`seasonId:2026`, `statSourceId:0`,
+`statSplitTypeId:0`, per-game `averageStats`). Keine Projektionszeilen oder Playoffs
+wurden als vergangene Regular-Season-Leistung verwendet.
+
+Ausblick, FBA-Fit und Ergänzungsvorschläge sind eigene qualitative Einordnungen,
+keine berechneten Ränge und keine nachträglich behaupteten Expertenkonsenswerte.
+Besonders kurze Vorjahresstichproben werden bei Tatum, Davis, Sabonis und Young
+ausdrücklich erklärt. Neue Rollen werden als offene Entwicklung behandelt.
+
+Änderungen betreffen ausschließlich `index.html` und diese Dokumentation.
+ADP-Sortierung, Datumsparser, Positionsdaten, Trends, Projektion und Backend bleiben
+unverändert. Native Details-Karten bleiben erhalten; die Quellen stehen je Karte.
+
+Prüfung: bestehende Frontend-Regression inklusive vollständigem Inline-JS-Parsing,
+Whitespace-Check und Abgleich aller 25 ESPN-IDs auf vollständige Inhaltsfelder sowie
+HTTPS-Quellenlinks bestanden. Keine neuen Inhalts- oder DOM-Spiegeltests angelegt.
+Eine visuelle Prüfung der unveröffentlichten Ansicht steht noch aus; die zuvor
+abgewiesenen lokalen Browser-Preview-Routen wurden nicht erneut verwendet.
