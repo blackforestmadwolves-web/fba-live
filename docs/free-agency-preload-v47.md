@@ -1,8 +1,9 @@
-# Free Agency beim App-Start vorladen — v47 vorbereitet
+# Free Agency beim App-Start vorladen — v47
 
 Basis: Main `7e02454cd4d91738347ab6cc280a791fcbc46ddf`, veröffentlichte v46.
-Vorbereiteter Frontend-Build: `war-room-monster-v47-20260905`.
-Diese Änderung ist noch nicht produktiv veröffentlicht.
+Frontend-Build: `war-room-monster-v47-20260905`.
+Am 05.09.2026 auf ausdrücklichen Nutzerauftrag „Geh live“ veröffentlicht.
+Die Produktionsbestätigung steht am Ende.
 
 ## Verhalten
 
@@ -62,3 +63,33 @@ Das Backend bleibt Apps Script Version 39, öffentliche Payload-Version 46,
 interner Projektionsvertrag v36. Bei späterer Veröffentlichung Main abgleichen,
 den getesteten Tree veröffentlichen und Netlify bis ready prüfen; ein erneuter
 Apps-Script-Deploy ist für diesen unveränderten Backendstand nicht nötig.
+
+
+## Produktionsbestätigung — 05.09.2026
+
+- Release/Main-Commit: `f6f80538e2211e411205e58e591d17bd13795e27`.
+- Exakt geprüfter Tree: `97a73d42a7f7cc3b8d326b570471d6243f25dc89`.
+- Netlify-Produktionsdeploy: `6a9bf19655b3f5022b485d31`, ready.
+- Veröffentlicht um 10:40:28 UTC auf https://fba-control-center.netlify.app/.
+- Upload aus einem Archiv ausschließlich der 56 versionierten Projektdateien.
+- Live-HTML bytegleich mit dem getesteten Release: 609807 Bytes, SHA-256
+  `75ffbbc239e2a7f1a964ea425d9c89152f88a2aade05cf74e5013cf3cc40f55c`.
+- Live-Manifest ebenfalls bytegleich; Start-URL verweist auf v47.
+- Alle acht Testdateien / 15 Runner-Tests am exakten Release-Stand bestanden;
+  vollständiges Inline-JavaScript, Backend-Syntax und Whitespace geprüft.
+- `apps-script/Code.js` ist gegenüber v46 unverändert. Kein neuer Backend-
+  Workflow oder Apps-Script-Deploy nötig; letzter bestätigter Stand Version 39.
+
+Live-Browser: Build v47, 25 gespeicherte Karten bei der ersten Kontrolle nach
+1015 ms; währenddessen SYNC… und klar gekennzeichneter gespeicherter Abruf.
+Kein unerwarteter PIN-Dialog auf dem nicht freigeschalteten Browsergerät.
+Die Fehlerkontrolle zeigte keine Anwendungs-JavaScript-Fehler. Eine spätere
+Kontrolle bestätigte LIVE und weiterhin 25 Karten nach der Aktualisierung.
+
+Der authentifizierte Hintergrundabruf, Wiederverwendung beim Seitenwechsel und
+Fehler-/Reset-Verhalten wurden mit den echten Frontendfunktionen in den
+Verhaltenstests geprüft. Keine neue private Produktions-Browserprüfung auf einem
+freigeschalteten Gerät durchgeführt und keine konkrete Free-Agency-Ladezeit
+behauptet. Kein iPhone-Test. Bestehende Daten- und Projektionsgrenzen bleiben.
+
+Diese nachfolgende Dokumentation verändert das veröffentlichte Frontend nicht.
