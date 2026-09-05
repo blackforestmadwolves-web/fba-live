@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v46-20260905">
+<meta name="fba-build" content="war-room-monster-v47-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -2089,12 +2089,20 @@ async function unlockMonster(){
   button.disabled=true;err.textContent="Prüfe PIN …";
   try{const result=await monsterJsonp({monster:"login",pin:value});if(!result||!result.ok)throw new Error(result&&result.error||"PIN abgelehnt.");localStorage.setItem(MONSTER_SESSION_KEY,result.token);document.getElementById("monsterGate").classList.remove("on");CUR="monster";MONSTER_STATE.data=null;MONSTER_STATE.dataWeek=null;MONSTER_STATE.error=null;render();await loadMonsterData(true)}catch(e){err.textContent=e.message||String(e)}finally{button.disabled=false}
 }
+function preloadFreeAgencyData(){
+  // Free Agency and Monster share one authenticated in-memory payload. Start
+  // its existing loader without opening either page or forcing a full sync.
+  if(!monsterUnlocked()||!apiUrl()||MONSTER_STATE.loading||MONSTER_STATE.data)return;
+  return loadMonsterData(consumeMonsterForceRefresh()).catch(error=>{
+    MONSTER_STATE.error=error&&error.message?error.message:String(error);
+  });
+}
 async function loadMonsterData(force,fullSync){
   const requestedWeek=Math.max(1,Math.min(20,Number(MONSTER_STATE.week)||1)),requestedForce=Boolean(force),requestedFullSync=Boolean(fullSync);
   if(MONSTER_STATE.loading){MONSTER_STATE.queuedWeek=requestedWeek;MONSTER_STATE.queuedForce=MONSTER_STATE.queuedForce||requestedForce;MONSTER_STATE.queuedFullSync=MONSTER_STATE.queuedFullSync||requestedFullSync;return}
   const loadedWeek=Number(MONSTER_STATE.dataWeek||(MONSTER_STATE.data&&MONSTER_STATE.data.nbaSchedule&&MONSTER_STATE.data.nbaSchedule.matchupWeek)||0);
   if(!requestedForce&&!requestedFullSync&&MONSTER_STATE.data&&loadedWeek===requestedWeek)return;
-  const token=monsterToken();if(!token){openMonsterGate();return}
+  const token=monsterToken();if(!token){if(monsterPrivatePage())openMonsterGate();return}
   const requestId=++MONSTER_STATE.requestSeq;MONSTER_STATE.activeRequest=requestId;MONSTER_STATE.loading=true;MONSTER_STATE.error=null;if(monsterPrivatePage())render();
   let followup=false,followupForce=false,followupFullSync=false;
   try{
@@ -3882,6 +3890,8 @@ restorePublicStartupPayload();
 render();
 setInterval(updateCountdowns,1000);
 if(insideAppsScript() || apiUrl()) loadLive(null,true);
+// Queue after the initial render; do not wait for the public API to finish.
+setTimeout(preloadFreeAgencyData,0);
 </script>
 </body>
 </html>

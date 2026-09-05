@@ -26,7 +26,7 @@ function client(storage=new Map()){
     location:{search:''},document:{getElementById:id=>elements.get(id)},localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
     PHASE_SNAPSHOT_CONFIG:{seasonCode:'S26_27'},SNAPSHOT:{meta:{source:'snapshot'}},D:{meta:{source:'snapshot'}},LIVE:false,
     PUBLIC_SAVED_AT:0,PUBLIC_PENDING:false,PUBLIC_REQUEST_SEQUENCE:0,PUBLIC_ACTIVE_REQUEST:null,
-    updateCountdowns:()=>{},clearAnalyticsCache:()=>{},applyVerifiedSeasonData:x=>x,phaseDraftSnapshot:()=>({}),render:()=>{},alert:()=>{},
+    updateCountdowns:()=>{},preloadFreeAgencyData:()=>{},clearAnalyticsCache:()=>{},applyVerifiedSeasonData:x=>x,phaseDraftSnapshot:()=>({}),render:()=>{},alert:()=>{},
   });
   vm.runInContext(publicCode,c);
   return {c,storage,key:vm.runInContext('PUBLIC_STARTUP_CACHE_KEY',c),elements};

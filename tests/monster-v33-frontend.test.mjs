@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v46-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v47-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v46-20260905/,"Vorbereiteter Build muss v46 ausweisen");
+assert.match(html,/war-room-monster-v47-20260905/,"Vorbereiteter Build muss v47 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -622,4 +622,91 @@ assert.match(functionSource("hardReloadApp"),/MONSTER_FORCE_REFRESH_KEY[\s\S]*_f
 assert.match(functionSource("openMonsterGate"),/consumeMonsterForceRefresh\(\)/,
   "Nach dem Hard Reset muss der nächste Monster-Aufruf den Backend-Cache umgehen");
 
-console.log("PASS · Matchup Monster v43 frontend regression tests");
+// v47: run the actual startup/navigation/loader functions with controlled I/O.
+// The unresolved public request must not delay the authenticated private one.
+function preloadHarness(){
+  const state={data:null,dataWeek:null,loading:false,error:null,week:1,weekPinned:false,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
+  const io={token:"unit-test-device",api:"https://example.invalid",force:false,calls:[],resolvers:[],events:[],timers:[],gates:0,fullSyncs:0};
+  const context={MONSTER_STATE:state,CUR:"ueber",MONSTER_SESSION_KEY:"test-session",monsterToken:()=>io.token,monsterUnlocked:()=>Boolean(io.token),apiUrl:()=>io.api,
+    consumeMonsterForceRefresh:()=>{const value=io.force;io.force=false;return value},
+    monsterJsonp:params=>{io.calls.push(params);return new Promise((resolve,reject)=>io.resolvers.push({resolve,reject}))},
+    monsterEnsureTeams:()=>{},monsterPrivatePage:()=>context.CUR==="monster"||context.CUR==="freeagency",
+    openMonsterGate:()=>{io.gates++},requestFullEspnRefresh:async()=>{io.fullSyncs++},
+    localStorage:{removeItem:()=>{io.token=""}},render:()=>io.events.push("render:"+context.CUR),
+    restorePublicStartupPayload:()=>io.events.push("restore-public"),insideAppsScript:()=>false,
+    loadLive:()=>{io.events.push("public-request");return new Promise(()=>{})},updateCountdowns:()=>{},setInterval:()=>{},
+    setTimeout:fn=>{io.timers.push(fn);return io.timers.length}};
+  context.loadMonsterData=loadAsyncFunction("loadMonsterData",context);
+  context.preloadFreeAgencyData=loadFunction("preloadFreeAgencyData",context);
+  context.navigatePage=loadFunction("navigatePage",context);
+  return {state,io,context};
+}
+const startupCode=inline[1].slice(inline[1].indexOf("/* Start */"));
+const preloaded=preloadHarness();
+vm.runInNewContext(startupCode,preloaded.context);
+assert.deepEqual(preloaded.io.events,["restore-public","render:ueber","public-request"]);
+assert.equal(preloaded.io.calls.length,0,"Der private Abruf startet erst nach dem synchronen Seitenaufbau");
+assert.equal(preloaded.io.timers.length,1);
+const preloadPending=preloaded.io.timers[0]();
+assert.equal(preloaded.io.calls.length,1,"Der private Abruf darf nicht auf die noch offene öffentliche API warten");
+assert.equal(preloaded.io.calls[0].monster,"data");
+assert.equal(preloaded.io.calls[0].refresh,undefined,"Normales Vorladen erzwingt keinen Refresh");
+assert.equal(preloaded.io.fullSyncs,0);
+assert.equal(preloaded.context.CUR,"ueber");
+assert.equal(preloaded.state.loading,true);
+preloaded.context.navigatePage("freeagency");
+assert.equal(preloaded.io.calls.length,1,"Ein schneller Seitenwechsel verwendet den laufenden Abruf");
+const privateFixture={ok:true,nbaSchedule:{matchupWeek:1},espnPlayerPool:[{id:"fixture-player"}]};
+preloaded.io.resolvers[0].resolve(privateFixture);
+await preloadPending;
+assert.equal(preloaded.state.data,privateFixture);
+assert.equal(preloaded.state.loading,false);
+preloaded.context.navigatePage("freeagency");
+assert.equal(preloaded.io.calls.length,1,"Bereits vorgeladene Daten werden beim Öffnen wiederverwendet");
+
+const quietPreload=preloadHarness();
+const quietPending=quietPreload.context.preloadFreeAgencyData();
+quietPreload.io.resolvers[0].resolve(privateFixture);await quietPending;
+assert.deepEqual(quietPreload.io.events,[],"Eine Hintergrundantwort darf die öffentliche Ansicht nicht neu rendern");
+assert.equal(quietPreload.context.CUR,"ueber");
+assert.equal(quietPreload.io.gates,0);
+
+for(const skip of ["locked","no-api","already-loading","already-loaded"]){
+  const p=preloadHarness();p.io.force=true;
+  if(skip==="locked")p.io.token="";
+  if(skip==="no-api")p.io.api="";
+  if(skip==="already-loading")p.state.loading=true;
+  if(skip==="already-loaded")p.state.data=privateFixture;
+  await p.context.preloadFreeAgencyData();
+  assert.equal(p.io.calls.length,0,skip+": kein zusätzlicher Abruf");
+  assert.equal(p.io.gates,0,skip+": kein unverlangter PIN-Dialog");
+  assert.equal(p.io.force,true,skip+": Reset-Markierung nicht vorzeitig verbrauchen");
+}
+
+const failedPreload=preloadHarness();
+const failedPending=failedPreload.context.preloadFreeAgencyData();
+failedPreload.io.resolvers[0].reject(new Error("Test-Netzwerkfehler"));await failedPending;
+assert.equal(failedPreload.state.error,"Test-Netzwerkfehler");
+assert.equal(failedPreload.state.data,null);assert.equal(failedPreload.io.gates,0);
+assert.deepEqual(failedPreload.io.events,[]);
+const retryPending=failedPreload.context.loadMonsterData(false);
+assert.equal(failedPreload.io.calls.length,2,"Nach einem Vorladefehler bleibt ein normaler neuer Versuch möglich");
+failedPreload.io.resolvers[1].resolve(privateFixture);await retryPending;
+
+const revokedPreload=preloadHarness();
+const revokedPending=revokedPreload.context.preloadFreeAgencyData();
+revokedPreload.io.resolvers[0].resolve({ok:false,locked:true});await revokedPending;
+assert.equal(revokedPreload.io.token,"");assert.equal(revokedPreload.state.data,null);
+assert.equal(revokedPreload.io.gates,0,"Widerrufener Zugang öffnet keinen Dialog auf der Startseite");
+await revokedPreload.context.loadMonsterData(false);
+assert.equal(revokedPreload.io.gates,0,"Auch ein inzwischen entferntes Token bleibt im Hintergrund still");
+revokedPreload.context.CUR="freeagency";await revokedPreload.context.loadMonsterData(false);
+assert.equal(revokedPreload.io.gates,1,"Bei bewusster privater Navigation bleibt der Zugangs-Dialog erhalten");
+
+const resetPreload=preloadHarness();resetPreload.io.force=true;
+const resetPending=resetPreload.context.preloadFreeAgencyData();
+assert.equal(resetPreload.io.calls[0].refresh,1);assert.equal(resetPreload.io.force,false);
+assert.equal(resetPreload.io.fullSyncs,0,"Vorladen erzeugt keinen weiteren Vollsync nach dem Reset");
+resetPreload.io.resolvers[0].resolve(privateFixture);await resetPending;
+
+console.log("PASS · Matchup Monster frontend and v47 Free Agency preload regression tests");
