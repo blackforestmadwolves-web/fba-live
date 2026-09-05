@@ -309,13 +309,9 @@ assert.equal(currentActiveB2b.perGame.PTS,25);
 
 assert.match(html,/ESPN Projection 2026\/27|ESPN-Projektion(?:en)? 2026\/27/,
   "Die aktive Datenquelle muss als ESPN-Projektion 2026/27 benannt werden");
-assert.match(html,/Kein Fake-Consensus/i,
-  "Die Projektionsquellen muessen den fehlenden Mehrquellen-Consensus ausdruecklich offenlegen");
-assert.match(html,/FantasyPros[^\n]+vorbereitet|FantasyPros[^\n]+Adapter/i);
-assert.match(html,/Hashtag[^\n]+vorbereitet|Hashtag[^\n]+Adapter/i);
-assert.match(functionSource("monsterSourcesMarkup"),/FantasyPros API vorbereitet["'],active:false/i,
-  "FantasyPros muss bis zum lizenzierten Zugang technisch inaktiv bleiben");
-assert.match(functionSource("monsterSourcesMarkup"),/Hashtag Export vorbereitet["'],active:false/i,
-  "Hashtag muss bis zum lizenzierten Zugang technisch inaktiv bleiben");
+assert.match(functionSource("monsterConsensusMarkup"),/source\.state/,
+  "Quellenstatus muss vom geprüften privaten Backend kommen");
+assert.match(functionSource("monsterSourcesMarkup"),/appliedPlayers>0/,
+  "Konsens darf erst nach tatsächlich angewendeten vollständigen Spielerzeilen als aktiv erscheinen");
 
 console.log("PASS · FBA Projection Engine v36 frontend tests");

@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v43-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v44-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v43-20260905/,"Produktions-Build muss v43 ausweisen");
+assert.match(html,/war-room-monster-v44-20260905/,"Produktions-Build muss v43 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -488,6 +488,7 @@ assert.equal(relevantStatus({injuryStatus:"DAY_TO_DAY"}),"DTD");
 assert.equal(relevantStatus({injuryStatus:"OUT"}),"OUT");
 const freeAgencyCardState={openIds:new Set()};
 const renderFreeAgentCard=loadFunction("freeAgencyPlayerRow",{
+  freeAgencyConsensusMarkup:loadFunction("freeAgencyConsensusMarkup",{E:value=>String(value),de:(value,digits)=>Number(value).toFixed(digits),Number,Array}),
   freeAgencyInjuryStatus:relevantStatus,draftNormalize:value=>String(value||"").toLowerCase(),de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),
   DRAFT_CATS:["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],freeAgencyProjectionValue:(cat,value)=>cat.includes("%")?`${(value*100).toFixed(1)}%`:Number(value).toFixed(1),
   freeAgencyZ:value=>`${value} z`,freeAgencySigned:value=>String(value),E:value=>String(value),espnPlayerHeadshot:id=>`photo-${id}`,imageFallbackAttr:()=>"",FREE_AGENCY_STATE:freeAgencyCardState,String,Number,Set

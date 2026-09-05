@@ -355,7 +355,7 @@ cacheData.clear();
 assert.equal(context.validMonsterDeviceV29_(token),true,"Gerätefreigabe muss einen Cache-Neustart überstehen");
 assert.equal(context.validMonsterDeviceV29_("falsch"),false);
 
-assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:43"),true,"Backend-Payload muss den v43-Release-Stand kennzeichnen");
+assert.equal(context.buildMonsterPayloadV30_.toString().includes("version:44"),true,"Backend-Payload muss den v44-Release-Stand kennzeichnen");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("espnPlayerPool:espnPlayerPool"),true,"Der geschützte Payload muss den ESPN-Free-Agent-Pool liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("adpTrend:adpPayload"),true,"Der geschützte Payload muss den dynamischen ESPN-ADP-Verlauf liefern");
 assert.equal(context.buildMonsterPayloadV30_.toString().includes("projectionEngine:projectionEngine"),true,"Der geschützte Monster-Payload muss den Projection-Engine-Status liefern");
