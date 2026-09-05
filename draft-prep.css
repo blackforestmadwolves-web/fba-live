@@ -15,6 +15,35 @@
 .draft-merge-value>strong{color:#bdc9ff;font-size:17px;font-weight:900}.draft-merge-value>span{color:#a6b0c3;font-size:9px;font-weight:750}.draft-merge-value.missing>strong{color:#8793a7}
 .draft-merge-explanation{margin:0 0 16px;padding:12px 15px;border:1px solid var(--line,#242a3d);border-radius:12px;color:var(--dim,#9ba5b9);font-size:11px;line-height:1.6}.draft-merge-explanation>summary{cursor:pointer;color:#bdc9ff;font-weight:700}.draft-merge-explanation>p{margin:9px 0 0}
 .draft-radar-report>.draft-merge-breakdown{margin:0 0 12px;color:#bdc9ff;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.draft-prep-punts{min-width:0;margin:0 0 16px;padding:16px 18px;border:1px solid #353e52;border-radius:16px;background:#151a25}
+.draft-prep-punts legend{padding:0 7px;color:#eef1f8;font-size:14px;font-weight:800}
+.draft-punt-options{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.draft-punt-option{display:flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;border:1px solid #455069;border-radius:10px;cursor:pointer;color:#d0d7e6;background:#1c2331;font-size:12px;font-weight:750}
+.draft-punt-option:has(input:checked){border-color:#e4a15c;background:#3a2b22;color:#ffe0be}
+.draft-punt-option:has(input:disabled){opacity:.5;cursor:default}
+.draft-punt-option input{accent-color:#f3af65;width:17px;height:17px;margin:0}
+.draft-punt-options button{min-height:44px;padding:8px 12px;border:1px solid #455069;border-radius:10px;background:transparent;color:#d0d7e6;cursor:pointer;font:inherit;font-size:12px}
+.draft-punt-options button:disabled{opacity:.5;cursor:default}
+.draft-punt-options :focus-visible,.draft-room-sort select:focus-visible{outline:2px solid #ffad65;outline-offset:3px}
+.draft-prep-punts>p,.draft-punt-explanation{margin:12px 0 0;color:#b7c0d2;font-size:11px;line-height:1.6}
+.draft-punt-explanation summary{cursor:pointer;color:#e3bd94}.draft-punt-explanation p{margin:8px 0 0}
+.draft-radar-card.punt-mismatch{background:#20242d;border-color:#586171}
+.punt-mismatch .draft-radar-summary{background:linear-gradient(140deg,#282e39,#1a1e26)}
+.punt-mismatch .draft-radar-summary::after{background:#626b7a}
+.punt-mismatch .draft-radar-photo{filter:grayscale(1);opacity:.45}
+.punt-mismatch .draft-radar-copy h3{color:#c1c7d2}.punt-mismatch .draft-radar-copy p{color:#a6afbf}
+.punt-mismatch .draft-radar-team,.punt-mismatch .draft-radar-open{color:#b2bbc9}
+.draft-punt-notice{display:block;width:100%;margin-top:10px;padding:7px 8px;border:1px solid #626b7a;border-radius:7px;background:#303744;color:#eff1f6;font-size:10px;font-weight:700;line-height:1.45;overflow-wrap:anywhere}
+.draft-punt-notice.unknown{color:#c0c9da;background:#202838;border-color:#46516b}
+.draft-radar-report>.draft-punt-breakdown{margin:0 0 12px;color:#d1c0ac;font-size:11px;line-height:1.6}
+.draft-room-sort{display:grid;gap:6px;margin:12px 0 4px;color:#bec7d9;font-size:11px;font-weight:750}
+.draft-room-sort select{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:9px 10px;border:1px solid #455069;border-radius:10px;background:#141a27;color:#edf0f7;font:inherit;cursor:pointer}
+.page-draft .draft-player-market{display:grid;gap:10px;min-width:65px}.page-draft .draft-player-market b{font-size:16px}.page-draft .draft-player-market small{font-size:7px;letter-spacing:0}
+.page-draft .draft-workspace-side .draft-player-row{grid-template-columns:68px minmax(0,1fr) 65px}
+.page-draft .draft-workspace-side .draft-pool-photo{max-width:100%}
+.draft-player-market .draft-room-merge b{color:#bdc9ff}.draft-model-note>summary{cursor:pointer;font-weight:800}.draft-model-note>p{margin:8px 0 0}
+@media(max-width:600px){.draft-prep-punts{padding:12px}.draft-punt-option{padding:0 10px}.draft-room-sort select{font-size:16px}}
+@media(max-width:420px){.page-draft .draft-workspace-side .draft-player-row{grid-template-columns:55px minmax(0,1fr) 65px;gap:8px}}
 @media(max-width:620px){.draft-merge-value{top:56px;left:14px}.draft-merge-value>strong{font-size:16px}}
 @media(max-width:900px){.draft-prep-toolbar{align-items:stretch;flex-direction:column;gap:15px}.draft-prep-controls{flex:auto;min-width:0}}
 @media(max-width:600px){.draft-prep-toolbar{padding:16px}.draft-prep-controls{grid-template-columns:minmax(0,1fr)}.draft-prep-sort select,.draft-prep-search input{font-size:16px}.draft-prep-toolbar h2{font-size:19px}.draft-prep-status{font-size:10px}}
