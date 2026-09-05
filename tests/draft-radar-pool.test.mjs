@@ -7,7 +7,7 @@ import pool from '../draft-radar-pool.js';
 const latestDate = '2026-09-05';
 const metadata = id => ({id: String(id), name: `Player ${String(id).padStart(3, '0')}`, nba: 'DEN', primaryPosition: 'PF', fantasyPositions: 'PF,C', active: true});
 const trend = (current, currentDate = latestDate) => ({current, currentDate, previousAverage: current + 1, change: 1, ready: true, sampleDays: 4});
-function fixture(count = 132) {
+function fixture(count = 182) {
   const players = Array.from({length: count}, (_, index) => metadata(index + 1));
   return {
     payload: {
@@ -19,16 +19,16 @@ function fixture(count = 132) {
   };
 }
 
-test('joins the latest full ADP snapshot to 100 unique reviewed players in actual ADP order', () => {
+test('joins the latest full ADP snapshot to 150 unique reviewed players in actual ADP order', () => {
   const {payload, catalog} = fixture();
   payload.adpTrend.players['132'] = trend(0.75);
   catalog.players.reverse();
   const rows = pool.build(payload, catalog);
-  assert.equal(rows.length, 100);
+  assert.equal(rows.length, 150);
   assert.equal(rows[0].id, '132');
   assert.equal(rows[0].adp, 0.75);
-  assert.equal(rows[99].id, '99');
-  assert.equal(new Set(rows.map(row => row.id)).size, 100);
+  assert.equal(rows[149].id, '150');
+  assert.equal(new Set(rows.map(row => row.id)).size, 150);
   assert.ok(rows.every((row, index) => row.rank === index + 1 && row.adpDate === latestDate));
   assert.ok(rows.every(row => row.fantasyPositions === 'PF,C'));
   assert.equal(rows[0].metadataDate, '2026-09-04');
@@ -123,15 +123,15 @@ test('identical duplicates count once; conflicting identities, metadata and ADPs
   assert.deepEqual(pool.build(legacy).map(row => row.id), ['1']);
 });
 
-test('the public builder caps size at 100, supports smaller requests and never mutates or aliases inputs', () => {
+test('the public builder caps size at 150, supports smaller requests and never mutates or aliases inputs', () => {
   const {payload, catalog} = fixture();
   const before = JSON.stringify({payload, catalog});
   const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
   freeze(payload); freeze(catalog);
   assert.equal(pool.build(payload, catalog, 8).length, 8);
-  assert.equal(pool.build(payload, catalog, 500).length, 100);
+  assert.equal(pool.build(payload, catalog, 500).length, 150);
   assert.equal(pool.build(payload, catalog, 0).length, 0);
-  assert.equal(pool.build(payload, catalog, 'nonsense').length, 100);
+  assert.equal(pool.build(payload, catalog, 'nonsense').length, 150);
   const rows = pool.build(payload, catalog);
   rows[0].adpTrend.current = 1000;
   rows[0].name = 'Changed Output';
@@ -147,6 +147,6 @@ test('browser registration exposes the same pure API without network or private 
   vm.runInNewContext(readFileSync(new URL('../draft-radar-pool.js', import.meta.url), 'utf8'), context);
   assert.equal(typeof context.window.FBA_DRAFT_RADAR_POOL.build, 'function');
   const {payload, catalog} = fixture();
-  assert.equal(context.window.FBA_DRAFT_RADAR_POOL.build(payload, catalog).length, 100);
+  assert.equal(context.window.FBA_DRAFT_RADAR_POOL.build(payload, catalog).length, 150);
   assert.ok(Object.isFrozen(context.window.FBA_DRAFT_RADAR_POOL));
 });

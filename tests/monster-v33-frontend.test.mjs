@@ -20,7 +20,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v54\.1-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v56-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -71,7 +71,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v54\.1-20260905/,"Vorbereiteter Build muss v54.1 ausweisen");
+assert.match(html,/war-room-monster-v56-20260905/,"Vorbereiteter Build muss v56 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -706,9 +706,9 @@ const radarInput=Array.from({length:130},(_,i)=>({id:`P${i}`,name:`Player ${i}`,
 const radarState={draftTop25:radarInput};
 const sortedRadar=loadFunction("draftRadarData",{D:radarState,Set,Number,String,Object});
 const sortedRadarRows=sortedRadar();
-assert.equal(sortedRadarRows.length,100);
+assert.equal(sortedRadarRows.length,130);
 assert.equal(sortedRadarRows[0].id,"P129");
-assert.deepEqual(Array.from(sortedRadarRows,row=>row.rank),Array.from({length:100},(_,i)=>i+1));
+assert.deepEqual(Array.from(sortedRadarRows,row=>row.rank),Array.from({length:130},(_,i)=>i+1));
 assert.equal(radarInput[0].rank,99,"Das Sortieren darf die Quelldaten nicht überschreiben");
 radarState.draftTop25=[{id:"giannis",name:"Giannis",adp:5.3,score:76},{id:"edwards",name:"Edwards",adp:6.8,score:78},
   {id:"zero",adp:0},{id:"nan",adp:"ungültig"},{id:"inactive",adp:1,active:false},{id:"giannis",adp:5.3}];
