@@ -6,7 +6,7 @@
 
 var SPREADSHEET_ID = '';
 var CACHE_MINUTES = 10;
-var DATA_CACHE_PREFIX = 'fba_v43_';
+var DATA_CACHE_PREFIX = 'fba_v43_adp_dates_';
 var SEASON = 'S25_26';
 var SEASON_LABEL = '2025-26';
 var RS_MAX_WEEK = 18;
@@ -2151,10 +2151,14 @@ function captureEspnAdpSnapshotV40_(league, stamp) {
 }
 
 function buildEspnAdpTrendPayloadV40_() {
-  var rows = sheetObjectsV2_(ESPN_PLAYER_HUB_V2.adpHistorySheet), byPlayer = {}, dates = {};
+  var rows = sheetObjectsV2_(ESPN_PLAYER_HUB_V2.adpHistorySheet), byPlayer = {}, dates = {}, sheetTimeZone = '';
   rows.forEach(function (row) {
     if (Number(row.season_id) !== Number(ESPN_SYNC_V1.seasonId)) return;
-    var id = String(row.player_id || ''), date = String(row.snapshot_date || ''), value = Number(row.adp);
+    var id = String(row.player_id || ''), date = String(row.snapshot_date || '').trim(), value = Number(row.adp);
+    if (row.snapshot_date instanceof Date && !isNaN(row.snapshot_date.getTime())) {
+      if (!sheetTimeZone) sheetTimeZone = book().getSpreadsheetTimeZone();
+      date = Utilities.formatDate(row.snapshot_date,sheetTimeZone,'yyyy-MM-dd');
+    }
     if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !isFinite(value) || value <= 0) return;
     (byPlayer[id] || (byPlayer[id] = {}))[date] = value; dates[date] = true;
   });
@@ -3286,7 +3290,7 @@ function buildDraftRadar_(adpPayload) {
     var id = String(player.player_id || '');
     if (id && Number(player.season_id) === Number(ESPN_SYNC_V1.seasonId)) playersById[id] = player;
   });
-  return Object.keys(playersById).map(function (id) {
+  var ranked = Object.keys(playersById).map(function (id) {
     var player = playersById[id], trend = trends[id], name = String(player.full_name || ''), adp = Number(trend && trend.current);
     if (!name || !trend || trend.currentDate !== latestDate || !isFinite(adp) || adp <= 0) return null;
     return {id:id,name:name,nba:nbaAbbreviationV3_(player.nba_team_id),adp:adp,adpDate:latestDate,adpTrend:trend,
@@ -3295,6 +3299,26 @@ function buildDraftRadar_(adpPayload) {
   }).filter(function (row) { return row !== null; })
     .sort(function (a,b) { return a.adp-b.adp || a.name.localeCompare(b.name) || a.id.localeCompare(b.id); })
     .slice(0,25).map(function (row,index) { row.rank=index+1; return row; });
+  /* A rejected preseason roster sync must not force us to guess eligibility
+   * from legacy mixed slot IDs. Read only public metadata from the same feed. */
+  if (ranked.some(function (row) { return !row.fantasyPositions; })) {
+    try {
+      var league = fetchEspnFantasyHubV2_(), freshById = {};
+      if (Number(league.seasonId) !== Number(ESPN_SYNC_V1.seasonId)) return ranked;
+      (league.players || []).forEach(function (entry) {
+        var player = normalizeFantasyPlayerV2_(entry);
+        if (player.id) freshById[player.id] = player;
+      });
+      ranked.forEach(function (row) {
+        var fresh = freshById[row.id];
+        if (!fresh) return;
+        row.primaryPosition = fresh.primaryPosition || row.primaryPosition;
+        row.fantasyPositions = fresh.fantasyPositions || row.fantasyPositions;
+        row.nba = nbaAbbreviationV3_(fresh.proTeamId) || row.nba;
+      });
+    } catch (metadataError) { console.warn('Draft Radar: ESPN-Positionsdaten konnten nicht frisch geladen werden.'); }
+  }
+  return ranked;
 }
 
 /* ================= MATCHUP MONSTER v29 =================

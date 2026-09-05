@@ -76,6 +76,19 @@ assert.equal(radarPlayers.some(player=>"owner_team" in player||"score" in player
 radarAdp.players["4594268"].current=4.9;
 assert.equal(context.buildDraftRadar_(radarAdp)[0].id,"4594268","Ein neuer ADP muss auch die Reihenfolge neu berechnen");
 assert.equal(context.buildDraftRadar_({}).length,0,"Ohne bestätigten Tagesstand darf keine statische Rangliste einspringen");
+const originalDraftMetadataFetch=context.fetchEspnFantasyHubV2_;
+radarMetadata[0].primary_position="";radarMetadata[0].fantasy_positions="";
+context.fetchEspnFantasyHubV2_=()=>({seasonId:2027,players:[{player:{id:3032977,fullName:"Giannis Antetokounmpo",proTeamId:14,defaultPositionId:4,eligibleSlots:[3,4,6,9,13]}}]});
+const freshRadar=context.buildDraftRadar_(radarAdp).find(player=>player.id==="3032977");
+assert.equal(freshRadar.fantasyPositions,"PF,C","Ein alter Spielerpool muss die exakten Positionen frisch von ESPN ergänzen können");
+assert.equal(freshRadar.primaryPosition,"PF");
+assert.equal(radarMetadata[0].owner_team,"Wolves","Das öffentliche Nachladen darf keine Kaderzuordnung verändern");
+assert.equal(radarMetadata[0].fantasy_positions,"","Der Metadaten-Fallback muss ohne Veränderung des gespeicherten Kaders arbeiten");
+context.fetchEspnFantasyHubV2_=()=>({seasonId:2026,players:[{player:{id:3032977,defaultPositionId:1,eligibleSlots:[0,1]}}]});
+assert.equal(context.buildDraftRadar_(radarAdp).find(player=>player.id==="3032977").fantasyPositions,"",
+  "Ein Positionsfeed aus der falschen Saison darf nicht als aktuell erscheinen");
+context.fetchEspnFantasyHubV2_=originalDraftMetadataFetch;
+radarMetadata[0].primary_position="PF";radarMetadata[0].fantasy_positions="PF,C";
 
 assert.equal(context.espnAdpValueV40_({playerPoolEntry:{player:{ownership:{averageDraftPosition:27.4}}}}),27.4,
   "Der Tages-Snapshot muss ESPNs Average Draft Position direkt aus dem Fantasy-Spielerobjekt lesen");
@@ -107,6 +120,22 @@ assert.equal(adpTrend.players["501"].ready,true);
 assert.equal(adpTrend.players["502"].ready,false,"Weniger als drei Vortage dürfen keinen Trend vortäuschen");
 assert.equal(adpTrend.readyPlayers,1);
 assert.equal(adpTrend.status,"READY");
+const originalAdpBook=context.book,originalAdpUtilities=context.Utilities;
+context.book=()=>({getSpreadsheetTimeZone:()=>"America/Los_Angeles"});
+context.Utilities={formatDate:(date,timeZone)=>new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date)};
+context.sheetObjectsV2_=()=>[
+  {season_id:2027,snapshot_date:"2026-09-01",player_id:"501",adp:12},
+  {season_id:2027,snapshot_date:new Date("2026-09-02T07:00:00Z"),player_id:"501",adp:11},
+  {season_id:2027,snapshot_date:new Date("2026-09-03T07:00:00Z"),player_id:"501",adp:10},
+  {season_id:2027,snapshot_date:new Date("2026-09-05T00:30:00Z"),player_id:"501",adp:8}
+];
+const sheetDateTrend=context.buildEspnAdpTrendPayloadV40_();
+assert.equal(sheetDateTrend.latestDate,"2026-09-04","Echte Google-Sheets-Datumszellen müssen in der Tabellenzeitzone gelesen werden");
+assert.equal(sheetDateTrend.players["501"].current,8);
+assert.equal(sheetDateTrend.players["501"].previousAverage,11,"Text- und Datumszellen müssen dieselbe ADP-Historie ergeben");
+assert.equal(sheetDateTrend.players["501"].change,3);
+assert.equal(sheetDateTrend.status,"READY");
+context.book=originalAdpBook;context.Utilities=originalAdpUtilities;
 
 function applyDailyUpsert(existing,incoming){
   let written=null;
