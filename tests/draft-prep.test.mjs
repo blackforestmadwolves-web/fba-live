@@ -54,6 +54,22 @@ test('unavailable or corrupt session preferences use ADP; historical and project
   assert.match(mixed, /1 ohne vollständigen Wert/);
 });
 
+test('player search matches partial names, accents and common punctuation without changing input data', () => {
+  const rows = Object.freeze([
+    Object.freeze({id: 'lillard', name: 'Damian Lillard'}),
+    Object.freeze({id: 'jokic', name: 'Nikola Jokić'}),
+    Object.freeze({id: 'russell', name: 'D’Angelo Russell'}),
+    Object.freeze({id: 'sga', name: 'Shai Gilgeous-Alexander'})
+  ]);
+  assert.deepEqual(ids(prep.filterPlayers(rows, ' LILLARD  dam ')), ['lillard']);
+  assert.deepEqual(ids(prep.filterPlayers(rows, 'jokic')), ['jokic']);
+  assert.deepEqual(ids(prep.filterPlayers(rows, 'dangelo')), ['russell']);
+  assert.deepEqual(ids(prep.filterPlayers(rows, 'gilgeous alex')), ['sga']);
+  assert.deepEqual(ids(prep.filterPlayers(rows, 'not a player')), []);
+  assert.deepEqual(ids(prep.filterPlayers(rows, ' \t ')), ids(rows));
+  assert.strictEqual(prep.filterPlayers(rows, 'lillard')[0], rows[0]);
+});
+
 function harness(rows = players, savedValue = 'adp') {
   const storage = new Map([['fba-draft-preparation-sort-v1', savedValue]]);
   const context = vm.createContext({
@@ -93,6 +109,8 @@ test('the new page retains existing card analyses, pictures and positions while 
   assert.match(result, /class="draft-radar-photo"/);
   assert.match(result, /ESPN-Fantasy-Positionen">PF,C/);
   assert.match(result, /Top 100 nach ESPN ADP/);
+  assert.match(result, /for="draft-prep-search">Spieler suchen<input[^>]+type="search"/);
+  assert.doesNotMatch(result, /ADP bedeutet durchschnittlicher Draft-Pick/);
   assert.match(result, /# = Position in dieser Liste/);
   assert.equal((result.match(/<details data-draft-player=/g) || []).length, players.length);
   assert.match(harness([], 'bad-sort').context.pgDraftPreparation(), /id="draft-prep-empty" class="model-note">Die Spieler erscheinen/);
@@ -121,4 +139,54 @@ test('sort interaction retains the selector and open player, updates only local 
   assert.equal(elements.get('draft-prep-empty').hidden, true);
   assert.deepEqual([...storage], [['fba-draft-preparation-sort-v1', 'maik']]);
   assert.match(context.pgDraftPreparation(), /value="maik" selected/);
+});
+
+test('search retains input focus, chosen sorting and open reports through no matches and clearing', () => {
+  const {context, storage} = harness();
+  let nodes = [{open: true, getAttribute: () => '1'}];
+  const grid = {
+    querySelectorAll: () => nodes,
+    set innerHTML(markup) {
+      nodes = Array.from(markup.matchAll(/<details data-draft-player="([^"]+)"/g), match => ({open: false, getAttribute: () => match[1]}));
+    }
+  };
+  const input = {value: 'a', selectionStart: 1}, select = {value: 'adp'};
+  const elements = new Map([
+    ['draft-prep-grid', grid], ['draft-prep-search', input], ['draft-prep-sort', select],
+    ['draft-prep-status', {}], ['draft-prep-basis', {}], ['draft-prep-empty', {}]
+  ]);
+  context.document = {getElementById: id => elements.get(id), activeElement: input};
+  context.draftPreparationSetQuery('a');
+  assert.deepEqual(nodes.map(node => node.getAttribute()), ['2', '3']);
+  assert.match(elements.get('draft-prep-status').textContent, /2 von 3 Spielern gefunden/);
+  context.draftPreparationSetSort('maik');
+  assert.deepEqual(nodes.map(node => node.getAttribute()), ['3', '2']);
+  context.draftPreparationSetQuery('no match');
+  assert.equal(nodes.length, 0);
+  assert.equal(elements.get('draft-prep-empty').hidden, false);
+  assert.match(elements.get('draft-prep-empty').textContent, /Kein Spieler gefunden/);
+  assert.doesNotMatch(elements.get('draft-prep-empty').textContent, /sobald aktuelle ESPN-ADPs/);
+  assert.match(elements.get('draft-prep-status').textContent, /0 von 3 Spielern gefunden/);
+  context.draftPreparationSetQuery('');
+  assert.deepEqual(nodes.map(node => node.getAttribute()), ['3', '2', '1']);
+  assert.equal(nodes.find(node => node.getAttribute() === '1').open, true);
+  assert.equal(elements.get('draft-prep-empty').hidden, true);
+  assert.strictEqual(context.document.activeElement, input);
+  assert.equal(input.selectionStart, 1);
+  assert.equal(select.value, 'maik');
+  assert.deepEqual([...storage], [['fba-draft-preparation-sort-v1', 'maik']]);
+  // Opening a different report while searching supersedes the hidden one,
+  // matching the existing native details accordion (one open report).
+  context.draftPreparationSetQuery('a');
+  nodes.find(node => node.getAttribute() === '2').open = true;
+  context.draftPreparationSetQuery('');
+  assert.equal(nodes.find(node => node.getAttribute() === '1').open, false);
+  assert.equal(nodes.find(node => node.getAttribute() === '2').open, true);
+  // A report explicitly closed by the user must stay closed after searching.
+  nodes.find(node => node.getAttribute() === '2').open = false;
+  context.draftPreparationSetQuery('a');
+  context.draftPreparationSetQuery('');
+  assert.equal(nodes.find(node => node.getAttribute() === '2').open, false);
+  context.draftPreparationSetQuery('\"<script>');
+  assert.match(context.pgDraftPreparation(), /value="&quot;&lt;script&gt;"/);
 });

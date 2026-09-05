@@ -1,4 +1,4 @@
-/* Draft preparation changes display order only. The ESPN top-100 selection,
+/* Draft preparation filters and sorts the local view. The ESPN top-100 selection,
    fixed Maik reference, private access checks and player analyses stay shared. */
 (function (root) {
   'use strict';
@@ -9,6 +9,8 @@
     name: 'Name · A–Z'
   });
   let selectedSort = null;
+  let searchQuery = '';
+  let openedPlayer = null;
 
   function normalizeSort(value) {
     return Object.prototype.hasOwnProperty.call(SORTS, value) ? value : 'adp';
@@ -18,6 +20,19 @@
     if ((typeof value !== 'number' && typeof value !== 'string') || String(value).trim() === '') return null;
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
+  }
+
+  function searchText(value) {
+    return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/['’\.]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function filterPlayers(rows, query) {
+    const words = searchText(query).split(/\s+/).filter(Boolean);
+    return (Array.isArray(rows) ? rows : []).filter(player => {
+      const name = searchText(player.name);
+      return words.every(word => name.includes(word));
+    });
   }
 
   function sortPlayers(rows, sort, valueFor) {
@@ -87,8 +102,13 @@
     }).join('');
   }
 
-  function statusText(rows, sort) {
-    return `Top 100 nach ESPN ADP · ${rows.length} Spieler verfügbar · Anzeige: ${SORTS[normalizeSort(sort)]} · # = Position in dieser Liste`;
+  function statusText(rows, sort, total) {
+    const count = searchQuery.trim() ? `${rows.length} von ${total} Spielern gefunden` : `${total} Spieler verfügbar`;
+    return `Top 100 nach ESPN ADP · ${count} · Anzeige: ${SORTS[normalizeSort(sort)]} · # = Position in dieser Liste`;
+  }
+
+  function emptyText(total) {
+    return total ? 'Kein Spieler gefunden. Suche nach Vor- oder Nachnamen oder leere das Suchfeld. Die Suche umfasst die ESPN-Top-100.' : 'Die Spieler erscheinen, sobald aktuelle ESPN-ADPs verfügbar sind.';
   }
 
   function trendText() {
@@ -97,36 +117,53 @@
   }
 
   function pgDraftPreparation() {
-    const mode = currentSort(), source = draftRadarData(), rows = sortPlayers(source, mode, maikValueFor);
+    const mode = currentSort(), source = draftRadarData(), rows = filterPlayers(sortPlayers(source, mode, maikValueFor), searchQuery);
+    openedPlayer = null;
     return `<section class="draft-preparation" aria-label="Draft-Vorbereitung">${sect('Draft-Vorbereitung', 'Dein Blick auf den Draft')}
-      <div class="draft-prep-toolbar"><div><h2>Draft Radar</h2><p>Vergleiche die 100 frühesten ESPN-Draft-Picks und öffne ihre Analysen.</p></div><label class="draft-prep-sort" for="draft-prep-sort">Sortierung<select id="draft-prep-sort" onchange="draftPreparationSetSort(this.value)">${Object.entries(SORTS).map(([key, label]) => `<option value="${key}"${mode === key ? ' selected' : ''}>${E(label)}</option>`).join('')}</select></label></div>
-      <p class="draft-prep-status" id="draft-prep-status" role="status" aria-live="polite">${E(statusText(rows, mode))}</p>
+      <div class="draft-prep-toolbar"><div><h2>Draft Radar</h2><p>Vergleiche die 100 frühesten ESPN-Draft-Picks und öffne ihre Analysen.</p></div><div class="draft-prep-controls"><label class="draft-prep-search" for="draft-prep-search">Spieler suchen<input id="draft-prep-search" type="search" placeholder="Name eingeben …" value="${E(searchQuery)}" autocomplete="off" spellcheck="false" aria-controls="draft-prep-grid" oninput="draftPreparationSetQuery(this.value)"></label><label class="draft-prep-sort" for="draft-prep-sort">Sortierung<select id="draft-prep-sort" onchange="draftPreparationSetSort(this.value)">${Object.entries(SORTS).map(([key, label]) => `<option value="${key}"${mode === key ? ' selected' : ''}>${E(label)}</option>`).join('')}</select></label></div></div>
+      <p class="draft-prep-status" id="draft-prep-status" role="status" aria-live="polite">${E(statusText(rows, mode, source.length))}</p>
       <div id="draft-prep-grid" class="draft-radar">${cardsMarkup(rows)}</div>
-      <div id="draft-prep-empty" class="model-note"${rows.length ? ' hidden' : ''}>Die Spieler erscheinen, sobald aktuelle ESPN-ADPs verfügbar sind.</div>
+      <div id="draft-prep-empty" class="model-note"${rows.length ? ' hidden' : ''}>${E(emptyText(source.length))}</div>
       <div class="draft-radar-foot draft-prep-foot"><span id="draft-prep-basis">${E(valueBasisDescription(rows, maikValueFor))}</span><span>${E(trendText())}</span><span>Quellen und Prüfstand stehen in jeder Analyse. Sortierung und FBA-Value verändern die Auswahl der ESPN-Top-100 nicht.</span></div></section>`;
+  }
+
+  function updateView() {
+    const doc = root.document, grid = doc && doc.getElementById('draft-prep-grid');
+    if (!grid) return;
+    const mode = currentSort(), source = draftRadarData(), rows = filterPlayers(sortPlayers(source, mode, maikValueFor), searchQuery);
+    const visible = Array.from(grid.querySelectorAll('details[data-draft-player]'));
+    const opened = visible.find(node => node.open);
+    if (opened) openedPlayer = opened.getAttribute('data-draft-player');
+    else if (visible.some(node => node.getAttribute('data-draft-player') === openedPlayer)) openedPlayer = null;
+    // Keep both controls in place, including input focus and caret. Analyses
+    // retain their state through sorting and temporary removal by a search.
+    grid.innerHTML = cardsMarkup(rows);
+    for (const node of grid.querySelectorAll('details[data-draft-player]')) node.open = node.getAttribute('data-draft-player') === openedPlayer;
+    const status = doc.getElementById('draft-prep-status'), basis = doc.getElementById('draft-prep-basis'), empty = doc.getElementById('draft-prep-empty'), select = doc.getElementById('draft-prep-sort');
+    if (status) status.textContent = statusText(rows, mode, source.length);
+    if (basis) basis.textContent = valueBasisDescription(rows, maikValueFor);
+    if (empty) {
+      empty.hidden = rows.length > 0;
+      empty.textContent = emptyText(source.length);
+    }
+    if (select) select.value = mode;
   }
 
   function draftPreparationSetSort(value) {
     selectedSort = normalizeSort(value);
     try { root.sessionStorage.setItem(STORAGE_KEY, selectedSort); } catch (_) { /* Session memory remains available. */ }
-    const doc = root.document, grid = doc && doc.getElementById('draft-prep-grid');
-    if (!grid) return;
-    const rows = sortPlayers(draftRadarData(), selectedSort, maikValueFor);
-    const opened = new Set(Array.from(grid.querySelectorAll('details[open][data-draft-player]')).map(node => node.getAttribute('data-draft-player')));
-    // Replace only the cards and their accompanying text. The focused select
-    // stays in place; a player's open native analysis survives reordering.
-    grid.innerHTML = cardsMarkup(rows);
-    for (const node of grid.querySelectorAll('details[data-draft-player]')) node.open = opened.has(node.getAttribute('data-draft-player'));
-    const status = doc.getElementById('draft-prep-status'), basis = doc.getElementById('draft-prep-basis'), empty = doc.getElementById('draft-prep-empty'), select = doc.getElementById('draft-prep-sort');
-    if (status) status.textContent = statusText(rows, selectedSort);
-    if (basis) basis.textContent = valueBasisDescription(rows, maikValueFor);
-    if (empty) empty.hidden = rows.length > 0;
-    if (select) select.value = selectedSort;
+    updateView();
   }
 
-  const api = Object.freeze({sorts: SORTS, normalizeSort, sortPlayers, readSort, valueBasisDescription});
+  function draftPreparationSetQuery(value) {
+    searchQuery = String(value ?? '');
+    updateView();
+  }
+
+  const api = Object.freeze({sorts: SORTS, normalizeSort, sortPlayers, filterPlayers, readSort, valueBasisDescription});
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.FBA_DRAFT_PREP = api;
   root.pgDraftPreparation = pgDraftPreparation;
   root.draftPreparationSetSort = draftPreparationSetSort;
+  root.draftPreparationSetQuery = draftPreparationSetQuery;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

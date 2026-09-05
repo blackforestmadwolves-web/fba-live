@@ -64,7 +64,18 @@ test('the existing public API response supplies 100 positioned cards and 100 sub
   assert.equal((markup.match(/>Dein Draft-Plan<\/h4>/g)||[]).length,100);
   assert.match(markup,/Top 100 nach ESPN ADP · 100 Spieler verfügbar/);
   assert.doesNotMatch(markup,/Maik-Value/);
+  assert.doesNotMatch(markup,/ADP bedeutet durchschnittlicher Draft-Pick/);
   assert.match(markup,/>#100<\/span>/);
+  c.draftPreparationSetQuery('Lillard');
+  const search=c.pgDraftPreparation();
+  assert.equal((search.match(/<details data-draft-player=/g)||[]).length,1);
+  assert.match(search,/data-draft-player="6606"/);
+  assert.match(search,/Damian Lillard/);
+  assert.match(search,/1 von 100 Spielern gefunden/);
+  assert.match(search,/>Dein Draft-Plan<\/h4>/);
+  assert.match(search,/Statistikbezug: 2024\/25/);
+  c.draftPreparationSetQuery('');
+  assert.equal((c.pgDraftPreparation().match(/<details data-draft-player=/g)||[]).length,100);
 });
 
 test('no 2025/26 NBA history stays missing even when an older-season or college report exists',()=>{
