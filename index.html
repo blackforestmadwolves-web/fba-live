@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v58-20260905">
+<meta name="fba-build" content="war-room-monster-v59-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1180,6 +1180,7 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 .draft-news-check{margin:14px 0;padding:12px;border:1px solid var(--line);border-radius:12px}.draft-news-sources summary{cursor:pointer;padding:10px 0;font-weight:700}.draft-news-sources ul{padding-left:20px}.draft-news-sources li{margin:12px 0}.draft-news-sources a{color:var(--acc2);overflow-wrap:anywhere}.draft-news-sources p{margin:5px 0}
 </style>
 <link rel="stylesheet" href="draft-prep.css">
+<link rel="stylesheet" href="draft-war-room.css">
 <link rel="stylesheet" href="pickup-lab.css">
 <link rel="stylesheet" href="team-previews.css">
 </head>
@@ -1248,6 +1249,8 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 <script src="draft-news-context.js"></script>
 <script src="draft-punt.js"></script>
 <script src="draft-prep.js"></script>
+<script src="draft-coach.js"></script>
+<script src="draft-war-room.js"></script>
 <script src="pickup-lab.js"></script>
 <script src="team-previews-2026-27.js"></script>
 <script src="team-previews.js"></script>
@@ -1876,7 +1879,7 @@ function draftRadarHome(){
    ausschließlich auf dem aktuellen Gerät. Die gemeinsame Google-Sheets-
    Speicherung wird erst nach dem Bedienungstest freigeschaltet. */
 function draftDefaultState(){
-  return {version:2,picks:[],history:[],punts:[],hunt:null,panel:"room",query:"",sort:"adp"};
+  return {version:2,picks:[],history:[],punts:[],hunt:null,panel:"room",query:"",sort:"adp",myTeam:"BlackForest Mad Wolves",goal:"balanced"};
 }
 function loadDraftState(){
   const fallback=draftDefaultState();
@@ -1887,11 +1890,11 @@ function loadDraftState(){
       .map(p=>{const meta=draftPickMeta(Number(p.overall));return {overall:meta.overall,round:meta.round,slot:meta.slot,team:meta.team,playerId:String(p.playerId),at:p.at||""}});
     const unique=[],usedPicks=new Set(),usedPlayers=new Set();
     picks.sort((a,b)=>a.overall-b.overall).forEach(p=>{if(!usedPicks.has(p.overall)&&!usedPlayers.has(p.playerId)){usedPicks.add(p.overall);usedPlayers.add(p.playerId);unique.push(p)}});
-    return {version:2,picks:unique,history:Array.isArray(raw.history)?raw.history.slice(-40):[],punts:Array.isArray(raw.punts)?raw.punts.filter(c=>DRAFT_CATS.includes(c)):[],hunt:DRAFT_CATS.includes(raw.hunt)?raw.hunt:null,panel:["room","standings","board"].includes(raw.panel)?raw.panel:"room",query:"",sort:draftPlayerSortMode(raw)};
+    return {version:2,picks:unique,history:Array.isArray(raw.history)?raw.history.slice(-40):[],punts:Array.isArray(raw.punts)?[...new Set(raw.punts.filter(c=>DRAFT_CATS.includes(c)))].slice(0,7):[],hunt:DRAFT_CATS.includes(raw.hunt)?raw.hunt:null,panel:["room","standings","board"].includes(raw.panel)?raw.panel:"room",query:"",sort:draftPlayerSortMode(raw),myTeam:typeof raw.myTeam==="string"?raw.myTeam:fallback.myTeam,goal:["balanced","punt","strengths"].includes(raw.goal)?raw.goal:raw.hunt?"strengths":raw.punts?.length?"punt":"balanced"};
   }catch(e){return fallback}
 }
 function saveDraftState(){
-  try{localStorage.setItem(DRAFT_STORAGE_KEY,JSON.stringify({version:2,picks:DRAFT_STATE.picks,history:DRAFT_STATE.history.slice(-40),punts:DRAFT_STATE.punts,hunt:DRAFT_STATE.hunt,panel:DRAFT_STATE.panel,sort:draftPlayerSortMode(DRAFT_STATE)}))}catch(e){}
+  try{localStorage.setItem(DRAFT_STORAGE_KEY,JSON.stringify({version:2,picks:DRAFT_STATE.picks,history:DRAFT_STATE.history.slice(-40),punts:DRAFT_STATE.punts,hunt:DRAFT_STATE.hunt,panel:DRAFT_STATE.panel,sort:draftPlayerSortMode(DRAFT_STATE),myTeam:DRAFT_STATE.myTeam,goal:DRAFT_STATE.goal}))}catch(e){}
 }
 function draftTeams(){
   const fallback=["East Bay Pirates","Balingen Lions","Toronto Polar Bears","Guardians of Rhinos","Dormettingen Eagles","BlackForest Mad Wolves","Karlsruhe Unicorns","Bishkek Easy Snipers"];
@@ -1979,6 +1982,7 @@ function pushDraftHistory(){
   if(DRAFT_STATE.history.length>40)DRAFT_STATE.history.shift();
 }
 function refreshDraftPage(keepScroll){
+  if(typeof resetDraftCoach==="function")resetDraftCoach();
   const y=window.scrollY||0,pool=document.getElementById("draftPoolScroll"),poolY=pool?pool.scrollTop:0;render();
   if(keepScroll)requestAnimationFrame(()=>{if(typeof document==="undefined")return;window.scrollTo({top:y,behavior:"auto"});const next=document.getElementById("draftPoolScroll");if(next)next.scrollTop=poolY});
 }
@@ -2012,7 +2016,8 @@ function undoDraftPick(){
 }
 function resetDraftTest(skipConfirm){
   if(!skipConfirm&&!confirm("Test-Draft wirklich komplett zurücksetzen? Deine übrigen FBA-Daten bleiben erhalten."))return false;
-  DRAFT_STATE.picks=[];DRAFT_STATE.history=[];DRAFT_STATE.punts=[];DRAFT_STATE.hunt=null;DRAFT_STATE.query="";DRAFT_STATE.panel="room";DRAFT_STATE.sort="adp";saveDraftState();refreshDraftPage(false);showDraftToast("Test-Draft zurückgesetzt.",false);return true;
+  if(typeof closeDraftCoachPreview==="function")closeDraftCoachPreview();
+  DRAFT_STATE.picks=[];DRAFT_STATE.history=[];DRAFT_STATE.punts=[];DRAFT_STATE.hunt=null;DRAFT_STATE.query="";DRAFT_STATE.panel="room";DRAFT_STATE.sort="adp";DRAFT_STATE.goal="balanced";saveDraftState();refreshDraftPage(false);showDraftToast("Test-Draft zurückgesetzt.",false);return true;
 }
 function setDraftPanel(panel){
   if(!["room","standings","board"].includes(panel))return;DRAFT_STATE.panel=panel;saveDraftState();refreshDraftPage(false);window.scrollTo({top:0,behavior:"smooth"});
@@ -2020,11 +2025,11 @@ function setDraftPanel(panel){
 function toggleDraftPunt(cat){
   if(!DRAFT_CATS.includes(cat))return;
   if(!DRAFT_STATE.punts.includes(cat)&&DRAFT_STATE.punts.length>=7){showDraftToast("Mindestens ein FBA-Punkt muss aktiv bleiben.",false);return}
-  DRAFT_STATE.hunt=null;DRAFT_STATE.punts=DRAFT_STATE.punts.includes(cat)?DRAFT_STATE.punts.filter(c=>c!==cat):[...DRAFT_STATE.punts,cat];DRAFT_STATE.sort=DRAFT_STATE.punts.length?"strategy":"adp";saveDraftState();refreshDraftPage(true);
+  DRAFT_STATE.hunt=null;DRAFT_STATE.punts=DRAFT_STATE.punts.includes(cat)?DRAFT_STATE.punts.filter(c=>c!==cat):[...DRAFT_STATE.punts,cat];DRAFT_STATE.sort=DRAFT_STATE.punts.length?"strategy":"adp";DRAFT_STATE.goal="punt";saveDraftState();refreshDraftPage(true);
 }
 function toggleDraftHunt(cat){
   if(!DRAFT_CATS.includes(cat))return;
-  DRAFT_STATE.punts=[];DRAFT_STATE.hunt=DRAFT_STATE.hunt===cat?null:cat;DRAFT_STATE.sort=DRAFT_STATE.hunt?"strategy":"adp";saveDraftState();refreshDraftPage(true);
+  DRAFT_STATE.punts=[];DRAFT_STATE.hunt=DRAFT_STATE.hunt===cat?null:cat;DRAFT_STATE.sort=DRAFT_STATE.hunt?"strategy":"adp";DRAFT_STATE.goal=DRAFT_STATE.hunt?"strengths":"balanced";saveDraftState();refreshDraftPage(true);
 }
 function draftNormalize(value){return String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
 let DRAFT_VALUE_CACHE=null;
@@ -2062,18 +2067,21 @@ function matchingDraftPlayers(query,merged){
   return sorted.filter(p=>!used.has(String(p.id))&&tokens.every(t=>draftNormalize([p.name,p.nba,p.pos].join(" ")).includes(t)));
 }
 function draftPlayerStatline(p){return `${de(p.PTS,1)} PTS · ${de(p.REB,1)} REB · ${de(p.AST,1)} AST · ${de(p["3PM"],1)} 3PM · ${de(p.STL,1)} STL · ${de(p.BLK,1)} BLK`}
-function draftPlayerBadges(p){
-  const profile=draftValueModel().byId.get(String(p.id));if(!profile)return `${maikValueMarkup(p)}<span class="draft-value-badge missing">NOCH OHNE PROJEKTION</span>`;
+function draftPlayerBadges(p,withValue=true){
+  const profile=draftValueModel().byId.get(String(p.id));if(!profile)return `${withValue?maikValueMarkup(p):""}<span class="draft-value-badge missing">NOCH OHNE PROJEKTION</span>`;
   const fmt=z=>(z>=0?"+":"")+z.toFixed(1).replace(".",",")+" z";
-  return `${maikValueMarkup(p)}<span class="draft-value-badge good" title="Stärkster eigener FBA-Punkt">↑ ${E(profile.best)} ${E(fmt(profile.z[profile.best]))}</span><span class="draft-value-badge bad" title="Schwächster eigener FBA-Punkt">↓ ${E(profile.worst)} ${E(fmt(profile.z[profile.worst]))}</span><span class="draft-value-badge overall" title="Bisheriges gleichgewichtetes Strategie-Modell; nicht der FBA-Value-Rang">Modell #${profile.overallRank}</span>`;
+  return `${withValue?maikValueMarkup(p):""}<span class="draft-value-badge good" title="Stärkster eigener FBA-Punkt">↑ ${E(profile.best)} ${E(fmt(profile.z[profile.best]))}</span><span class="draft-value-badge bad" title="Schwächster eigener FBA-Punkt">↓ ${E(profile.worst)} ${E(fmt(profile.z[profile.worst]))}</span><span class="draft-value-badge overall" title="Bisheriges gleichgewichtetes Strategie-Modell; nicht der FBA-Value-Rang">Modell #${profile.overallRank}</span>`;
 }
 function draftPlayerResultMarkup(p,entry){
   const explicitProjected=Number(p.projectedGp),historical=Number(p.gp),gpLabel=Number.isInteger(explicitProjected)&&explicitProjected>0&&explicitProjected<=82?`${explicitProjected} GP Projektion`:Number.isFinite(historical)&&historical>=0?`${historical} GP · 2025/26`:`Basis 2025/26`;
   const fmt=value=>value==null?"–":String(Number(value.toFixed(2))).replace(".",",");
-  return `<button type="button" class="draft-player-row" data-testid="player-result-${E(p.id)}" onclick="selectDraftPlayer('${E(p.id)}')" aria-label="${E(p.name+' draften')}">
-    <img class="draft-pool-photo" src="${E(p.photo||espnPlayerHeadshot(p.id))}" alt="${E(p.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-pool-fallback" style="display:none">${E(playerInitials(p.name))}</span>
-    <span class="draft-player-copy"><b title="${E(p.name)}">${E(p.name)}</b><small>${E(p.nba)} · ${E(p.pos||"NBA")} · ${E(gpLabel)}</small><span class="draft-statline">${E(draftPlayerStatline(p))}</span><span class="draft-player-value-badges">${draftPlayerBadges(p)}</span></span>
-    <span class="draft-player-rank draft-player-market"><span title="ESPN ADP aus dem War-Room-Datensatz"><b>${E(fmt(entry?.adp))}</b><small>ESPN ADP</small></span><span class="draft-room-merge" title="${E(entry?.value!=null?`(ADP-Rang ${fmt(entry.adpRank)} + FBA-Rang ${fmt(entry.fbaRank)}) ÷ 2 · vollständiger War-Room-Pool`:'ADP oder vollständiger FBA-Value fehlt')}"><b>${E(fmt(entry?.value))}</b><small>Merge Value</small></span></span></button>`;
+  const next=nextOpenDraftPick(),pickLabel=next?`Draften · Pick ${next.overall}`:"Draft komplett";
+  return `<article class="draft-player-row" data-testid="player-result-${E(p.id)}" aria-label="${E(p.name)}">
+    <div class="draft-player-portrait"><img class="draft-pool-photo" src="${E(p.photo||espnPlayerHeadshot(p.id))}" alt="${E(p.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-pool-fallback" style="display:none">${E(playerInitials(p.name))}</span></div>
+    <div class="draft-player-copy"><b>${E(p.name)}</b><small>${E(p.nba)} · ${E(p.pos||"NBA")}</small><span class="draft-player-games">${E(gpLabel)}</span></div>
+    <div class="draft-player-metrics">${maikValueMarkup(p)}<span class="draft-player-metric" title="ESPN ADP aus dem War-Room-Datensatz"><b>${E(fmt(entry?.adp))}</b><small>ESPN ADP</small></span><span class="draft-player-metric draft-room-merge" title="${E(entry?.value!=null?`(ADP-Rang ${fmt(entry.adpRank)} + FBA-Rang ${fmt(entry.fbaRank)}) ÷ 2 · vollständiger War-Room-Pool`:'ADP oder vollständiger FBA-Value fehlt')}"><b>${E(fmt(entry?.value))}</b><small>Merge Value</small></span></div>
+    <div class="draft-player-stat-grid">${["PTS","REB","AST","3PM","STL","BLK"].map(cat=>`<span><b>${E(de(p[cat],1))}</b> ${cat}</span>`).join("")}</div><div class="draft-player-value-badges">${draftPlayerBadges(p,false)}</div>
+    <div class="draft-player-actions"><button type="button" class="draft-preview-action" onclick="showDraftCoachPreview('${E(p.id)}')">Für mein Team prüfen</button><button type="button" class="draft-pick-action" onclick="selectDraftPlayer('${E(p.id)}')" title="${E(next?`Für ${next.team} draften`:pickLabel)}" aria-label="${E(next?`${p.name} für ${next.team} draften, Pick ${next.overall}`:pickLabel)}"${next?'':' disabled'}>${E(pickLabel)}</button></div></article>`;
 }
 function draftSearchResultsMarkup(query){
   const merged=window.FBA_DRAFT_PREP.mergeValues(draftPool(),maikValueFor),rows=matchingDraftPlayers(query,merged);return rows.length?rows.map(p=>draftPlayerResultMarkup(p,merged.get(String(p.id)))).join(""):`<div class="draft-no-results">Kein Spieler gefunden. Versuche Name, NBA-Team oder Position.</div>`;
@@ -2127,7 +2135,7 @@ function draftTabs(){
   return `<div class="draft-panel-tabs">${tabs.map(x=>`<button type="button" class="${DRAFT_STATE.panel===x[0]?"on":""}" onclick="setDraftPanel('${x[0]}')">${x[1]}<small>${x[2]}</small></button>`).join("")}</div>`;
 }
 function draftHero(){
-  return `<section class="draft-hero"><div class="draft-hero-top"><div><span class="draft-kicker">FBA Draft Lab · 2026/27</span><h1>Draft War Room</h1><p>500 Spieler, live klickbares Snake-Board, ESPN-Roto-Punkte sowie Hunt- und Punt-Analyse in einem Bildschirm.</p></div><span class="draft-test-badge">● v31 · Live Test</span></div></section>${draftTabs()}`;
+  return `<section class="draft-hero"><div class="draft-hero-top"><div><span class="draft-kicker">FBA Draft Lab · 2026/27</span><h1>Draft War Room</h1><p>Dein Team, dein Draft-Ziel und passende Spieler im direkten Ligavergleich.</p></div><span class="draft-test-badge">● v59 · Draft Lab</span></div></section>${draftTabs()}`;
 }
 function draftClockMarkup(next){
   const total=DRAFT_MAX_ROUNDS*8,done=DRAFT_STATE.picks.length,pct=Math.min(100,done/total*100);
@@ -2140,15 +2148,15 @@ function draftTeamSummary(team){
 }
 function draftPlayerPoolPanel(){
   const available=draftPool().length-DRAFT_STATE.picks.length,mode=DRAFT_STATE.hunt?`HUNT ${DRAFT_STATE.hunt}`:(DRAFT_STATE.punts.length?`PUNT ${DRAFT_STATE.punts.join(" · ")}`:"ALLE KATEGORIEN");
-  return `<aside class="draft-workspace-side draft-glass"><div class="draft-search-head"><div><h2>Spielerpool</h2><span>500 Spieler · ${E(mode)}</span></div><span>${available} frei</span></div><div class="draft-search-wrap"><span class="draft-search-icon">⌕</span><input id="draftSearch" data-testid="draft-search" class="draft-search-input" value="${E(DRAFT_STATE.query)}" oninput="draftSearch(this.value)" placeholder="Spieler, Team oder Position …" autocomplete="off" autocapitalize="off"><button id="draftSearchClear" class="draft-search-clear" type="button" onclick="clearDraftSearch()" ${DRAFT_STATE.query?"":"hidden"} aria-label="Suche leeren">×</button></div><label class="draft-room-sort" for="draftPlayerSort">Sortierung<select id="draftPlayerSort" onchange="setDraftPlayerSort(this.value)" aria-controls="draftPlayerResults">${Object.entries(draftPlayerSortOptions()).map(([key,label])=>`<option value="${key}"${draftPlayerSortMode(DRAFT_STATE)===key?" selected":""}>${E(label)}</option>`).join("")}</select></label><details class="draft-model-note"><summary>ADP, FBA, Merge &amp; Strategie</summary><p><b>ADP</b> stammt aus dem War-Room-Datensatz. <b>FBA-Value</b> nutzt den angezeigten Wert samt Saisonbasis. <b>Merge Value</b> = (ADP-Rang + FBA-Value-Rang) ÷ 2; niedriger ist besser.</p><p>Die Ränge beziehen sich auf alle ${draftPool().length} Spieler im War Room. Suche und Picks verändern sie nicht. Die Vorbereitung hat einen eigenen Top-150-Pool; ihre Merge Values können daher abweichen. Gleichstände teilen den mittleren Rang. Fehlt ein Ausgangswert, bleibt Merge offen und steht am Ende.</p><p><b>Strategie</b> nutzt die bestehenden Punt-/Hunt-Einstellungen und das gleichgewichtete Modell. Das Aktivieren von Punt/Hunt wählt diese Sortierung; du kannst anschließend jede andere wählen. <b>Modell #</b> ist dessen Rang über alle acht Kategorien; <b>z</b> misst den Abstand zum Vergleichsfeld.</p></details><div id="draftPoolScroll" class="draft-pool-scroll"><div id="draftPlayerResults" class="draft-player-results">${draftSearchResultsMarkup(DRAFT_STATE.query)}</div></div><div class="draft-pool-hint">Spieler antippen = nächster Snake-Pick. Gedraftete Spieler verschwinden sofort. Im Board antippen = Pick entfernen.</div></aside>`;
+  return `<aside class="draft-workspace-side draft-glass"><div class="draft-search-head"><div><h2>Spielerpool</h2><span>500 Spieler · ${E(mode)}</span></div><span>${available} frei</span></div><div class="draft-search-wrap"><span class="draft-search-icon">⌕</span><input id="draftSearch" data-testid="draft-search" class="draft-search-input" value="${E(DRAFT_STATE.query)}" oninput="draftSearch(this.value)" placeholder="Spieler, Team oder Position …" autocomplete="off" autocapitalize="off"><button id="draftSearchClear" class="draft-search-clear" type="button" onclick="clearDraftSearch()" ${DRAFT_STATE.query?"":"hidden"} aria-label="Suche leeren">×</button></div><label class="draft-room-sort" for="draftPlayerSort">Sortierung<select id="draftPlayerSort" onchange="setDraftPlayerSort(this.value)" aria-controls="draftPlayerResults">${Object.entries(draftPlayerSortOptions()).map(([key,label])=>`<option value="${key}"${draftPlayerSortMode(DRAFT_STATE)===key?" selected":""}>${E(label)}</option>`).join("")}</select></label><details class="draft-model-note"><summary>ADP, FBA, Merge &amp; Strategie</summary><p><b>ADP</b> stammt aus dem War-Room-Datensatz. <b>FBA-Value</b> nutzt den angezeigten Wert samt Saisonbasis. <b>Merge Value</b> = (ADP-Rang + FBA-Value-Rang) ÷ 2; niedriger ist besser.</p><p>Die Ränge beziehen sich auf alle ${draftPool().length} Spieler im War Room. Suche und Picks verändern sie nicht. Die Vorbereitung hat einen eigenen Top-150-Pool; ihre Merge Values können daher abweichen. Gleichstände teilen den mittleren Rang. Fehlt ein Ausgangswert, bleibt Merge offen und steht am Ende.</p><p><b>Strategie</b> nutzt die bestehenden Punt-/Hunt-Einstellungen und das gleichgewichtete Modell. Das Aktivieren von Punt/Hunt wählt diese Sortierung; du kannst anschließend jede andere wählen. <b>Modell #</b> ist dessen Rang über alle acht Kategorien; <b>z</b> misst den Abstand zum Vergleichsfeld.</p></details><div id="draftPoolScroll" class="draft-pool-scroll"><div id="draftPlayerResults" class="draft-player-results">${draftSearchResultsMarkup(DRAFT_STATE.query)}</div></div><div class="draft-pool-hint">„Für mein Team prüfen“ öffnet die Vorschau. „Draften“ vergibt den nächsten Snake-Pick. Im Board antippen = Pick entfernen.</div></aside>`;
 }
 function draftBoardMarkup(){
   const byPick=new Map(DRAFT_STATE.picks.map(p=>[Number(p.overall),p])),next=nextOpenDraftPick();
   return `<section class="draft-board-shell draft-glass"><div class="draft-board-tools"><div><h2>Snake Draft Board</h2><span>Spielerkarte antippen = Pick rückgängig</span></div><span>${DRAFT_STATE.picks.length}/${DRAFT_MAX_ROUNDS*8} Picks</span></div><div class="draft-board">${Array.from({length:DRAFT_MAX_ROUNDS},(_,ri)=>ri+1).map(round=>`<section class="draft-board-round draft-glass"><div class="draft-board-round-head"><b>Runde ${round}</b><span>${round%2?"1 → 8":"8 → 1"}</span></div><div class="draft-board-row">${Array.from({length:8},(_,si)=>{const overall=(round-1)*8+si+1,team=snakeTeamForPick(overall),pick=byPick.get(overall),player=pick&&draftPlayerById(pick.playerId);return `<button type="button" class="draft-slot${pick?" filled":""}${next&&next.overall===overall?" is-next":""}" data-testid="pick-slot-${overall}" ${pick?`onclick="removeDraftPick(${overall})"`:"disabled"}><span class="draft-slot-no">Pick ${overall}</span><span class="draft-slot-team">${E(T(team).s||team)}</span>${player?`<span class="draft-board-player"><span class="draft-board-visual"><img class="draft-board-photo" src="${E(player.photo||espnPlayerHeadshot(player.id))}" alt="${E(player.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-board-fallback" style="display:none">${E(playerInitials(player.name))}</span></span><span><b>${E(player.name)}</b><small>${E(player.nba)} · ${E(player.pos||"")}</small>${maikValueMarkup(player)}</span></span>`:`<span class="draft-slot-empty">${next&&next.overall===overall?"ON THE CLOCK":"Noch frei"}</span>`}</button>`}).join("")}</div></section>`).join("")}</div></section>`;
 }
 function pgDraftRoom(){
-  const next=nextOpenDraftPick(),fit=bestFitPlayers();
-  return `<div class="draft-workspace">${draftPlayerPoolPanel()}<div class="draft-workspace-main">${draftClockMarkup(next)}<div class="draft-control-row"><button type="button" data-testid="undo" onclick="undoDraftPick()" ${DRAFT_STATE.history.length?"":"disabled"}>↶ Letzte Aktion</button><button type="button" onclick="setDraftPanel('standings')">▦ Live-Standings</button><button type="button" class="danger" data-testid="reset" onclick="resetDraftTest()">Test zurücksetzen</button></div>${draftModeControls()}${draftBoardMarkup()}${next?`<section class="draft-search-card draft-glass" style="margin-top:14px"><div class="draft-bestfit-title"><b>Best Fit für ${E(T(next.team).s||next.team)}</b><small>${E(DRAFT_STATE.hunt?"Nur "+DRAFT_STATE.hunt:"Z-Score × Teambedarf")}</small></div><div class="draft-bestfit">${fit.map(x=>`<button type="button" class="draft-fit-card" onclick="selectDraftPlayer('${E(x.player.id)}')"><b>${E(x.player.name)}</b><span>${E(x.player.nba)} · ESPN #${E(x.player.rank)}</span><strong>${E(x.label)}</strong>${maikValueMarkup(x.player)}</button>`).join("")}</div></section>`:""}${draftTeamSummary(next&&next.team)}</div></div>`;
+  const next=nextOpenDraftPick();
+  return `${draftCoachMarkup()}<div class="draft-workspace">${draftPlayerPoolPanel()}<div class="draft-workspace-main">${draftClockMarkup(next)}<div class="draft-control-row"><button type="button" data-testid="undo" onclick="undoDraftPick()" ${DRAFT_STATE.history.length?"":"disabled"}>↶ Letzte Aktion</button><button type="button" onclick="setDraftPanel('standings')">▦ Live-Standings</button><button type="button" class="danger" data-testid="reset" onclick="resetDraftTest()">Test zurücksetzen</button></div>${draftCoachRecommendationsMarkup()}<div id="draftCoachPreview">${draftCoachPreviewMarkup()}</div><details class="draft-coach-advanced"><summary>Erweiterter Punt-/Hunt-Fokus</summary>${draftModeControls()}</details>${draftBoardMarkup()}</div></div>`;
 }
 function draftStandingsMobileMarkup(data){
   return `<div class="draft-standings-mobile">${data.sorted.map(row=>`<article class="draft-standing-mobile-card" data-testid="mobile-standings-row-${E(draftTeamSlug(row.team))}"><div class="draft-standing-mobile-head"><span class="draft-score-rank">#${row.overallRank}</span><div class="draft-standing-mobile-name">${chip(row.team)}<span><b>${E(T(row.team).s||row.team)}</b><small>${row.picks} Picks</small></span></div><div class="draft-standing-mobile-score"><b>${formatDraftScore(row.score)}</b><small>von ${data.maxScore}</small></div></div><div class="draft-standing-mobile-points">${DRAFT_CATS.map(cat=>`<div class="draft-standing-mobile-point ${draftRankClass(row.ranks[cat])}${DRAFT_STATE.punts.includes(cat)?" punted":""}"><span>${E(cat)}</span><b>${E(formatDraftValue(cat,row[cat]))}</b><small>${row.ranks[cat]?"#"+row.ranks[cat]+" · "+formatDraftScore(row.points[cat])+" P":"–"}${DRAFT_STATE.punts.includes(cat)?" · PUNT":""}</small></div>`).join("")}</div></article>`).join("")}</div>`;
