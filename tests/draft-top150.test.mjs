@@ -6,6 +6,8 @@ import core from '../maik-value.js';
 import history from '../maik-history-2025-26.js';
 import catalog from '../draft-player-catalog.js';
 import pool from '../draft-radar-pool.js';
+import editorial from '../draft-editorial-150.js';
+import news from '../draft-news-context.js';
 
 const read = path => fs.readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const html = read('index.html');
@@ -24,7 +26,7 @@ function harness() {
     monsterEspnFantasyPositionLabel:p=>p.fantasyPositions||'ESPN-Sync',
     monsterB2bDate:date=>date,espnPlayerHeadshot:id=>`https://a.espncdn.com/i/headshots/nba/players/full/${id}.png`,
     imageFallbackAttr:()=>'',playerInitials:name=>name.slice(0,2),
-    fetch:()=>{throw new Error('Viewing and sorting 100 cards must not fetch another feed');}
+    fetch:()=>{throw new Error('Viewing and sorting 150 cards must not fetch another feed');}
   });
   c.window=c;
   vm.runInContext(html.match(/^const E = .+$/m)[0],c);
@@ -37,20 +39,21 @@ function harness() {
   vm.runInContext(html.slice(valueStart,valueEnd),c);
   const radarStart=html.indexOf('function draftRadarData(){'),radarEnd=html.indexOf('function draftRadarHome(){',radarStart);
   vm.runInContext(html.slice(radarStart,radarEnd),c);
-  vm.runInContext(read('draft-editorial-100.js'),c);
+  vm.runInContext(read('draft-editorial-150.js'),c);
+  vm.runInContext(read('draft-news-context.js'),c);
   vm.runInContext(read('draft-prep.js'),c);
   return c;
 }
 
-test('the existing public API response supplies 100 positioned cards and 100 substantive editorial reports',()=>{
+test('the existing public API response supplies 150 positioned cards and 150 substantive editorial reports',()=>{
   const c=harness(),rows=c.draftRadarData();
   assert.equal(fixture.draftTop25.length,25,'captured backend remains compatible');
-  assert.equal(rows.length,100);
-  assert.equal(new Set(rows.map(row=>row.id)).size,100);
-  assert.equal(rows[0].id,'3112335');assert.equal(rows[99].id,'4433627');
+  assert.equal(rows.length,150);
+  assert.equal(new Set(rows.map(row=>row.id)).size,150);
+  assert.equal(rows[0].id,'3112335');assert.equal(rows[149].id,'3133603');
   assert.ok(rows.every(row=>row.fantasyPositions && row.fantasyPositions.split(',').every(p=>['PG','SG','SF','PF','C'].includes(p))));
   assert.ok(rows.every(row=>row.adpDate===fixture.adpTrend.latestDate));
-  const reportFor=id=>c.FBA_DRAFT_EDITORIAL_V53.find(r=>r.id===id)||vm.runInContext('DRAFT_RADAR_EDITORIAL',c).find(r=>r.id===id);
+  const reportFor=id=>c.FBA_DRAFT_EDITORIAL_V56.find(r=>r.id===id)||vm.runInContext('DRAFT_RADAR_EDITORIAL',c).find(r=>r.id===id);
   for (const row of rows) {
     const report=reportFor(row.id);
     assert.ok(report,`Editorial missing: ${row.name}`);
@@ -59,23 +62,23 @@ test('the existing public API response supplies 100 positioned cards and 100 sub
     assert.ok((report.sources?.length?report.sources:[{url:report.sourceUrl}]).every(s=>/^https:\/\//.test(s.url)));
   }
   const markup=c.pgDraftPreparation();
-  assert.equal((markup.match(/<details data-draft-player=/g)||[]).length,100);
-  assert.equal((markup.match(/class="draft-radar-editorial"/g)||[]).length,100);
-  assert.equal((markup.match(/>Dein Draft-Plan<\/h4>/g)||[]).length,100);
-  assert.match(markup,/Top 100 nach ESPN ADP · 100 Spieler verfügbar/);
+  assert.equal((markup.match(/<details data-draft-player=/g)||[]).length,150);
+  assert.equal((markup.match(/class="draft-radar-editorial"/g)||[]).length,150);
+  assert.equal((markup.match(/>Dein Draft-Plan<\/h4>/g)||[]).length,150);
+  assert.match(markup,/Top 150 nach ESPN ADP · 150 Spieler verfügbar/);
   assert.doesNotMatch(markup,/Maik-Value/);
   assert.doesNotMatch(markup,/ADP bedeutet durchschnittlicher Draft-Pick/);
-  assert.match(markup,/>#100<\/span>/);
+  assert.match(markup,/>#150<\/span>/);
   c.draftPreparationSetQuery('Lillard');
   const search=c.pgDraftPreparation();
   assert.equal((search.match(/<details data-draft-player=/g)||[]).length,1);
   assert.match(search,/data-draft-player="6606"/);
   assert.match(search,/Damian Lillard/);
-  assert.match(search,/1 von 100 Spielern gefunden/);
+  assert.match(search,/1 von 150 Spielern gefunden/);
   assert.match(search,/>Dein Draft-Plan<\/h4>/);
   assert.match(search,/Statistikbezug: 2024\/25/);
   c.draftPreparationSetQuery('');
-  assert.equal((c.pgDraftPreparation().match(/<details data-draft-player=/g)||[]).length,100);
+  assert.equal((c.pgDraftPreparation().match(/<details data-draft-player=/g)||[]).length,150);
 });
 
 test('no 2025/26 NBA history stays missing even when an older-season or college report exists',()=>{
@@ -98,7 +101,7 @@ test('expanding the radar and sorting by FBA-Value cannot refit the 104-player r
   c.FBA_DRAFT_PREP.sortPlayers(rows,'maik',c.maikValueFor);
   c.D.draftTop25=[];
   const expanded=c.draftRadarData();
-  assert.equal(expanded.length,100);
+  assert.equal(expanded.length,150);
   assert.strictEqual(c.maikValueContext().model,reference);
   assert.equal(c.maikValueFor({id:'3112335'}).primary.value,jokicBefore);
   assert.ok(Math.abs(jokicBefore-core.score(model.history.get('3112335'),model).value)<1e-12);
@@ -109,8 +112,66 @@ test('the shipped catalog contains only public identities, confirmed positions a
   assert.equal(new Set(catalog.players.map(p=>p.id)).size,catalog.players.length);
   assert.ok(Object.isFrozen(catalog) && catalog.players.every(Object.isFrozen));
   for(const player of catalog.players) assert.ok(Object.keys(player).every(key=>['id','name','nba','primaryPosition','fantasyPositions','active'].includes(key)));
-  for(const name of ['draft-player-catalog.js','draft-radar-pool.js','draft-editorial-100.js']) {
+  for(const name of ['draft-player-catalog.js','draft-radar-pool.js','draft-editorial-150.js','draft-news-context.js']) {
     const position=html.indexOf(`src="${name}"`);
     assert.ok(position>0 && position<html.indexOf('<script>'));
   }
+});
+
+test('news review covers all 150 reports and links direct trades to affected teammates across all participating teams',()=>{
+  const c=harness(),rows=c.draftRadarData(),ids=new Set(rows.map(r=>r.id));
+  assert.equal(editorial.length,150);
+  assert.equal(ids.has('2779'),false,'retired Chris Paul must not displace the 150th report');
+  assert.equal(new Set(news.events.flatMap(e=>e.teams)).size,30);
+  assert.equal(new Set(news.events.map(e=>e.id)).size,news.events.length);
+  for(const note of editorial){
+    assert.equal(note.checkedAt,'2026-09-05');
+    assert.equal(note.changedAt,'2026-09-05');
+    for(const id of note.newsEventIds){
+      const event=news.events.find(e=>e.id===id);
+      assert.ok(event?.affectedPlayerIds.includes(note.id),`${note.id}: dangling or mismatched event ${id}`);
+    }
+  }
+  const trade=news.events.find(e=>e.id==='ball-randle-reid-claxton');
+  for(const id of ['4432816','3064514','4396971','4278067','4594268','3032976','4431671','4871145','5061575','4278104']){
+    assert.ok(trade.affectedPlayerIds.includes(id),`Missing direct/indirect player ${id}`);
+    assert.ok(editorial.find(n=>n.id===id).newsEventIds.includes(trade.id));
+  }
+  assert.match(editorial.find(n=>n.id==='4594268').outlook,/Ball.*Randle.*Reid/);
+  assert.match(editorial.find(n=>n.id==='3032976').outlook,/Ball.*Gobert/s);
+  for(const event of news.events){
+    assert.ok(['confirmed','reported','pending'].includes(event.status));
+    assert.ok(!event.eventDate||/^2026-\d\d-\d\d$/.test(event.eventDate));
+    assert.ok(!event.eventDate||event.eventDate<=news.checkedAt);
+    assert.ok(event.sources.length&&event.sources.every(s=>/^https:\/\//.test(s.url)));
+    assert.ok(event.affectedPlayerIds.every(id=>ids.has(id)));
+  }
+});
+
+test('pending moves cannot rewrite team identities; severe injuries change the actual draft recommendation',()=>{
+  const c=harness(),rows=c.draftRadarData();
+  assert.equal(news.events.find(e=>e.id==='leonard-ingram').status,'pending');
+  assert.equal(news.events.find(e=>e.id==='mathurin-new-orleans').status,'reported');
+  assert.equal(rows.find(r=>r.id==='6450').nba,'LAC');
+  assert.equal(rows.find(r=>r.id==='3913176').nba,'TOR');
+  assert.equal(rows.find(r=>r.id==='4683634').nba,'LAC');
+  for(const id of ['4914336','3934673']){
+    const note=editorial.find(n=>n.id===id),card=c.draftRadarCard(rows.find(r=>r.id===id),0);
+    assert.match(note.draftPlan,/Saisonstart keine Produktion/);
+    assert.match(note.risk,/keine Einsatzfreigabe/);
+    assert.match(card,/Nachrichten hinter der Einschätzung/);
+  }
+  assert.match(c.draftRadarCard(rows.find(r=>r.id==='6450'),0),/Abschluss offen/);
+  assert.match(c.draftRadarCard(rows.find(r=>r.id==='4683634'),0),/Gemeldet/);
+});
+
+test('opening a report never advances its editorial date and news content is escaped',()=>{
+  const c=harness(),before=JSON.stringify(c.FBA_DRAFT_EDITORIAL_V56);
+  c.pgDraftPreparation();c.draftPreparationSetSort('name');c.draftPreparationSetQuery('Edwards');
+  assert.equal(JSON.stringify(c.FBA_DRAFT_EDITORIAL_V56),before);
+  c.FBA_DRAFT_NEWS={checkedAt:'2026-09-05',events:[{id:'unsafe',status:'confirmed',fact:'<img src=x onerror=alert(1)>',sources:[{url:'javascript:alert(1)',label:'bad'},{url:'https://example.com',label:'<script>x</script>'}]}]};
+  const markup=c.draftRadarNewsMarkup({newsEventIds:['unsafe'],changedAt:'2026-09-01'});
+  assert.match(markup,/&lt;img/);assert.match(markup,/&lt;script/);
+  assert.doesNotMatch(markup,/href="javascript:|<img|<script/);
+  assert.match(markup,/Bericht geändert: 2026-09-01/);
 });

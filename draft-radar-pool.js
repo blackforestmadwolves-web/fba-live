@@ -107,7 +107,7 @@
 
   function ranked(rows, limit) {
     const requested = number(limit);
-    const maximum = requested === null ? 100 : Math.max(0, Math.min(100, Math.floor(requested)));
+    const maximum = requested === null ? 150 : Math.max(0, Math.min(150, Math.floor(requested)));
     return rows.sort(compare).slice(0, maximum).map((row, index) => Object.assign({}, row, {rank: index + 1}));
   }
 
@@ -121,7 +121,7 @@
     return ranked(Array.from(normalized.byId.values()).filter(row => row.active), limit);
   }
 
-  function build(payload, catalog, limit = 100) {
+  function build(payload, catalog, limit = 150) {
     const source = record(payload) ? payload : {};
     const trendPayload = record(source.adpTrend) ? source.adpTrend : {};
     const latestDate = date(trendPayload.latestDate);

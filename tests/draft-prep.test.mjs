@@ -108,7 +108,7 @@ test('the new page retains existing card analyses, pictures and positions while 
   assert.match(result, /Bestehende Statistikdetails/);
   assert.match(result, /class="draft-radar-photo"/);
   assert.match(result, /ESPN-Fantasy-Positionen">PF,C/);
-  assert.match(result, /Top 100 nach ESPN ADP/);
+  assert.match(result, /Top 150 nach ESPN ADP/);
   assert.match(result, /for="draft-prep-search">Spieler suchen<input[^>]+type="search"/);
   assert.doesNotMatch(result, /ADP bedeutet durchschnittlicher Draft-Pick/);
   assert.match(result, /# = Position in dieser Liste/);

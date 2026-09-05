@@ -104,11 +104,11 @@
 
   function statusText(rows, sort, total) {
     const count = searchQuery.trim() ? `${rows.length} von ${total} Spielern gefunden` : `${total} Spieler verfügbar`;
-    return `Top 100 nach ESPN ADP · ${count} · Anzeige: ${SORTS[normalizeSort(sort)]} · # = Position in dieser Liste`;
+    return `Top 150 nach ESPN ADP · ${count} · Anzeige: ${SORTS[normalizeSort(sort)]} · # = Position in dieser Liste`;
   }
 
   function emptyText(total) {
-    return total ? 'Kein Spieler gefunden. Suche nach Vor- oder Nachnamen oder leere das Suchfeld. Die Suche umfasst die ESPN-Top-100.' : 'Die Spieler erscheinen, sobald aktuelle ESPN-ADPs verfügbar sind.';
+    return total ? 'Kein Spieler gefunden. Suche nach Vor- oder Nachnamen oder leere das Suchfeld. Die Suche umfasst die ESPN-Top-150.' : 'Die Spieler erscheinen, sobald aktuelle ESPN-ADPs verfügbar sind.';
   }
 
   function trendText() {
@@ -120,11 +120,11 @@
     const mode = currentSort(), source = draftRadarData(), rows = filterPlayers(sortPlayers(source, mode, maikValueFor), searchQuery);
     openedPlayer = null;
     return `<section class="draft-preparation" aria-label="Draft-Vorbereitung">${sect('Draft-Vorbereitung', 'Dein Blick auf den Draft')}
-      <div class="draft-prep-toolbar"><div><h2>Draft Radar</h2><p>Vergleiche die 100 frühesten ESPN-Draft-Picks und öffne ihre Analysen.</p></div><div class="draft-prep-controls"><label class="draft-prep-search" for="draft-prep-search">Spieler suchen<input id="draft-prep-search" type="search" placeholder="Name eingeben …" value="${E(searchQuery)}" autocomplete="off" spellcheck="false" aria-controls="draft-prep-grid" oninput="draftPreparationSetQuery(this.value)"></label><label class="draft-prep-sort" for="draft-prep-sort">Sortierung<select id="draft-prep-sort" onchange="draftPreparationSetSort(this.value)">${Object.entries(SORTS).map(([key, label]) => `<option value="${key}"${mode === key ? ' selected' : ''}>${E(label)}</option>`).join('')}</select></label></div></div>
+      <div class="draft-prep-toolbar"><div><h2>Draft Radar</h2><p>Vergleiche die 150 frühesten ESPN-Draft-Picks und öffne ihre Analysen.</p></div><div class="draft-prep-controls"><label class="draft-prep-search" for="draft-prep-search">Spieler suchen<input id="draft-prep-search" type="search" placeholder="Name eingeben …" value="${E(searchQuery)}" autocomplete="off" spellcheck="false" aria-controls="draft-prep-grid" oninput="draftPreparationSetQuery(this.value)"></label><label class="draft-prep-sort" for="draft-prep-sort">Sortierung<select id="draft-prep-sort" onchange="draftPreparationSetSort(this.value)">${Object.entries(SORTS).map(([key, label]) => `<option value="${key}"${mode === key ? ' selected' : ''}>${E(label)}</option>`).join('')}</select></label></div></div>
       <p class="draft-prep-status" id="draft-prep-status" role="status" aria-live="polite">${E(statusText(rows, mode, source.length))}</p>
       <div id="draft-prep-grid" class="draft-radar">${cardsMarkup(rows)}</div>
       <div id="draft-prep-empty" class="model-note"${rows.length ? ' hidden' : ''}>${E(emptyText(source.length))}</div>
-      <div class="draft-radar-foot draft-prep-foot"><span id="draft-prep-basis">${E(valueBasisDescription(rows, maikValueFor))}</span><span>${E(trendText())}</span><span>Quellen und Prüfstand stehen in jeder Analyse. Sortierung und FBA-Value verändern die Auswahl der ESPN-Top-100 nicht.</span></div></section>`;
+      <div class="draft-radar-foot draft-prep-foot"><span id="draft-prep-basis">${E(valueBasisDescription(rows, maikValueFor))}</span><span>${E(trendText())}</span><span>Quellen und Prüfstand stehen in jeder Analyse. Sortierung und FBA-Value verändern die Auswahl der ESPN-Top-150 nicht.</span></div></section>`;
   }
 
   function updateView() {
