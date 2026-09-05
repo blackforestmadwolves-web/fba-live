@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v51-20260905">
+<meta name="fba-build" content="war-room-monster-v52-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1177,6 +1177,8 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 
 .consensus-panel{margin:16px 0;padding:16px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.09);border-radius:14px;font-size:13px}.consensus-panel summary,.consensus-player summary{cursor:pointer;font-weight:650;line-height:1.5}.consensus-panel p,.consensus-player small{color:var(--muted,#aaa);line-height:1.6}.consensus-sources{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.consensus-source{padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:10px}.consensus-source b,.consensus-source span,.consensus-source small{display:block}.consensus-source span{margin:5px 0;color:#ddd}.consensus-source small{color:var(--muted,#aaa);line-height:1.5}.consensus-player{padding:10px 0;font-size:12px}.consensus-player-values p{margin:6px 0;color:var(--muted,#aaa)}@media(max-width:600px){.consensus-sources{grid-template-columns:1fr}.consensus-panel{padding:12px}.consensus-player-values{overflow-wrap:anywhere}}
 </style>
+<link rel="stylesheet" href="draft-prep.css">
+<link rel="stylesheet" href="team-previews.css">
 </head>
 <body>
 
@@ -1237,6 +1239,9 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 <script src="draft-prototype-data.js"></script>
 <script src="maik-value.js"></script>
 <script src="maik-history-2025-26.js"></script>
+<script src="draft-prep.js"></script>
+<script src="team-previews-2026-27.js"></script>
+<script src="team-previews.js"></script>
 <script>
 /* =========================================================
    FBA CONTROL CENTER
@@ -1569,6 +1574,7 @@ let PUBLIC_SAVED_AT = 0, PUBLIC_PENDING = false, PUBLIC_REQUEST_SEQUENCE = 0, PU
 /* ---------- Seiten ---------- */
 const PAGES = [
   ["ueber","Start",pgOverview],
+  ["predraft","Draft-Vorbereitung",pgDraftPreparation],
   ["draft","Draft",pgDraft],
   ["monster","Monster",pgMonster],
   ["freeagency","Free Agency",pgFreeAgency],
@@ -1839,7 +1845,7 @@ function draftRadarCard(raw,i){
   return `<details class="draft-radar-card" name="draft-radar"><summary class="draft-radar-summary"><div class="draft-radar-header"><span class="draft-radar-rank">#${E(rank)}</span><div class="draft-radar-score"><b>${E(adp)}</b><small>ESPN ADP</small>${maikValueMarkup({id,name})}</div></div>
     <img class="draft-radar-photo" src="${E(espnPlayerHeadshot(id))}" alt="${E(name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback" style="display:none;position:absolute;z-index:2;right:18px;bottom:28px;width:92px;height:92px;border-radius:50%">${E(playerInitials(name))}</span>
     <div class="draft-radar-copy"><h3>${E(name)}</h3><div class="draft-radar-meta"><span class="draft-radar-team">${E(p.nba||p.nbaTeam||"NBA")}${position!=="ESPN-Sync"?` · <span title="ESPN-Fantasy-Positionen">${E(position)}</span>`:""}</span>${draftAdpTrendMarkup(p)}</div><p>${E(reason)}</p></div><span class="draft-radar-open">Analyse <i>⌄</i></span><div class="draft-radar-bar" aria-hidden="true"><i style="width:100%"></i></div></summary>
-    <div class="draft-radar-report">${maikValueDetailsMarkup({id,name})}<p>ADP bedeutet durchschnittlicher Draft-Pick. Ein Wert von ${E(adp)} heißt: An dieser Stelle wird ${E(name)} bei ESPN im Schnitt ausgewählt. Ein niedrigerer ADP steht deshalb weiter oben. Das ist eine Markt-Reihenfolge, keine FBA-Leistungsprojektion.</p><div class="draft-radar-facts"><div class="draft-radar-fact"><span>ESPN-ADP · aktuell</span><b>${E(adp)}</b></div><div class="draft-radar-fact"><span>Ø der drei Vortage</span><b>${E(previous)}</b></div><div class="draft-radar-fact fit"><span>ESPN-Tagesstand</span><b>${E(stand)}</b></div></div>
+    <div class="draft-radar-report">${maikValueDetailsMarkup({id,name})}<p>ADP bedeutet durchschnittlicher Draft-Pick. Ein Wert von ${E(adp)} heißt: An dieser Stelle wird ${E(name)} bei ESPN im Schnitt ausgewählt. Ein niedrigerer ADP bedeutet einen früheren durchschnittlichen Draft-Pick. ESPN-ADP beschreibt den Draftmarkt und ist keine FBA-Leistungsprojektion.</p><div class="draft-radar-facts"><div class="draft-radar-fact"><span>ESPN-ADP · aktuell</span><b>${E(adp)}</b></div><div class="draft-radar-fact"><span>Ø der drei Vortage</span><b>${E(previous)}</b></div><div class="draft-radar-fact fit"><span>ESPN-Tagesstand</span><b>${E(stand)}</b></div></div>
     ${note.report?`<div class="draft-radar-editorial"><h4>Redaktionelle Einschätzung</h4><small>${note.reviewedAt?`Stand ${E(note.reviewedAt)} · Saisonwerte: 2025/26 · eigene FBA-Einordnung<br>`:""}Manuell verfasst · nicht live aktualisiert · bestimmt nicht den Rang</small><p>${E(note.report)}</p>${note.outlook?`<h4>Blick auf 2026/27</h4><p>${E(note.outlook)}</p>`:""}<div class="draft-radar-facts"><div class="draft-radar-fact"><span>Stärken</span><b>${E(note.strengths||"–")}</b></div><div class="draft-radar-fact"><span>Risiko</span><b>${E(note.risk||"–")}</b></div><div class="draft-radar-fact fit"><span>FBA-Fit</span><b>${E(note.fit||"–")}</b></div></div>${note.draftPlan?`<h4>Dein Draft-Plan</h4><p>${E(note.draftPlan)}</p>`:""}${note.sourceUrl?`<div class="draft-radar-editorial-source"><a href="${E(note.sourceUrl)}" target="_blank" rel="noopener noreferrer">ESPN · Saisonwerte &amp; Spielerprofil ↗</a></div>`:""}</div>`:""}</div></details>`;
 }
 function draftRadarHome(){
@@ -2906,7 +2912,8 @@ function pgDraftOverview(){
     </div>
   </div>`;
   if(cfg.notice) h+=`<div class="model-note"><span class="model-icon">ℹ️</span><div><b>League Update</b>${E(cfg.notice)}</div></div>`;
-  h+=draftRadarHome();
+  h+=`<div class="draft-prep-home-link"><div><b>Bereit für deinen nächsten Pick?</b><p>25 Spieler, ausführliche Analysen und Sortierung nach ESPN ADP oder Maik-Value.</p></div><button type="button" onclick="navigatePage('predraft');window.scrollTo({top:0,behavior:'smooth'})">Zur Draft-Vorbereitung <span aria-hidden="true">↗</span></button></div>`;
+  h+=teamPreviewsHome(cfg.currentSeason||draft.season);
   h+=sect("Conferences","Saison "+E(cfg.currentSeason||draft.season||""));
   h+=`<div class="draft-conferences">${["East","West"].map(conf=>{
     const list=((draft.conferences||{})[conf]||[]);
@@ -3760,7 +3767,7 @@ function openTeam(n){ closeMatchup(); STATE.team=n; CUR="teams"; render(); windo
 function render(){
   resetMaikValueContext();
   if(monsterPrivatePage()&&!monsterUnlocked())CUR="ueber";
-  document.body.classList.toggle("draft-wide",CUR==="draft"||monsterPrivatePage());
+  document.body.classList.toggle("draft-wide",CUR==="draft"||CUR==="predraft"||monsterPrivatePage());
   const visiblePages=PAGES.filter(([k])=>!monsterPrivatePage(k)||monsterUnlocked());
   document.getElementById("nav").innerHTML = visiblePages.map(([k,l])=>
     `<button class="${CUR===k?"on":""}" onclick="navigatePage('${k}')">${l}</button>`).join("");

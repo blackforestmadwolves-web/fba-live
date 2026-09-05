@@ -11,7 +11,7 @@ assert.ok(inline,"Das vollständige Inline-Frontend muss vorhanden sein");
 new vm.Script(inline[1],{filename:"index.inline.js"});
 
 const localResources=new Set([
-  ...[...html.matchAll(/(?:src|href)="([^"${}]+\.(?:js|png|webp|webmanifest))"/g)].map(match=>match[1]),
+  ...[...html.matchAll(/(?:src|href)="([^"${}]+\.(?:js|css|png|webp|webmanifest))"/g)].map(match=>match[1]),
   ...[...html.matchAll(/"((?:logos|managers)\/[^"]+\.(?:png|webp))"/g)].map(match=>match[1])
 ]);
 for(const resource of localResources){
@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v51-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v52-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -70,7 +70,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v51-20260905/,"Vorbereiteter Build muss v51 ausweisen");
+assert.match(html,/war-room-monster-v52-20260905/,"Vorbereiteter Build muss v52 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -676,7 +676,7 @@ assert.doesNotMatch(renderDraftRadarCard({},0),/ESPN-Fantasy-Positionen|ESPN-Syn
   "Ohne echte ESPN-Daten darf die Startkarte keine Position erfinden oder einen technischen Platzhalter zeigen");
 assert.match(radarPositionCard,/<b>3,1<\/b><small>ESPN ADP<\/small>/,
   "Die rechte Kennzahl muss den tatsächlichen ESPN-ADP statt erfundener Heat-Punkte zeigen");
-assert.match(radarPositionCard,/Markt-Reihenfolge, keine FBA-Leistungsprojektion/,
+assert.match(radarPositionCard,/ESPN-ADP beschreibt den Draftmarkt und ist keine FBA-Leistungsprojektion/,
   "Die Analyse muss Marktposition und FBA-Leistungsprognose verständlich unterscheiden");
 assert.doesNotMatch(html,/Draft Heat|50 % Experten-Ränge|DRAFT_RADAR_FALLBACK/,
   "Weder unbelegte Gewichte noch statische Heat-Ranglisten dürfen als Live-Modell erscheinen");
