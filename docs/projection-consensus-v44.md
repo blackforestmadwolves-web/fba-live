@@ -1,7 +1,7 @@
-# Private projection consensus — prepared v44
+# Private projection consensus — v44
 
 Base: production v43, main 5be26ec03ce4effb98d8b5924e5f8e504829d04c.
-Prepared on 2026-09-05. This branch is not a production release.
+Prepared and published on 2026-09-05; see the production verification record below.
 Internal projection/actuals/ownership engine contract remains v36.
 
 ## Verified acquisition results
@@ -45,7 +45,7 @@ server-side device-token validation in `matchupMonsterResponseV30_`.
 The new menu wrappers require a spreadsheet UI context; their internal helpers end in `_`.
 The public GitHub repository and current site access settings are unchanged.
 
-## Import procedure (after a separately authorized release)
+## Import procedure
 
 1. In the existing book, FBA App → Projections: Import-Tabelle vorbereiten.
 2. Paste legitimately obtained projection rows in `FBA_Projection_Inputs` using
@@ -158,7 +158,29 @@ verification is claimed. The component has syntax/markup and functional VM cover
 
 ## Remaining release gates
 
-No Apps Script deployment, Google-sheet write, main push or Netlify production
-publication has occurred for this change. On release, verify the new authenticated
-refresh in actual Apps Script, source statuses and private UI with a legitimately
-registered device. A local VM run is not an Apps Script runtime or iPhone test.
+The authenticated successful refresh, source statuses and private UI still need
+verification with a legitimately registered device. The current cloud browser has
+no registered private access. No access settings were changed. A local VM run is
+not an Apps Script runtime or iPhone test. Sheet initialization/source refresh uses
+the existing scheduled handler or the authenticated manual refresh; its first
+successful production execution has not been observed in this release check.
+
+
+## Production verification — 2026-09-05
+
+- User explicitly authorized publication after preparation.
+- Released code commit: `1b7dc492a47eaafe9fc5ed7a10d67d0bb3b90df6`.
+- Tested and released code tree: `5269491f0cf2ce0b79ff5860ab23687583bcb6ce`.
+- Frontend build: `war-room-monster-v44-20260905`.
+- Apps Script immutable version **38**, existing deployment ID preserved.
+- Successful workflow: https://github.com/blackforestmadwolves-web/fba-live/actions/runs/33956409610
+- Netlify production deploy: `6a9bd85c0e442f69185397db`, ready and published.
+- Live HTML byte-for-byte match: 576766 bytes; SHA-256
+  `1908f2d64e555b0a58ae8f7478a75e5663856faee32bd5841b52525e4067f24b`.
+- Public API: 25 draft players; no new consensus field in the public payload.
+- Production refresh endpoint rejects invalid device tokens with `locked: true`.
+- Live browser: v44 build, Top 25 with 25 available players; first analysis card
+  opens and closes. Private Monster/Free Agency navigation remains unavailable
+  to this unregistered browser; no private visual or iPhone check is claimed.
+- All seven test files, backend syntax and inline frontend JS parsing passed.
+- This documentation update changes no application code or live HTML.
