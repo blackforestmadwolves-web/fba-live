@@ -1,7 +1,9 @@
 # Draft Radar — 25 ausführliche Einordnungen
 
 Vorbereitet am 05.09.2026 auf Main `153ca1bdb7930825a243f99b9eae8884422fd9d6`.
-Noch nicht produktiv veröffentlicht; Frontend-Buildkennung bleibt bis zum Release v44.
+Produktionsrelease v45 am 05.09.2026 vom Nutzer beauftragt.
+Frontend-Buildkennung: `war-room-monster-v45-20260905`.
+Backend bleibt Apps Script Version 38, interner Engine-Vertrag v36.
 
 Alle 25 Spieler des öffentlichen ESPN-ADP-Radars vom 05.09.2026 sind abgedeckt.
 Jeder erhält einen eigenen Bericht, Ausblick auf 2026/27, Stärken, Risiken,
