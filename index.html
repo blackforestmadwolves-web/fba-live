@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v50-20260905">
+<meta name="fba-build" content="war-room-monster-v51-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1236,6 +1236,7 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 <script src="analytics-snapshot.js"></script>
 <script src="draft-prototype-data.js"></script>
 <script src="maik-value.js"></script>
+<script src="maik-history-2025-26.js"></script>
 <script>
 /* =========================================================
    FBA CONTROL CENTER
@@ -1886,27 +1887,26 @@ function draftPickMeta(overall){
 }
 function draftPool(){return Array.isArray(window.FBA_DRAFT_POOL)?window.FBA_DRAFT_POOL:[]}
 function draftPlayerById(id){return draftPool().find(p=>String(p.id)===String(id))||null}
-// A single historical comparison field serves every page. Private projections
-// are evaluated in memory only; a new render or payload rebuilds the view cache.
+// The immutable actual-season asset defines one fixed reference for every page.
+// Draft metadata, ownership and private projections never select its members.
 let MAIK_VALUE_MODEL_CACHE=null,MAIK_VALUE_VIEW_CACHE=null;
 function resetMaikValueContext(){MAIK_VALUE_VIEW_CACHE=null}
 function maikValueContext(){
-  const pool=draftPool(),authorized=monsterUnlocked(),data=authorized?MONSTER_STATE.data:null;
-  if(MAIK_VALUE_VIEW_CACHE&&MAIK_VALUE_VIEW_CACHE.pool===pool&&MAIK_VALUE_VIEW_CACHE.data===data&&MAIK_VALUE_VIEW_CACHE.authorized===authorized)return MAIK_VALUE_VIEW_CACHE;
-  const core=window.FBA_MAIK_VALUE,historyRows=pool.filter(p=>p&&String(p.source||"").includes("ESPN-Basis 2025/26")&&p.projectionReady!==false),key=JSON.stringify(historyRows.map(p=>[p.id,...(core?core.fields:[]).map(field=>p[field])]));
-  if(!MAIK_VALUE_MODEL_CACHE||MAIK_VALUE_MODEL_CACHE.key!==key)MAIK_VALUE_MODEL_CACHE={key,model:core?core.createModel(historyRows):{ready:false,count:0,byId:new Map()}};
-  const state=monsterProjectionEngineState(data),records=new Map(),names=new Map(),players=new Map(),history=new Map();
+  const pool=draftPool(),snapshot=window.FBA_MAIK_HISTORY,core=window.FBA_MAIK_VALUE,authorized=monsterUnlocked(),data=authorized?MONSTER_STATE.data:null;
+  if(MAIK_VALUE_VIEW_CACHE&&MAIK_VALUE_VIEW_CACHE.pool===pool&&MAIK_VALUE_VIEW_CACHE.snapshot===snapshot&&MAIK_VALUE_VIEW_CACHE.core===core&&MAIK_VALUE_VIEW_CACHE.data===data&&MAIK_VALUE_VIEW_CACHE.authorized===authorized)return MAIK_VALUE_VIEW_CACHE;
+  if(!MAIK_VALUE_MODEL_CACHE||MAIK_VALUE_MODEL_CACHE.snapshot!==snapshot||MAIK_VALUE_MODEL_CACHE.core!==core)MAIK_VALUE_MODEL_CACHE={snapshot,core,model:core&&core.createSeasonModel?core.createSeasonModel(snapshot):{ready:false,count:0,byId:new Map(),history:new Map(),reason:"Maik-Vergleichsmaßstab noch nicht verfügbar"}};
+  const model=MAIK_VALUE_MODEL_CACHE.model,state=monsterProjectionEngineState(data),records=new Map(),names=new Map(),players=new Map(),history=model.history||new Map();
   const addName=p=>{const name=String(p&&p.name||"").trim().toLocaleLowerCase("de-DE"),id=String(p&&(p.id||p.playerId)||"");if(!name||!id)return;if(!names.has(name))names.set(name,id);else if(names.get(name)!==id)names.set(name,null)};
-  pool.forEach(p=>{players.set(String(p.id),p);addName(p)});historyRows.forEach(p=>{if(MAIK_VALUE_MODEL_CACHE.model.byId.has(String(p.id)))history.set(String(p.id),p)});
+  pool.forEach(p=>{players.set(String(p.id),p);addName(p)});history.forEach(p=>{players.set(String(p.id),p);addName(p)});
   (state.players||[]).forEach(record=>{const id=monsterProjectionRecordId(record);if(!id)return;if(records.has(id))records.set(id,null);else records.set(id,record);addName({id,name:record.name})});
-  return MAIK_VALUE_VIEW_CACHE={pool,data,authorized,core,model:MAIK_VALUE_MODEL_CACHE.model,state,records,names,players,history,values:new Map()};
+  return MAIK_VALUE_VIEW_CACHE={pool,snapshot,data,authorized,core,model,state,records,names,players,history,values:new Map()};
 }
 function maikValueFor(player){
   const ctx=maikValueContext(),raw=player&&typeof player==="object"?player:{name:String(player||"")},explicit=raw.playerId||raw.player_id||raw.id,id=explicit?String(explicit):ctx.names.get(String(raw.name||"").trim().toLocaleLowerCase("de-DE"));
   if(!id)return {id:"",history:null,current:null,primary:null,reason:"Spieler nicht eindeutig zugeordnet"};
   if(ctx.values.has(id))return ctx.values.get(id);
-  const historical=ctx.history.get(id),historicalScore=ctx.model.byId.get(id),history=historical&&historicalScore?Object.assign({},historicalScore,{stats:historical,basis:"Basis 2025/26",kind:"history"}):null,record=ctx.records.get(id);let current=null,reason="Vollständige Projektion 2026/27 noch nicht verfügbar";
-  if(record&&ctx.state.ready){const issue=maikValueCurrentRecordIssue(record,ctx);if(!issue){const finish=monsterProjectionSeasonFinish(record),score=ctx.core&&ctx.core.score(finish.perGame,ctx.model);if(score)current=Object.assign({},score,{stats:finish.perGame,basis:finish.actualGp>0?"Ist + Rest 2026/27":"Projektion 2026/27",kind:"projection",actualGp:finish.actualGp,remainingGp:finish.remainingGp,finishGp:finish.finishGp})}else reason=issue}
+  const historical=ctx.history.get(id),historicalScore=historical&&ctx.core&&ctx.core.score(historical,ctx.model),history=historical&&historicalScore?Object.assign({},historicalScore,{stats:historical,basis:"Saisonwerte 2025/26",kind:"history"}):null,record=ctx.records.get(id);let current=null,reason=ctx.model.ready?"Vollständige Projektion 2026/27 noch nicht verfügbar":ctx.model.reason||"Maik-Vergleichsmaßstab noch nicht verfügbar";
+  if(record&&ctx.state.ready&&ctx.model.ready){const issue=maikValueCurrentRecordIssue(record,ctx);if(!issue){const finish=monsterProjectionSeasonFinish(record),score=ctx.core&&ctx.core.score(finish.perGame,ctx.model);if(score)current=Object.assign({},score,{stats:finish.perGame,basis:finish.actualGp>0?"Ist + Rest 2026/27":"Projektion 2026/27",kind:"projection",actualGp:finish.actualGp,remainingGp:finish.remainingGp,finishGp:finish.finishGp})}else reason=issue}
   const result={id,history,current,primary:current||history,reason};ctx.values.set(id,result);return result;
 }
 function maikValueCurrentRecordIssue(record,ctx){
@@ -1922,15 +1922,16 @@ function maikValueFormat(value){if(value==null||!Number.isFinite(Number(value)))
 function maikValueBasisLabel(value){return value?value.kind==="history"?"2025/26":value.basis:"Statistik fehlt"}
 function maikValueText(player){const result=maikValueFor(player),value=result.primary;return `Maik-Value ${maikValueFormat(value&&value.value)} · ${maikValueBasisLabel(value)}`}
 function maikValueMarkup(player){
-  const result=maikValueFor(player),value=result.primary,basis=value?value.basis:"Statistik fehlt",title=value?`${basis} · gewichteter Kategorie-Wert pro Spiel gegenüber ${maikValueContext().model.count} Spielern der ESPN-Basis 2025/26 · ohne Turnover`:result.reason;
+  const result=maikValueFor(player),value=result.primary,basis=value?value.basis:"Statistik fehlt",title=value?`${basis} · gewichteter Kategorie-Wert pro Spiel gegenüber ${maikValueContext().model.count} festen FBA-Referenzspielern aus 2025/26 · ohne Turnover`:result.reason;
   return `<span class="maik-value${value?"":" missing"}" data-maik-player="${E(result.id)}" title="${E(title)}"><span class="maik-value-label">Maik-Value</span><strong>${E(maikValueFormat(value&&value.value))}</strong><span class="maik-value-basis">${E(maikValueBasisLabel(value))}</span></span>`;
 }
 function maikValueSettingsMarkup(){
-  return `<details class="maik-settings"><summary>So rechnet der Maik-Value</summary><p>PTS 1,0 · 3PM 0,8 · REB 1,0 · AST 1,0 · STL 0,7 · BLK 0,8 · FG% 0,5 · FT% 0,5. Turnover zählen nicht.</p><p>Jede Kategorie wird zuerst gegenüber demselben Vergleichsfeld normiert. FG% und FT% berücksichtigen Treffer und Wurfvolumen. Der Maik-Value ist der gewichtete Mittelwert dieser Kategorie-Werte: Summe aus Gewicht × z, geteilt durch 6,3. Höher ist besser; 0 entspricht dem Mittel des Vergleichsfelds.</p><p>Vergleichsfeld: ${E(maikValueContext().model.count)} vollständige Spielerprofile der ESPN-Basis 2025/26. Der Wert pro Spiel bleibt unabhängig von Team, Position, freien Spielern und Wochen-Spielplan. Aktuelle Projektionen werden gegen dieses gleiche Feld bewertet. „Ist + Rest“ bezeichnet den erwarteten Saison-Endschnitt. Eigene Bewertung mit deinen Gewichten; kein identischer BBM-Score.</p></details>`;
+  const model=maikValueContext().model;
+  return `<details class="maik-settings"><summary>So rechnet der Maik-Value</summary><p>PTS 1,0 · 3PM 0,8 · REB 1,0 · AST 1,0 · STL 0,7 · BLK 0,8 · FG% 0,5 · FT% 0,5. Turnover zählen nicht.</p><p>Jede Kategorie wird gegenüber derselben festen Spielergruppe bewertet. FG% und FT% berücksichtigen Treffer und Wurfvolumen. Der Maik-Value ist der gewichtete Mittelwert dieser Kategorie-Werte: Summe aus Gewicht × z, geteilt durch 6,3. Höher ist besser.</p>${model.ready?`<p>Unser Maßstab: ${E(model.count)} feste Referenzspieler aus 2025/26 – passend zu 8 FBA-Teams mit je 13 Kaderplätzen. Für die Auswahl zählen mindestens 20 tatsächlich absolvierte Saisonspiele und deine Kategoriegewichte. Die Gruppe wurde einmal ausgewählt und bleibt für 2026/27 fest.</p><p>0 entspricht dem Durchschnitt dieser Gruppe. Ein negativer Wert bedeutet unter diesem Durchschnitt; auch ein nützlicher Kaderspieler kann darunter liegen. Spieler mit weniger als 20 Spielen bleiben bewertbar, verändern aber den Maßstab nicht.</p>`:`<p>${E(model.reason||"Maik-Vergleichsmaßstab noch nicht verfügbar")}.</p>`}<p>Team, Position, freie Spieler und Wochen-Spielplan verändern den Maßstab nicht. Aktuelle Projektionen nutzen dieselbe Referenz. „Ist + Rest“ bezeichnet den erwarteten Saison-Endschnitt. Eigene Bewertung mit deinen Gewichten; kein identischer BBM-Score.</p></details>`;
 }
 function maikValueDetailsMarkup(player){
   const result=maikValueFor(player),history=result.history,current=result.current,stat=(entry,cat)=>{if(!entry)return "–";const row=entry.stats,value=cat==="FG%"?(Number(row.FGA)>0?Number(row.FGM)/Number(row.FGA):null):cat==="FT%"?(Number(row.FTA)>0?Number(row.FTM)/Number(row.FTA):null):row[cat];return value==null?"–":cat.includes("%")?de(Number(value)*100,1)+"%":de(Number(value),1)};
-  return `<section class="maik-details"><h4>Dein Maik-Value · Ø pro Spiel</h4><div class="maik-table-wrap"><table class="maik-table"><thead><tr><th>Kategorie</th><th>Basis 2025/26</th><th>${E(current?current.basis:"Projektion 2026/27")}</th></tr></thead><tbody><tr class="maik-total"><th>Maik-Value</th><td>${E(maikValueFormat(history&&history.value))}</td><td>${E(maikValueFormat(current&&current.value))}</td></tr>${DRAFT_CATS.map(cat=>`<tr><th>${E(cat)}</th><td>${E(stat(history,cat))}</td><td>${E(stat(current,cat))}</td></tr>`).join("")}</tbody></table></div>${current?`<p>${E(current.actualGp)} bestätigte Spiele + ${E(current.remainingGp)} erwartete Restspiele.</p>`:`<p>${E(result.reason)}.</p>`}${maikValueSettingsMarkup()}</section>`;
+  return `<section class="maik-details"><h4>Dein Maik-Value · Ø pro Spiel</h4><div class="maik-table-wrap"><table class="maik-table"><thead><tr><th>Kategorie</th><th>2025/26</th><th>${E(current?current.basis:"Projektion 2026/27")}</th></tr></thead><tbody><tr class="maik-total"><th>Maik-Value</th><td>${E(maikValueFormat(history&&history.value))}</td><td>${E(maikValueFormat(current&&current.value))}</td></tr>${DRAFT_CATS.map(cat=>`<tr><th>${E(cat)}</th><td>${E(stat(history,cat))}</td><td>${E(stat(current,cat))}</td></tr>`).join("")}</tbody></table></div>${history?`<p>2025/26: ${E(history.stats.gp)} absolvierte Spiele${history.stats.gp<20?" · kleine Stichprobe; gehört nicht zur Referenzgruppe":""}.</p>`:""}${current?`<p>${E(current.actualGp)} bestätigte Spiele + ${E(current.remainingGp)} erwartete Restspiele.</p>`:`<p>${E(result.reason)}.</p>`}${maikValueSettingsMarkup()}</section>`;
 }
 function draftedMap(picks){
   const map=new Map();(picks||DRAFT_STATE.picks).forEach(p=>map.set(String(p.playerId),p));return map;

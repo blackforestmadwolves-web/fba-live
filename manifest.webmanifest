@@ -2,7 +2,7 @@
   "name": "FBA Control Center",
   "short_name": "FBA",
   "description": "Fantasy Brick Association – Standings, Power Ranking, Rekorde",
-  "start_url": "./?build=war-room-monster-v50-20260905",
+  "start_url": "./?build=war-room-monster-v51-20260905",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

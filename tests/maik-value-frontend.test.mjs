@@ -6,6 +6,7 @@ import core from '../maik-value.js';
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const poolSource = fs.readFileSync(new URL('../draft-prototype-data.js', import.meta.url), 'utf8');
+const historySource = fs.readFileSync(new URL('../maik-history-2025-26.js', import.meta.url), 'utf8');
 const cats = ['PTS', 'REB', 'AST', '3PM', 'STL', 'BLK', 'FG%', 'FT%'];
 const statsFields = ['PTS', 'REB', 'AST', '3PM', 'STL', 'BLK', 'FGM', 'FGA', 'FTM', 'FTA'];
 const wembyId = '5104157';
@@ -43,6 +44,7 @@ function harness({unlocked = false, data = null} = {}) {
     Date, JSON, Math, Number, String, Array, Object, Map, Set, RegExp, Error
   });
   vm.runInContext(poolSource, context);
+  vm.runInContext(historySource, context);
   // The shipped pool is frozen; clone it so same-count update behavior can be
   // tested without changing the production asset or relying on another input.
   context.window.FBA_DRAFT_POOL = context.window.FBA_DRAFT_POOL.map(player => ({...player}));
@@ -75,39 +77,39 @@ function projectionData({id = wembyId, name = 'Victor Wembanyama', actual = true
   }};
 }
 
-test('historical reference uses all 374 explicit basis profiles and excludes fallback and placeholders', () => {
+test('104 fixed reference players and all 582 actual historical profiles use separate roles', () => {
   const {context: ctx} = harness();
   const context = ctx.maikValueContext();
   assert.equal(context.model.ready, true);
-  assert.equal(context.model.count, 374);
-  const sources = ctx.window.FBA_DRAFT_POOL;
-  const fallback = sources.filter(player => player.source === 'TESTMODELL · ESPN-Fallback');
-  const missing = sources.filter(player => player.projectionReady === false);
-  assert.equal(fallback.length, 7);
-  assert.equal(missing.length, 119);
-  for (const player of [...fallback, ...missing]) {
-    assert.equal(ctx.maikValueFor(player).history, null, player.name);
-    assert.equal(ctx.maikValueFor(player).current, null, player.name);
-    assert.equal(context.model.byId.has(String(player.id)), false, player.name);
-  }
+  assert.equal(context.model.count, 104);
+  assert.equal(context.model.candidateCount, 452);
+  assert.equal(context.history.size, 582);
+  assert.equal(context.model.byId.size, 104);
   const player = ctx.maikValueFor({id: wembyId});
-  assert.equal(player.primary.basis, 'Basis 2025/26');
+  assert.equal(player.primary.basis, 'Saisonwerte 2025/26');
   assert.equal(player.primary.kind, 'history');
   assert.equal(player.current, null);
   assert.strictEqual(player.history, player.primary);
+  assert.equal(player.history.stats.gp, 64, 'GP uses the reviewed actual season, not prototype 71');
+  const jokic = ctx.maikValueFor({id: '3112335'});
+  assert.equal(jokic.history.stats.gp, 65);
+  close(jokic.history.stats.PTS, 1799 / 65);
+  const telfort = ctx.maikValueFor({id: '4702785'});
+  assert.equal(telfort.history.stats.gp, 8);
+  assert.ok(telfort.history.value < 0);
+  assert.equal(context.model.byId.has('4702785'), false, 'eight-game player is rated outside reference');
+  assert.match(ctx.maikValueDetailsMarkup({id: '4702785'}), /8 absolvierte Spiele · kleine Stichprobe/);
+  assert.equal(ctx.maikValueFor({id: '6606'}).history, null, 'no Lillard historical stats invented');
   const badge = ctx.maikValueMarkup({id: wembyId});
-  assert.match(badge, /374 Spielern der ESPN-Basis 2025\/26/);
-  assert.match(badge, /class="maik-value-basis">2025\/26<\/span>/,
-    'historical badges display the season without the redundant Basis prefix');
-  assert.match(badge, /title="Basis 2025\/26 ·/,
-    'the full source description remains available in the tooltip');
+  assert.match(badge, /104 festen FBA-Referenzspielern aus 2025\/26/);
+  assert.match(badge, /class="maik-value-basis">2025\/26<\/span>/);
+  assert.match(badge, /title="Saisonwerte 2025\/26 ·/);
   assert.match(ctx.maikValueText({id: wembyId}), / · 2025\/26$/);
-  assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /<th>Basis 2025\/26<\/th>/,
-    'detail tables keep the explicit distinction between historical basis and projections');
+  assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /<th>2025\/26<\/th>/);
   assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /Projektion 2026\/27 noch nicht verfügbar/);
 });
 
-test('every player representation shares one cached value; reset handles same-count in-place stats changes', () => {
+test('draft stats, filters and ownership cannot move the frozen historical reference', () => {
   const {context: ctx} = harness();
   const view = ctx.maikValueContext(), originalModel = view.model;
   const player = ctx.maikValueFor({id: wembyId, team: 'Wolves', pos: 'C'});
@@ -115,17 +117,35 @@ test('every player representation shares one cached value; reset handles same-co
   assert.strictEqual(ctx.maikValueFor({player_id: wembyId, nba: 'Changed'}), player);
   assert.strictEqual(ctx.maikValueFor(' Victor Wembanyama '), player);
   assert.strictEqual(ctx.maikValueContext(), view);
+  ctx.window.FBA_DRAFT_POOL.find(row => row.id === wembyId).PTS += 100;
+  ctx.window.FBA_DRAFT_POOL.reverse();
   ctx.resetMaikValueContext();
   assert.notStrictEqual(ctx.maikValueContext(), view);
-  assert.strictEqual(ctx.maikValueContext().model, originalModel, 'unchanged stats reuse the distribution');
-  const before = ctx.maikValueFor({id: wembyId}).history.value;
-  const count = ctx.window.FBA_DRAFT_POOL.length;
-  ctx.window.FBA_DRAFT_POOL.find(row => row.id === wembyId).PTS += 5;
-  ctx.resetMaikValueContext();
-  assert.equal(ctx.window.FBA_DRAFT_POOL.length, count);
-  assert.notStrictEqual(ctx.maikValueContext().model, originalModel);
-  assert.notEqual(ctx.maikValueFor({id: wembyId}).history.value, before);
-  assert.equal(ctx.maikValueContext().model.count, 374);
+  assert.strictEqual(ctx.maikValueContext().model, originalModel);
+  assert.equal(ctx.maikValueFor({id: wembyId}).history.value, player.history.value);
+  assert.equal(Object.isFrozen(ctx.window.FBA_MAIK_HISTORY), true);
+  assert.equal(Object.isFrozen(ctx.window.FBA_MAIK_HISTORY.players), true);
+  assert.equal(Object.isFrozen(ctx.window.FBA_MAIK_HISTORY.players[0].totals), true);
+  const revised = JSON.parse(JSON.stringify(ctx.window.FBA_MAIK_HISTORY));
+  const row = revised.players.find(p => p.id === wembyId);
+  row.totals.PTS += 10; row.totals.FGM += 5;
+  ctx.window.FBA_MAIK_HISTORY = revised;
+  assert.notStrictEqual(ctx.maikValueContext().model, originalModel, 'explicit replacement rebuilds reference');
+  assert.notEqual(ctx.maikValueFor({id: wembyId}).history.value, player.history.value);
+  assert.equal(ctx.maikValueContext().model.count, 104);
+});
+
+test('missing or wrong-season historical asset blocks MV without falling back to prototype stats', () => {
+  for (const mutate of [() => undefined, data => ({...data, seasonId: 2027}), data => ({...data, final: false})]) {
+    const {context: ctx} = harness({unlocked: true, data: projectionData()});
+    assert.ok(ctx.maikValueFor({id: wembyId}).primary);
+    ctx.window.FBA_MAIK_HISTORY = mutate(ctx.window.FBA_MAIK_HISTORY);
+    assert.equal(ctx.maikValueContext().model.ready, false);
+    assert.equal(ctx.maikValueFor({id: wembyId}).history, null);
+    assert.equal(ctx.maikValueFor({id: wembyId}).current, null);
+    assert.equal(ctx.maikValueFor({id: wembyId}).primary, null);
+    assert.match(ctx.maikValueMarkup({id: wembyId}), /class="maik-value missing"/);
+  }
 });
 
 test('authorized season-finish value uses actual plus remaining games and updates after payload replacement', () => {
@@ -150,6 +170,7 @@ test('authorized season-finish value uses actual plus remaining games and update
   assert.equal(changed.current.basis, 'Projektion 2026/27');
   assert.equal(changed.current.stats.PTS, 30);
   assert.equal(changed.history.value, result.history.value);
+  assert.strictEqual(ctx.maikValueContext().model, originalView.model, 'current projections cannot change reference');
 });
 
 test('wrong seasons, incomplete coverage and invalid records cannot become current Maik-Values', () => {
@@ -169,7 +190,7 @@ test('wrong seasons, incomplete coverage and invalid records cannot become curre
     const result = ctx.maikValueFor({id: wembyId});
     assert.equal(result.current, null, label);
     assert.equal(result.primary.kind, 'history', label);
-    assert.equal(result.primary.basis, 'Basis 2025/26', label);
+    assert.equal(result.primary.basis, 'Saisonwerte 2025/26', label);
   }
 });
 
