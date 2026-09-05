@@ -20,7 +20,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v54-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v54\.1-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -71,7 +71,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v54-20260905/,"Vorbereiteter Build muss v54 ausweisen");
+assert.match(html,/war-room-monster-v54\.1-20260905/,"Vorbereiteter Build muss v54.1 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -324,7 +324,7 @@ assert.match(rightSidePickup,/monster-chance good/);
 assert.match(rightSidePickup,/monster-chance-value[^>]*data-percent="60"[^>]*>60%/);
 assert.doesNotMatch(rightSidePickup,/monster-balance-percent/);
 
-// v48: probabilities keep their meaning; color is relative to the analyst's
+// The model retains win probability; color is relative to the analyst's
 // team, while the center-out bar points toward the favorite's physical side.
 const chanceCases=[
   [.51,"left",51,"good","left",49,1],
@@ -354,22 +354,44 @@ for(const p of [.04,.495,.505,.58,.955,.96]){
 const ownChanceForecast={cats:[{cat:"PTS",a:100,b:95,p:.42}]};
 const ownChanceBefore=JSON.stringify(ownChanceForecast);
 const rightChanceWithoutPickup=pointRowsMarkup(ownChanceForecast,"Pirates","Wolves",null,"Wolves");
-assert.match(rightChanceWithoutPickup,/Siegchance für <b>Wolves<\/b>/);
-assert.match(rightChanceWithoutPickup,/58 Prozent Siegchance für Wolves/);
+assert.match(rightChanceWithoutPickup,/Punktchancen für <b>Wolves<\/b>/);
+assert.match(rightChanceWithoutPickup,/Grün: Gewinn · Rot: Verlust/);
+assert.match(rightChanceWithoutPickup,/58 Prozent Gewinnchance für Wolves/);
 assert.match(rightChanceWithoutPickup,/monster-chance good/);
 assert.match(rightChanceWithoutPickup,/--monster-lead-start:50%;--monster-lead-width:8%/);
 assert.equal((rightChanceWithoutPickup.match(/class="monster-chance-value"/g)||[]).length,1);
 assert.match(rightChanceWithoutPickup,/>100<\/strong>/);assert.match(rightChanceWithoutPickup,/>95<\/strong>/);
 assert.equal(JSON.stringify(ownChanceForecast),ownChanceBefore,"Darstellung verändert keine Prognose-Eingaben");
 const switchedChance=pointRowsMarkup(ownChanceForecast,"Pirates","Wolves",null,"Pirates");
-assert.match(switchedChance,/42 Prozent Siegchance für Pirates/);
+assert.match(switchedChance,/58 Prozent Verlustrisiko für Pirates/);
+assert.match(switchedChance,/monster-chance-value[^>]*data-percent="58"[^>]*>58%/);
 assert.match(switchedChance,/monster-chance bad/);
 assert.match(switchedChance,/monster-balance-track lean-right/);
 const evenChance=pointRowsMarkup({cats:[{cat:"PTS",a:100,b:100,p:.5}]},"Pirates","Wolves",null,"Wolves");
 assert.match(evenChance,/monster-chance neutral/);assert.match(evenChance,/>50%<\/strong>/);
 assert.match(evenChance,/--monster-lead-width:0%/);
 const missingChance=pointRowsMarkup({cats:[{cat:"PTS",a:100,b:95,p:null}]},"Pirates","Wolves",null,"Wolves");
-assert.match(missingChance,/Siegchance für Wolves nicht verfügbar/);assert.doesNotMatch(missingChance,/>50%<\/strong>/);
+assert.match(missingChance,/Wahrscheinlichkeit für Wolves nicht verfügbar/);assert.doesNotMatch(missingChance,/>50%<\/strong>/);
+
+// The requested REB example must show 68% loss risk on either physical side.
+for(const [p,team,other] of [[.32,"Wolves","Pirates"],[.68,"Pirates","Wolves"]]){
+  const rebForecast={cats:[{cat:"REB",a:120,b:140,p}]},snapshot=JSON.stringify(rebForecast);
+  const markup=pointRowsMarkup(rebForecast,team,other,null,"Wolves");
+  assert.match(markup,/REB: 68 Prozent Verlustrisiko für Wolves/);
+  assert.match(markup,/monster-chance bad/);
+  assert.match(markup,/data-percent="68"[^>]*>68%/);
+  assert.equal(JSON.stringify(rebForecast),snapshot);
+}
+const improvingUnderdog=pointRowsMarkup(
+  {cats:[{cat:"REB",a:120,b:140,p:.32}]},"Wolves","Pirates",
+  {after:{cats:[{cat:"REB",a:130,b:140,p:.42}]}},"Wolves"
+);
+assert.match(improvingUnderdog,/Gewinnchance: 32% → 42%/);
+assert.match(improvingUnderdog,/monster-point-impact good/);
+assert.match(improvingUnderdog,/\+10 Pp\./);
+assert.match(improvingUnderdog,/58 Prozent Verlustrisiko für Wolves/);
+assert.match(improvingUnderdog,/data-percent="58"[^>]*>58%/);
+assert.match(rightSidePickup,/Gewinnchance: 40% → 60%/);
 
 const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
 const requestCalls=[],requestResolvers=[];
