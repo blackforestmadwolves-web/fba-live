@@ -95,7 +95,15 @@ test('historical reference uses all 374 explicit basis profiles and excludes fal
   assert.equal(player.primary.kind, 'history');
   assert.equal(player.current, null);
   assert.strictEqual(player.history, player.primary);
-  assert.match(ctx.maikValueMarkup({id: wembyId}), /374 Spielern der ESPN-Basis 2025\/26/);
+  const badge = ctx.maikValueMarkup({id: wembyId});
+  assert.match(badge, /374 Spielern der ESPN-Basis 2025\/26/);
+  assert.match(badge, /class="maik-value-basis">2025\/26<\/span>/,
+    'historical badges display the season without the redundant Basis prefix');
+  assert.match(badge, /title="Basis 2025\/26 ·/,
+    'the full source description remains available in the tooltip');
+  assert.match(ctx.maikValueText({id: wembyId}), / · 2025\/26$/);
+  assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /<th>Basis 2025\/26<\/th>/,
+    'detail tables keep the explicit distinction between historical basis and projections');
   assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /Projektion 2026\/27 noch nicht verfügbar/);
 });
 
@@ -205,7 +213,9 @@ test('badges and detail tables show basis, eight categories and escaped data wit
   const markup = ctx.maikValueMarkup({id: wembyId});
   assert.match(markup, /data-maik-player="5104157"/);
   assert.match(markup, /Maik-Value/);
-  assert.match(markup, /Ist \+ Rest 2026\/27/);
+  assert.match(markup, /class="maik-value-basis">Ist \+ Rest 2026\/27<\/span>/,
+    'a season-finish value must remain distinguishable from actual historical stats');
+  assert.match(ctx.maikValueText({id: wembyId}), / · Ist \+ Rest 2026\/27$/);
   const details = ctx.maikValueDetailsMarkup({id: wembyId});
   const tbody = details.match(/<tbody>([\s\S]*?)<\/tbody>/)[1];
   assert.equal((tbody.match(/<tr\b/g) || []).length, 9, 'one value row plus eight categories');

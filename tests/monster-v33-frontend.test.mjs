@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v49-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v50-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -70,7 +70,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v49-20260905/,"Vorbereiteter Build muss v49 ausweisen");
+assert.match(html,/war-room-monster-v50-20260905/,"Vorbereiteter Build muss v50 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -637,6 +637,14 @@ assert.match(html,/\.draft-radar-summary\{[^}]*padding:17px 17px 32px;/,
   "Desktop-Karten müssen unter Analyse Platz für die Draft-Heat-Leiste lassen");
 assert.match(html,/@media\(max-width:680px\)\{[\s\S]*?\.draft-radar-summary\{[^}]*padding:14px 14px 30px(?:;|\})/,
   "Mobile Karten müssen unter Analyse Platz für die Draft-Heat-Leiste lassen");
+assert.match(html,/\.draft-radar-header\{[^}]*display:flex;[^}]*justify-content:space-between;/,
+  "Rang und Kennzahlen müssen eine gemeinsame Kopfzeile im normalen Layout bilden");
+for(const rule of [...html.matchAll(/\.draft-radar-score\s*\{([^}]+)\}/g)].map(match=>match[1])){
+  assert.doesNotMatch(rule,/position:(?:absolute|fixed)|(?:^|;)(?:top|right|bottom|left|inset):/,
+    "ADP und Maik-Value müssen auch mobil ihre volle Höhe vor dem Spielernamen reservieren");
+}
+assert.match(html,/\.draft-radar-score \.maik-value\{[^}]*justify-content:flex-end;text-align:right/,
+  "Maik-Value muss unter ESPN ADP rechtsbündig stehen");
 const renderDraftRadarCard=loadFunction("draftRadarCard",{
   E:value=>String(value),espnPlayerHeadshot:id=>`headshot-${id}.png`,imageFallbackAttr:()=>"",
   playerInitials:()=>"SG",draftAdpTrendMarkup:adpTrendMarkup,monsterEspnFantasyPositionLabel:espnPositionLabel,Number,Math,
@@ -651,6 +659,11 @@ for(const adpTrend of [undefined,{ready:true,change:2.25}]){
     "Analyse muss nach der vollständigen Beschreibung und außerhalb des Textblocks stehen");
   assert.match(card,/<span class="draft-radar-open">Analyse <i>⌄<\/i><\/span><div class="draft-radar-bar" aria-hidden="true">[\s\S]*?<\/summary>\s*<div class="draft-radar-report">/,
     "Analyse, Heat-Leiste und aufklappbarer Bericht müssen ihre getrennten Bereiche behalten");
+  const summary=card.slice(0,card.indexOf("</summary>"));
+  assert.match(summary,/<div class="draft-radar-header"><span class="draft-radar-rank">#[^<]+<\/span><div class="draft-radar-score"><b>[^<]+<\/b><small>ESPN ADP<\/small><span class="maik-value">Maik-Value –<\/span><\/div><\/div>/,
+    "Der gemeinsame Kartenkopf muss Maik-Value direkt unter ESPN ADP ausgeben");
+  assert.equal((summary.match(/class="maik-value"/g)||[]).length,1,
+    "Die geschlossene Karte darf Maik-Value nicht nochmals unter dem Spielernamen ausgeben");
 }
 const radarPositionCard=renderDraftRadarCard({id:"guard",name:"ESPN Guard",nba:"OKC",adp:3.1,primaryPosition:"PG",fantasyPositions:"SG,PG,UTIL,BE"},0);
 assert.match(radarPositionCard,/<h3>ESPN Guard<\/h3><div class="draft-radar-meta"><span class="draft-radar-team">OKC · <span title="ESPN-Fantasy-Positionen">PG, SG<\/span>/,
