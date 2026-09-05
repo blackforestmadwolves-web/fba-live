@@ -1,0 +1,24 @@
+{
+  "delimiter": ",",
+  "constants": {
+    "source_id": "lineupexperts",
+    "season_id": 2027,
+    "basis": "per_game",
+    "snapshot_date": "REPLACE_WITH_CAPTURE_DATE",
+    "source_url": "REPLACE_WITH_ACTUAL_SOURCE_URL"
+  },
+  "columns": {
+    "full_name": "Player",
+    "projected_gp": "GP",
+    "PTS": "PTS",
+    "REB": "REB",
+    "AST": "AST",
+    "3PM": "3PM",
+    "STL": "STL",
+    "BLK": "BLK",
+    "FGM": "FGM",
+    "FGA": "FGA",
+    "FTM": "FTM",
+    "FTA": "FTA"
+  }
+}

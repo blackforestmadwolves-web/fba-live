@@ -84,3 +84,15 @@ let touched=false;c.validMonsterDeviceV29_=()=>false;c.refreshProjectionConsensu
 assert.equal(c.matchupMonsterResponseV30_({monster:'projections_refresh',token:'bad'}).locked,true);assert.equal(touched,false);
 assert.doesNotMatch(String(c.buildData),/Consensus|consensus/,'Keine neuen Projektionsdaten im öffentlichen Payload');
 console.log('PASS · v44 source normalization, independent consensus, dates, partial coverage, real-game replacement, freeze and private access');
+
+// A fuller export can replace a partial live row from the same snapshot.
+assert.equal(c.consensusPreferRowV44_(b,partial),true);
+assert.equal(c.consensusPreferRowV44_(partial,b),false);
+assert.equal(c.consensusPreferRowV44_({...b,snapshotDate:'2026-09-06'},b),true);
+// Freezing must never reactivate a baseline already stale at season start.
+const stale={...merged,sourceDates:merged.sourceDates.map(s=>({...s,date:'2026-07-01'}))};
+sheets.set(c.FBA_CONSENSUS_V44.baseline,[{season_id:2027,payload_json:JSON.stringify(stale)}]);
+props.set(c.FBA_CONSENSUS_V44.statusKey,JSON.stringify({frozen:false}));
+const blocked=c.applyProjectionConsensusV44_({version:36,players:[],actual:{completeGames:1},baseline:{},revision:'test'});
+assert.equal(blocked.consensus.appliedPlayers,0);
+assert.equal(blocked.consensus.frozen,true);

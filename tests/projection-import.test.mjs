@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {parseDelimited, prepareImport} from '../scripts/prepare-projection-import.mjs';
+
+const metadata = [{id:'1',fullName:'Victor Wembanyama'}];
+const config = {delimiter:';',constants:{source_id:'lineupexperts',season_id:2027,basis:'per_game',snapshot_date:'2026-09-05'},columns:{full_name:'Name',projected_gp:'Games',PTS:'Points'}};
+const text = 'Name;Games;Points\r\n"Victor Wembanyama";70;25,5\r\n';
+const now = '2026-09-05T12:00:00Z';
+const result = prepareImport(text,config,metadata,now);
+assert.equal(result.report.accepted,1);
+assert.equal(result.report.completePlayers,0);
+const row = parseDelimited(result.csv)[0];
+assert.equal(row.player_id,'1'); assert.equal(row.PTS,'25,5'); assert.equal(row.FGA,'');
+assert.deepEqual(parseDelimited('Name,Note\n"A, B","two\nlines and ""quotes"""'),[{Name:'A, B',Note:'two\nlines and "quotes"'}]);
+assert.throws(()=>parseDelimited('a,b\n"broken'),/Unclosed/);
+assert.throws(()=>parseDelimited('a,a\n1,2'),/duplicate/);
+assert.throws(()=>prepareImport(text,{...config,columns:{PTS:'Missing'}},metadata,now),/Missing export column/);
+assert.equal(prepareImport(text,{...config,constants:{...config.constants,season_id:2026}},metadata,now).csv,null);
+assert.equal(prepareImport(text + 'Unknown Name;70;20\n',config,metadata,now).csv,null);
+assert.equal(prepareImport(text + 'Victor Wembanyama;70;20\n',config,metadata,now).report.errors[0].reason,'DUPLICATE_PLAYER_SOURCE');
+console.log('PASS · explicit export mapping, CSV dialects, identity validation and all-or-nothing import');

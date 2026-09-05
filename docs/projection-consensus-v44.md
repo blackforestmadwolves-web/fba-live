@@ -73,7 +73,35 @@ The existing ESPN scheduled handler calls this refresh at most once per day.
 Manual refresh has a 15-minute cooldown. No new external ChatGPT automation or
 separate trigger is created. Blocked/import-only providers are not retried via hidden APIs.
 
-## Calculation
+## Export preparation without provider-specific code changes
+
+`scripts/prepare-projection-import.mjs` converts CSV, semicolon CSV or TSV through
+an explicit JSON column mapping and the **same backend validator**. No network or
+spreadsheet writes occur. Example mapping: `projection-import-mapping.example.json`.
+Its headers are illustrative, not a verified LineupExperts export schema. Replace
+the source, capture date, units and column names after inspecting the real export.
+Remove mappings for absent stats; never fill them with zeros. Do not map a vendor
+ID to player_id; use full names or confirmed ESPN IDs.
+
+```bash
+node scripts/prepare-projection-import.mjs export.csv mapping.json espn-metadata.json prepared.csv
+```
+
+Metadata is a JSON array of current ESPN `{player_id, full_name, season_id}` records
+(alternatively `{id, fullName}`). The report gives accepted/rejected records and
+complete profiles. Any invalid or duplicate player/source record blocks file output;
+existing output files are never overwritten. Successfully prepared CSV can then be
+pasted into the private input sheet using the procedure above. A source without
+GP, shot volumes, verified season or legitimate export remains partial/unavailable.
+New vendor export layouts require configuration and validation, not another adapter.
+An unsupported file format or changed remote API may still need implementation.
+
+Within refresh, newer same-source snapshots win; on the same date a more complete
+import wins over a partial native row. At season freeze, eligibility is checked
+against the recorded freeze timestamp: an already stale baseline cannot reactivate.
+Once eligible and frozen, it remains usable throughout the season.
+
+## Consensus calculation
 
 - Each available independent source family contributes equal weight PER STAT.
 - Yahoo and RotoWire-derived FantasyPros data share one family; identical lineage

@@ -4302,7 +4302,7 @@ function refreshProjectionConsensusV44_(force) {
     ensureConsensusSheetsV44_();
     var actual=aggregateProjectionActualsV36_(sheetObjectsV2_(ESPN_PLAYER_HUB_V2.dailySheet));
     var started=actual.completeGames>0,existing=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline),frozen=props.getProperty(FBA_CONSENSUS_V44.freezeKey)==='1'||started;
-    if(frozen){props.setProperty(FBA_CONSENSUS_V44.freezeKey,'1');var frozenStatus=Object.assign({},previous,{lastAttempt:stamp,frozen:true,status:existing.length?'FROZEN':'WAITING_PRESEASON_BASELINE',message:'Baseline eingefroren; echte Spiele werden ausschließlich durch die v36-Ist-Kette ersetzt.'});props.setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(frozenStatus));return frozenStatus;}
+    if(frozen){props.setProperty(FBA_CONSENSUS_V44.freezeKey,'1');var frozenStatus=Object.assign({},previous,{lastAttempt:stamp,frozenAt:previous.frozenAt||stamp,frozen:true,status:existing.length?'FROZEN':'WAITING_PRESEASON_BASELINE',message:'Baseline eingefroren; echte Spiele werden ausschließlich durch die v36-Ist-Kette ersetzt.'});props.setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(frozenStatus));return frozenStatus;}
     var metadata=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet),native=[],espnError='';
     try{
       var hub=fetchEspnFantasyHubV2_();if(Number(hub.seasonId)!==Number(ESPN_SYNC_V1.seasonId))throw new Error('WRONG_SEASON');
@@ -4326,7 +4326,8 @@ function refreshProjectionConsensusV44_(force) {
         try{var check=UrlFetchApp.fetch(source.url,{muteHttpExceptions:true,followRedirects:true}),body=check.getContentText();state=check.getResponseCode()!==200?'FETCH_BLOCKED':source.id==='cbs'?'SEASON_UNVERIFIED':/Projections are not available yet/i.test(body)?'NOT_PUBLISHED':'LINEAGE_UNVERIFIED';}catch(e){state='FETCH_BLOCKED';}
       }
       raw=raw.concat(imports.filter(function(r){return r.source_id===source.id;}));
-      var valid=[],rejected={},seen={};raw.forEach(function(r){var result=normalizeConsensusRowV44_(r,index,stamp);if(result.ok){if(!seen[result.row.id]){seen[result.row.id]=true;valid.push(result.row);}}else rejected[result.reason]=(rejected[result.reason]||0)+1;});
+      var valid=[],rejected={},seen={};raw.forEach(function(r){var result=normalizeConsensusRowV44_(r,index,stamp);if(result.ok){var prior=seen[result.row.id];if(!prior||consensusPreferRowV44_(result.row,prior))seen[result.row.id]=result.row;}else rejected[result.reason]=(rejected[result.reason]||0)+1;});
+      valid=Object.keys(seen).sort().map(function(id){return seen[id];});
       var previousRows=old.filter(function(r){return r.sourceId===source.id;}),oldIds=previousRows.map(function(r){return r.id;}),lost=oldIds.some(function(id){var before=previousRows.filter(function(r){return r.id===id;})[0],after=valid.filter(function(r){return r.id===id;})[0];return !after||FBA_PROJECTION_ENGINE_V36.projectionStats.some(function(k){return before.base[k]!=null&&after.base[k]==null;});});
       var lkg=previousRows.filter(function(r){return Date.parse(stamp)-Date.parse(r.snapshotDate+'T00:00:00Z')<32*86400000;});
       if((fetchFailed||lost||!valid.length)&&lkg.length){valid=lkg;state='LAST_GOOD';reason+=' Letzter gültiger Stand beibehalten.';}
@@ -4349,10 +4350,10 @@ function applyProjectionConsensusV44_(engine) {
   var preview=mergeConsensusV44_(consensusStoredRowsV44_(FBA_CONSENSUS_V44.snapshots));
   sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet).forEach(function(r){metadata[String(r.player_id)]=r;});
   (engine.players||[]).forEach(function(p){map[String(p.id)]=p;});
-  if(engine.actual&&engine.actual.completeGames>0&&rows.length&&!status.frozen){status.frozen=true;espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.freezeKey,'1');espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(status));}
+  if(engine.actual&&engine.actual.completeGames>0&&rows.length&&!status.frozen){status.frozen=true;status.frozenAt=new Date().toISOString();espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.freezeKey,'1');espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(status));}
   var applied=0;rows.forEach(function(row){
     if(!row.complete||Number(row.seasonId)!==Number(ESPN_SYNC_V1.seasonId))return;
-    if(!status.frozen&&!consensusRecentV44_(row,new Date().toISOString()))return;
+    if(!consensusRecentV44_(row,status.frozen?(status.frozenAt||status.lastAttempt):new Date().toISOString()))return;
     var meta=metadata[row.id]||{},old=map[row.id],p=old||{id:row.id,playerId:row.id,name:row.name,nba:nbaAbbreviationV3_(meta.nba_team_id),nbaTeam:nbaAbbreviationV3_(meta.nba_team_id),fantasyPositions:meta.fantasy_positions||meta.primary_position||'',primaryPosition:meta.primary_position||'',injuryStatus:meta.injury_status||'',actual:{gp:0,totals:emptyProjectionStatsV36_(),byWeek:{}}};
     p=Object.assign({},p,{base:row.base,baseline:row.base,projectedGp:row.projectedGp,consensus:row});p.seasonFinish=replaceProjectionWithActualsV36_(p.projectedGp,p.base,p.actual.gp,p.actual.totals);map[row.id]=p;applied++;
   });
@@ -4366,3 +4367,5 @@ function consensusRecentV44_(row,stamp){return Array.isArray(row.sourceDates)&&r
 function consensusDateV44_(value){if(Object.prototype.toString.call(value)==='[object Date]'){if(!isFinite(value.getTime()))return '';return Utilities.formatDate(value,book().getSpreadsheetTimeZone(),'yyyy-MM-dd');}return String(value||'').slice(0,10);}
 
 function writeConsensusRowsV44_(name,headers,rows){var other=sheetObjectsV2_(name).filter(function(r){return Number(r.season_id)!==Number(ESPN_SYNC_V1.seasonId);}).map(function(r){return headers.map(function(h){return r[h]==null?'':r[h];});});rows=other.concat(rows);var sheet=ensureSimpleEspnSheetV1_(name,headers),count=Math.max(rows.length,sheet.getLastRow()-1);if(sheet.getMaxRows()<count+1)sheet.insertRowsAfter(sheet.getMaxRows(),count+1-sheet.getMaxRows());var values=rows.slice();while(values.length<count)values.push(headers.map(function(){return '';}));if(count)sheet.getRange(2,1,count,headers.length).setValues(values);}
+
+function consensusPreferRowV44_(candidate,previous){if(candidate.snapshotDate!==previous.snapshotDate)return candidate.snapshotDate>previous.snapshotDate;var count=function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.filter(function(k){return r.base[k]!=null;}).length;};return count(candidate)>count(previous);}
