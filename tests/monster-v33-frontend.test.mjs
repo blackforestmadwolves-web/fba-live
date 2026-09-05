@@ -19,7 +19,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v47-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v48-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -51,7 +51,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v47-20260905/,"Vorbereiteter Build muss v47 ausweisen");
+assert.match(html,/war-room-monster-v48-20260905/,"Vorbereiteter Build muss v48 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -151,10 +151,8 @@ assert.match(functionSource("pgMonster"),/monster-projection-team home[\s\S]*mon
   "Das Heimteam muss wie das Auswärtsteam mit Logo vor Name und GP aufgebaut sein");
 assert.doesNotMatch(functionSource("monsterPointRowsMarkup"),/T\(teamA\)\.c|T\(teamB\)\.c|--monster-left|--monster-right/,
   "Matchup-Balken dürfen keine Teamfarben mehr aus dem Teamprofil übernehmen");
-assert.match(html,/\.monster-balance-track\.lean-left\{[^}]*rgba\(220,226,236,[\s\S]*\.monster-balance-track\.lean-right\{/,
-  "Die Confidence-Rail muss Favorit und Außenseiter ausschließlich mit neutralem Silber und Graphit unterscheiden");
-assert.match(html,/\.monster-balance-track::after\{[^}]*left:var\(--monster-split\)/,
-  "Der helle Rail-Marker muss den tatsächlichen Prozent-Split statt starr die Mitte anzeigen");
+assert.match(functionSource("pgMonster"),/monsterPointRowsMarkup\(forecast,leftTeam,rightTeam,simulation,analysisTeam\)/,
+  "Die einzelne Siegchance muss auch ohne Pickup das gewählte Analyse-Team berücksichtigen");
 assert.match(html,/data-testid="monster-season-pickup-impact"/,
   "Ein gewählter Pickup muss einen eigenen Season-Impact-Vergleich erhalten");
 assert.match(functionSource("monsterSeasonProjectionPickupImpact"),/monsterSeasonProjectionCalculate\(monsterSeasonProjectionInputs\(pickup\)\)/,
@@ -281,7 +279,9 @@ assert.equal(swapped.aExpected,2.5);
 assert.equal(swapped.bExpected,5.5);
 assert.ok(Math.abs(swapped.cats[0].p-.3)<1e-12,"Beim Seitenwechsel muss auch die linke Gewinnwahrscheinlichkeit gespiegelt werden");
 
+const chanceIndicator=loadFunction("monsterChanceIndicator",{Math,Number});
 const pointRowsMarkup=loadFunction("monsterPointRowsMarkup",{
+  monsterChanceIndicator:chanceIndicator,
   T:team=>({s:team,c:team==="Pirates"?"#7657ef":"#b21f35"}),
   E:value=>String(value),
   formatDraftValue:(cat,value)=>String(value),
@@ -300,9 +300,57 @@ assert.match(rightSidePickup,/100<\/strong><small>unverändert/,
 assert.match(rightSidePickup,/95<\/strong><small>vorher 80/,
   "Der neue Wert des rechten Analyse-Teams muss seinen eigenen Vorher-Wert zeigen");
 assert.match(rightSidePickup,/monster-balance-track lean-right/,
-  "Die stärkere rechte Seite muss eine neutrale helle Rail-Fläche erhalten");
-assert.match(rightSidePickup,/monster-balance-percent left soft[^>]*>40%/);
-assert.match(rightSidePickup,/monster-balance-percent right strong[^>]*>60%/);
+  "Bei einem führenden Heim-Analyse-Team wächst der Balken von der Mitte nach rechts");
+assert.match(rightSidePickup,/monster-chance good/);
+assert.match(rightSidePickup,/monster-chance-value[^>]*data-percent="60"[^>]*>60%/);
+assert.doesNotMatch(rightSidePickup,/monster-balance-percent/);
+
+// v48: probabilities keep their meaning; color is relative to the analyst's
+// team, while the center-out bar points toward the favorite's physical side.
+const chanceCases=[
+  [.51,"left",51,"good","left",49,1],
+  [.49,"left",49,"bad","right",50,1],
+  [.58,"left",58,"good","left",42,8],
+  [.42,"right",58,"good","right",50,8],
+  [.58,"right",42,"bad","left",42,8],
+  [.42,"left",42,"bad","right",50,8],
+  [.5,"left",50,"neutral","center",50,0],
+  [.5,"right",50,"neutral","center",50,0],
+  [.499,"left",50,"neutral","center",50,0],
+  [0,"left",0,"bad","right",50,50],
+  [1,"left",100,"good","left",0,50]
+];
+for(const [p,side,percent,tone,direction,start,width] of chanceCases){
+  assert.deepEqual(JSON.parse(JSON.stringify(chanceIndicator(p,side))),{percent,tone,direction,start,width});
+}
+for(const invalid of [null,undefined,NaN,Infinity,-.1,1.1,"0.6"]){
+  const indicator=chanceIndicator(invalid,"left");
+  assert.equal(indicator.percent,null,"Ungültige Wahrscheinlichkeiten dürfen keine erfundenen 50 Prozent erzeugen");
+  assert.equal(indicator.width,0);
+}
+for(const p of [.04,.495,.505,.58,.955,.96]){
+  assert.equal(chanceIndicator(p,"left").percent,chanceIndicator(1-p,"right").percent,
+    "Heim/Auswärts darf die gerundete eigene Siegchance nicht verändern");
+}
+const ownChanceForecast={cats:[{cat:"PTS",a:100,b:95,p:.42}]};
+const ownChanceBefore=JSON.stringify(ownChanceForecast);
+const rightChanceWithoutPickup=pointRowsMarkup(ownChanceForecast,"Pirates","Wolves",null,"Wolves");
+assert.match(rightChanceWithoutPickup,/Siegchance für <b>Wolves<\/b>/);
+assert.match(rightChanceWithoutPickup,/58 Prozent Siegchance für Wolves/);
+assert.match(rightChanceWithoutPickup,/monster-chance good/);
+assert.match(rightChanceWithoutPickup,/--monster-lead-start:50%;--monster-lead-width:8%/);
+assert.equal((rightChanceWithoutPickup.match(/class="monster-chance-value"/g)||[]).length,1);
+assert.match(rightChanceWithoutPickup,/>100<\/strong>/);assert.match(rightChanceWithoutPickup,/>95<\/strong>/);
+assert.equal(JSON.stringify(ownChanceForecast),ownChanceBefore,"Darstellung verändert keine Prognose-Eingaben");
+const switchedChance=pointRowsMarkup(ownChanceForecast,"Pirates","Wolves",null,"Pirates");
+assert.match(switchedChance,/42 Prozent Siegchance für Pirates/);
+assert.match(switchedChance,/monster-chance bad/);
+assert.match(switchedChance,/monster-balance-track lean-right/);
+const evenChance=pointRowsMarkup({cats:[{cat:"PTS",a:100,b:100,p:.5}]},"Pirates","Wolves",null,"Wolves");
+assert.match(evenChance,/monster-chance neutral/);assert.match(evenChance,/>50%<\/strong>/);
+assert.match(evenChance,/--monster-lead-width:0%/);
+const missingChance=pointRowsMarkup({cats:[{cat:"PTS",a:100,b:95,p:null}]},"Pirates","Wolves",null,"Wolves");
+assert.match(missingChance,/Siegchance für Wolves nicht verfügbar/);assert.doesNotMatch(missingChance,/>50%<\/strong>/);
 
 const requestState={data:null,dataWeek:null,loading:false,error:null,week:1,requestSeq:0,activeRequest:0,queuedWeek:null,queuedForce:false,queuedFullSync:false};
 const requestCalls=[],requestResolvers=[];
@@ -426,6 +474,7 @@ const pointNames=["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"];
 const baseForecast={cats:pointNames.map(cat=>({cat,a:10,b:10,p:.5}))};
 const afterForecast={cats:pointNames.map((cat,index)=>({cat,a:10+index,b:10,p:index%2?.42:.58}))};
 const pointMarkup=loadFunction("monsterPointRowsMarkup",{
+  monsterChanceIndicator:chanceIndicator,
   T:team=>({c:team==="Wolves"?"#7b2234":"#623c94",s:team}),
   E:value=>String(value),
   formatDraftValue:(_cat,value)=>String(value),
@@ -709,4 +758,4 @@ assert.equal(resetPreload.io.calls[0].refresh,1);assert.equal(resetPreload.io.fo
 assert.equal(resetPreload.io.fullSyncs,0,"Vorladen erzeugt keinen weiteren Vollsync nach dem Reset");
 resetPreload.io.resolvers[0].resolve(privateFixture);await resetPending;
 
-console.log("PASS · Matchup Monster frontend and v47 Free Agency preload regression tests");
+console.log("PASS · Matchup Monster frontend, startup preload and centered chance regression tests");
