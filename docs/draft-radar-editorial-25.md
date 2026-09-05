@@ -31,5 +31,26 @@ unverändert. Native Details-Karten bleiben erhalten; die Quellen stehen je Kart
 Prüfung: bestehende Frontend-Regression inklusive vollständigem Inline-JS-Parsing,
 Whitespace-Check und Abgleich aller 25 ESPN-IDs auf vollständige Inhaltsfelder sowie
 HTTPS-Quellenlinks bestanden. Keine neuen Inhalts- oder DOM-Spiegeltests angelegt.
-Eine visuelle Prüfung der unveröffentlichten Ansicht steht noch aus; die zuvor
-abgewiesenen lokalen Browser-Preview-Routen wurden nicht erneut verwendet.
+Die veröffentlichte Ansicht wurde im Live-Desktop-Browser geprüft; siehe unten.
+Die zuvor abgewiesenen lokalen Browser-Preview-Routen wurden nicht erneut verwendet.
+
+
+## Produktionsprüfung v45 — 05.09.2026
+
+- Release-Commit: `85936609000200370d0a3aa7beb018de1e52f183`.
+- Getesteter und veröffentlichter Git-Tree: `ff8d0db364671791824609d8e3675e62d8e28456`.
+- Netlify: `6a9be182a32710330c041712`, production, ready, veröffentlicht 09:31:51 UTC.
+- Live-HTML bytegleich zum Release: 605531 Bytes, SHA-256
+  `490967f23a00eddc1f875394359c6c0db283c0b864ddbb4eca29cb399fd0973d`.
+- Alle sieben Testdateien, Backend-Syntax, vollständiges Inline-JS und Whitespace geprüft.
+- Live-Browser: Build v45, 25 Spieler, 25 vollständige redaktionelle Analysen,
+  jeweils Ausblick, Draft-Plan und eigener ESPN-Quellenlink.
+- Jede der 25 Karten erfolgreich geöffnet und geschlossen.
+- Alle 25 Berichtbereiche ohne horizontalen Textüberlauf; mindestens 10 px
+  zwischen Kurztext und Analyse-Hinweis, mindestens 15 px bis zur unteren Linie.
+- Desktop-Screenshots: LeBron-Karte, langer Bericht, Fakten und Quellenzeile visuell
+  geprüft. Keine separate iPhone-/Mobilgeräteprüfung durchgeführt.
+- Fotoeffekte erzeugen geringfügigen, durch overflow:hidden abgeschnittenen
+  dekorativen Überstand; die Berichtbereiche passen vollständig in ihre Karten.
+- Backend unverändert gegenüber v44: kein neuer Apps-Script-Deploy erforderlich.
+- Diese nachfolgende Dokumentation ändert den Frontend-Release nicht.
