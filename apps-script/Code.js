@@ -7,6 +7,9 @@
 var SPREADSHEET_ID = '';
 var CACHE_MINUTES = 10;
 var DATA_CACHE_PREFIX = 'fba_v43_adp_dates_';
+// Complete public response, independent of the six-hour historical data cache.
+var PUBLIC_PAYLOAD_CACHE_V46 = 'fba_v46_public_ready_';
+var PUBLIC_PAYLOAD_CACHE_SECONDS_V46 = 120;
 var SEASON = 'S25_26';
 var SEASON_LABEL = '2025-26';
 var RS_MAX_WEEK = 18;
@@ -137,11 +140,8 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.TEXT);
   }
   if (p.data) {
-    // Beim Öffnen der App höchstens einmal pro Stunde bei ESPN nachsehen.
-    // Fehler blockieren niemals den letzten funktionierenden App-Stand.
-    try { syncEspnIfStale_(false); } catch (syncErr) {}
     var json;
-    try { json = JSON.stringify(getPayload(p.nocache == '1')); }
+    try { json = JSON.stringify(getPublicPayloadV46_(p.nocache == '1')); }
     catch (err) { json = JSON.stringify({ error: String(err) }); }
     if (p.callback) {
       return ContentService.createTextOutput(p.callback + '(' + json + ');')
@@ -156,7 +156,59 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function getPayloadJson() { return JSON.stringify(getPayload(false)); }
+function getPayloadJson() { return JSON.stringify(getPublicPayloadV46_(false)); }
+
+function invalidatePublicDataCacheV46_(cache) {
+  cache = cache || CacheService.getScriptCache();
+  cache.remove(DATA_CACHE_PREFIX + 'idx');
+  cache.remove(PUBLIC_PAYLOAD_CACHE_V46 + 'idx');
+}
+
+function readPublicPayloadCacheV46_(cache) {
+  try {
+    var raw = cache.get(PUBLIC_PAYLOAD_CACHE_V46 + 'idx');
+    if (!raw) return null;
+    var entry = JSON.parse(raw), age = Date.now() - Number(entry.savedAt);
+    if (!Array.isArray(entry.keys) || !entry.keys.length || entry.keys.length > 100 ||
+        !isFinite(age) || age < 0 || age >= PUBLIC_PAYLOAD_CACHE_SECONDS_V46 * 1000 ||
+        !entry.keys.every(function(key) { return typeof key === 'string' && key.indexOf(PUBLIC_PAYLOAD_CACHE_V46) === 0; })) return null;
+    var parts = cache.getAll(entry.keys), text = '';
+    for (var i = 0; i < entry.keys.length; i++) {
+      if (typeof parts[entry.keys[i]] !== 'string') return null;
+      text += parts[entry.keys[i]];
+    }
+    var data = JSON.parse(text);
+    return data && data.meta && data.appConfig ? data : null;
+  } catch (error) { return null; }
+}
+
+function writePublicPayloadCacheV46_(cache, data) {
+  try {
+    // Unique chunk keys prevent simultaneous builders mixing response fragments.
+    // 20k UTF-16 code units remain safely below CacheService's 100 KB per key.
+    var text = JSON.stringify(data), generation = Utilities.getUuid(), keys = [], parts = {};
+    for (var pos = 0; pos < text.length; pos += 20000) {
+      var key = PUBLIC_PAYLOAD_CACHE_V46 + generation + '_' + keys.length;
+      keys.push(key); parts[key] = text.substr(pos, 20000);
+    }
+    if (!keys.length || keys.length > 100) return;
+    cache.putAll(parts, PUBLIC_PAYLOAD_CACHE_SECONDS_V46);
+    cache.put(PUBLIC_PAYLOAD_CACHE_V46 + 'idx', JSON.stringify({savedAt:Date.now(),keys:keys}), PUBLIC_PAYLOAD_CACHE_SECONDS_V46);
+  } catch (error) { /* A cache failure must not discard a valid public response. */ }
+}
+
+function getPublicPayloadV46_(noCache) {
+  var cache = CacheService.getScriptCache(), cached = noCache ? null : readPublicPayloadCacheV46_(cache);
+  if (cached) return cached;
+  // Keep the existing scheduler and stale-sync fallback. Neither runs on a
+  // complete-response cache hit; an explicit live reset always bypasses it.
+  try { syncEspnIfStale_(false); } catch (syncError) {}
+  var data = getPayload(noCache);
+  data.meta.publicPayloadVersion = 46;
+  data.meta.publicUpdatedAt = new Date().toISOString();
+  writePublicPayloadCacheV46_(cache, data);
+  return data;
+}
 
 function getPayload(noCache) {
   var cache = CacheService.getScriptCache();
@@ -181,7 +233,7 @@ function getPayload(noCache) {
 }
 
 function clearCache() {
-  CacheService.getScriptCache().remove(DATA_CACHE_PREFIX + 'idx');
+  invalidatePublicDataCacheV46_();
   try { SpreadsheetApp.getActive().toast('Cache geleert'); } catch (e) {}
 }
 
@@ -835,7 +887,7 @@ function getPayload(noCache) {
 
 function clearCache() {
   var cache = CacheService.getScriptCache();
-  cache.remove(DATA_CACHE_PREFIX + 'idx');
+  invalidatePublicDataCacheV46_(cache);
   cache.remove(CONFIG_CACHE_KEY_PHASE_V1);
   try { SpreadsheetApp.getActive().toast('Cache geleert'); } catch (e) {}
 }
@@ -847,7 +899,7 @@ function onEdit(e) {
       CacheService.getScriptCache().remove(CONFIG_CACHE_KEY_PHASE_V1);
     }
     if (name === CONFIG_SHEET_PHASE_V1 || /^S\d{2}_\d{2} Draft$/.test(name)) {
-      CacheService.getScriptCache().remove(DATA_CACHE_PREFIX + 'idx');
+      invalidatePublicDataCacheV46_();
     }
   } catch (err) {}
 }
@@ -1088,7 +1140,7 @@ function enhancePayloadPhaseV1(data, cfg) {
 
 function clearCache() {
   var cache = CacheService.getScriptCache();
-  cache.remove(DATA_CACHE_PREFIX + 'idx');
+  invalidatePublicDataCacheV46_(cache);
   cache.remove(CONFIG_CACHE_KEY_PHASE_V1);
   cache.remove(EARLY_ODDS_MODEL_CACHE_PHASE_V2);
   try { SpreadsheetApp.getActive().toast('Cache geleert'); } catch (e) {}
@@ -1179,18 +1231,19 @@ function onEdit(e) {
   try {
     var name = e && e.range ? e.range.getSheet().getName() : '';
     var cache = CacheService.getScriptCache();
-    if (name === CONFIG_SHEET_PHASE_V1 || name === CONFIG_SHEET) {
+    var configEdit = name === CONFIG_SHEET_PHASE_V1 || (typeof CONFIG_SHEET !== 'undefined' && name === CONFIG_SHEET);
+    if (configEdit) {
       cache.remove(CONFIG_CACHE_KEY_PHASE_V1);
-      cache.remove(CONFIG_CACHE_KEY);
+      if (typeof CONFIG_CACHE_KEY !== 'undefined') cache.remove(CONFIG_CACHE_KEY);
     }
     if (name === EARLY_ODDS_MODEL_SHEET_PHASE_V2) cache.remove(EARLY_ODDS_MODEL_CACHE_PHASE_V2);
     if (name === ANALYTICS_CONFIG_SHEET_V1 || / StatsRaw$/.test(name)) {
       cache.remove(ANALYTICS_CACHE_KEY_V1);
     }
-    if (name === CONFIG_SHEET_PHASE_V1 || name === CONFIG_SHEET ||
+    if (configEdit ||
         name === EARLY_ODDS_MODEL_SHEET_PHASE_V2 || name === ANALYTICS_CONFIG_SHEET_V1 || name === 'ESPN_Draft_Prognose' ||
         / StatsRaw$/.test(name) || /^S\d{2}_\d{2} Draft$/.test(name)) {
-      cache.remove(DATA_CACHE_PREFIX + 'idx');
+      invalidatePublicDataCacheV46_(cache);
     }
   } catch (err) {}
 }
@@ -1747,7 +1800,7 @@ function appendEspnLogV1_(stamp, status, matchups, rows, detail) {
 
 function clearEspnDependentCachesV1_() {
   var cache = CacheService.getScriptCache();
-  cache.remove(DATA_CACHE_PREFIX + 'idx');
+  invalidatePublicDataCacheV46_(cache);
   cache.remove(ANALYTICS_CACHE_KEY_V1);
   cache.remove(CONFIG_CACHE_KEY_PHASE_V1);
   if (typeof MATCHUP_MONSTER_V30 !== 'undefined' && MATCHUP_MONSTER_V30.scheduleCacheKey) {
@@ -2149,7 +2202,7 @@ function captureEspnAdpSnapshotV40_(league, stamp) {
   if (!rows.length) return {status:'WAITING_ESPN_ADP',date:date,rows:0};
   var count = appendUniqueEspnRowsV2_(ESPN_PLAYER_HUB_V2.adpHistorySheet,ESPN_ADP_HISTORY_HEADERS_V40,rows,[0,1,2]);
   props.setProperties({FBA_ESPN_ADP_SNAPSHOT_DATE_V40:date,FBA_ESPN_ADP_SNAPSHOT_ROWS_V40:String(rows.length),FBA_ESPN_ADP_STATUS_V40:'READY'});
-  try { CacheService.getScriptCache().remove(DATA_CACHE_PREFIX + 'idx'); } catch (cacheError) {}
+  try { invalidatePublicDataCacheV46_(); } catch (cacheError) {}
   return {status:'READY',date:date,rows:count || rows.length};
 }
 

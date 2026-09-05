@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v45-20260905">
+<meta name="fba-build" content="war-room-monster-v46-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1536,6 +1536,7 @@ let D = applyVerifiedSeasonData(SNAPSHOT);
 D.appConfig = PHASE_SNAPSHOT_CONFIG;
 D.draft = phaseDraftSnapshot(D);
 let LIVE = false;
+let PUBLIC_SAVED_AT = 0, PUBLIC_PENDING = false, PUBLIC_REQUEST_SEQUENCE = 0, PUBLIC_ACTIVE_REQUEST = null;
 
 /* ---------- Seiten ---------- */
 const PAGES = [
@@ -3682,9 +3683,7 @@ function render(){
   const lg = logoOf("__LEAGUE__");
   const mk = document.getElementById("hdMark");
   if(mk && lg){ mk.textContent=""; mk.classList.add("has-logo"); mk.style.backgroundImage="url('"+lg+"')"; }
-  const p=document.getElementById("srcPill");
-  p.className = "pill "+(LIVE?"live":"snap");
-  document.getElementById("srcTxt").textContent = LIVE?"LIVE":"SNAPSHOT";
+  updatePublicSource();
   const monsterButton=document.getElementById("btnMonster");if(monsterButton){monsterButton.innerHTML=monsterUnlocked()?"&#128275;":"&#128274;";monsterButton.title=monsterUnlocked()?"Matchup Monster öffnen":"Matchup Monster entsperren"}
   const espn = D.espnSync||{};
   const espnFoot = espn.enabled
@@ -3693,19 +3692,61 @@ function render(){
   document.getElementById("foot").innerHTML =
     `FBA Control Center · Datenbasis: ${E(D.meta.source||"FBA SUPER EXCEL")}`+
     (cfg.currentSeason?` · Saison ${E(cfg.currentSeason)} · ${E(phaseLabel(ph))}`:` · Blatt „Podcast_Export“`)+
-    (D.meta.generated?` · Stand ${E(D.meta.generated)}`:``)+espnFoot;
+    (D.meta.generated?` · Stand ${E(D.meta.generated)}`:``)+espnFoot+
+    (PUBLIC_SAVED_AT?` · ${LIVE?"Abruf":"Gespeicherter Abruf"} ${E(new Date(PUBLIC_SAVED_AT).toLocaleString("de-DE"))}`:``);
 }
 
 /* ===================== DATENQUELLE ===================== */
 const DEFAULT_API = "https://script.google.com/macros/s/AKfycby02oSRlkddDZfq1od7DXtKkPVgGScoJBa9x-Jsj50LF1sHUYnfIRicV3KTIZRQI9Sh/exec";
+const PUBLIC_STARTUP_CACHE_KEY = "fba_public_startup_v46";
+const PUBLIC_STARTUP_CACHE_MAX_AGE = 24*60*60*1000;
+const PUBLIC_PAYLOAD_FIELDS = ["meta","standings","conferences","seasonAvg","avgMin","avgMax","pr","prPlus","prSeason","perf","weekly","perfMeta","records","eternal","duels","recap","preview","teams","seasons","statsRaw","schedule","logos","odds","rivalryInfo","appConfig","draft","analytics","espnSync","playerHub","draftPredictions","adpTrend","draftTop25"];
+let PUBLIC_JSONP_SEQUENCE = 0;
 function apiUrl(){
   try{ const v=localStorage.getItem("fba_api"); return (v===null?DEFAULT_API:v); }catch(e){ return DEFAULT_API; }
 }
+function updatePublicSource(){
+  const pill=document.getElementById("srcPill"),label=document.getElementById("srcTxt");
+  if(pill){
+    pill.className="pill "+(LIVE&&!PUBLIC_PENDING?"live":"snap");
+    pill.title=(PUBLIC_SAVED_AT?"Letzter erfolgreicher Abruf: "+new Date(PUBLIC_SAVED_AT).toLocaleString("de-DE"):"Eingebauter Datenstand")+(PUBLIC_PENDING?" · Frische Daten werden geladen":"");
+  }
+  if(label)label.textContent=PUBLIC_PENDING?"SYNC…":LIVE?"LIVE":PUBLIC_SAVED_AT?"GESPEICHERT":"SNAPSHOT";
+}
+function savePublicStartupPayload(payload,base){
+  const data={};
+  // Only the public response is persisted. Private Monster data and device
+  // credentials belong to their existing separate access flow.
+  PUBLIC_PAYLOAD_FIELDS.forEach(key=>{if(Object.prototype.hasOwnProperty.call(payload,key))data[key]=payload[key]});
+  const savedAt=Date.now();
+  try{localStorage.setItem(PUBLIC_STARTUP_CACHE_KEY,JSON.stringify({version:1,base,savedAt,season:data.appConfig&&data.appConfig.seasonCode,data}))}catch(e){}
+  return savedAt;
+}
+function restorePublicStartupPayload(){
+  try{
+    if(new URLSearchParams(location.search).has("_fba_refresh"))return false;
+    const saved=JSON.parse(localStorage.getItem(PUBLIC_STARTUP_CACHE_KEY)||"null"),base=apiUrl();
+    if(!saved||!base)return false;
+    const age=Date.now()-saved.savedAt;
+    if(saved.version!==1||saved.base!==base||saved.season!==PHASE_SNAPSHOT_CONFIG.seasonCode||
+       typeof saved.savedAt!=="number"||!Number.isFinite(age)||age<0||age>=PUBLIC_STARTUP_CACHE_MAX_AGE||
+       !saved.data||!saved.data.meta||!saved.data.appConfig||saved.data.appConfig.seasonCode!==saved.season)return false;
+    D=normalizeLivePayload(saved.data); LIVE=false; PUBLIC_SAVED_AT=saved.savedAt;
+    return true;
+  }catch(e){return false}
+}
+function resetPublicStartupData(){
+  PUBLIC_REQUEST_SEQUENCE++; PUBLIC_ACTIVE_REQUEST=null; PUBLIC_PENDING=false; PUBLIC_SAVED_AT=0;
+  try{localStorage.removeItem(PUBLIC_STARTUP_CACHE_KEY)}catch(e){}
+  clearAnalyticsCache(); D=applyVerifiedSeasonData(SNAPSHOT); D.appConfig=PHASE_SNAPSHOT_CONFIG; D.draft=phaseDraftSnapshot(D); LIVE=false;
+}
 function jsonp(base){
   return new Promise((res,rej)=>{
-    const cb = "fbaCb"+Date.now();
+    const cb = "fbaCb"+Date.now()+"_"+(++PUBLIC_JSONP_SEQUENCE);
     const sc = document.createElement("script");
-    const to = setTimeout(()=>{cleanup();rej(new Error("Zeitüberschreitung"))},20000);
+    // Cold Apps Script responses were measured at 39–52 seconds. A 20-second
+    // cutoff can cause another expensive request while the first is still running.
+    const to = setTimeout(()=>{cleanup();rej(new Error("Zeitüberschreitung"))},60000);
     function cleanup(){clearTimeout(to);delete window[cb];sc.remove()}
     window[cb] = d => {cleanup();res(d)};
     sc.onerror = () => {cleanup();rej(new Error("Script konnte nicht geladen werden"))};
@@ -3719,11 +3760,20 @@ function insideAppsScript(){
 }
 function loadViaGoogleScript(){
   return new Promise((res,rej)=>{
+    const timer=setTimeout(()=>rej(new Error("Zeitüberschreitung")),60000);
     google.script.run
-      .withSuccessHandler(s=>{ try{ res(typeof s==="string"?JSON.parse(s):s) }catch(e){ rej(e) } })
-      .withFailureHandler(e=>rej(new Error((e&&e.message)||String(e))))
+      .withSuccessHandler(s=>{clearTimeout(timer);try{ res(typeof s==="string"?JSON.parse(s):s) }catch(e){ rej(e) } })
+      .withFailureHandler(e=>{clearTimeout(timer);rej(new Error((e&&e.message)||String(e)))})
       .getPayloadJson();
   });
+}
+async function fetchPublicFallback(target){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(target,{redirect:"follow",signal:controller.signal});
+    if(!response.ok)throw new Error("HTTP "+response.status);
+    return await response.json();
+  }finally{clearTimeout(timer)}
 }
 function normalizeLivePayload(j){
   if(!j||!j.meta)return j;
@@ -3737,37 +3787,44 @@ function normalizeLivePayload(j){
   return applyVerifiedSeasonData(j);
 }
 function clearHardRefreshFlag(){try{const url=new URL(location.href);if(url.searchParams.has("_fba_refresh")){url.searchParams.delete("_fba_refresh");history.replaceState(null,"",url.pathname+url.search+url.hash)}}catch(e){}}
-async function loadLive(url,silent){
+function loadLive(url,silent){
   const base = url || apiUrl();
+  if(PUBLIC_ACTIVE_REQUEST&&PUBLIC_ACTIVE_REQUEST.base===base)return PUBLIC_ACTIVE_REQUEST.promise;
+  const id=++PUBLIC_REQUEST_SEQUENCE;
+  PUBLIC_PENDING=true; updatePublicSource();
+  const promise=performPublicLoad(base,!url&&insideAppsScript(),silent,id).finally(()=>{
+    if(id===PUBLIC_REQUEST_SEQUENCE){PUBLIC_ACTIVE_REQUEST=null;PUBLIC_PENDING=false;updatePublicSource()}
+  });
+  PUBLIC_ACTIVE_REQUEST={base,promise};
+  return promise;
+}
+async function performPublicLoad(base,useGoogleScript,silent,id){
   const hard=typeof location!=="undefined"&&new URLSearchParams(location.search).has("_fba_refresh");
   const target = base ? base+(base.includes("?")?"&":"?")+"data=1"+(hard?"&nocache=1&_="+Date.now():"") : "?data=1";
-  const setPending = t => {const s=document.getElementById("srcTxt"); if(s) s.textContent=t;};
-  // Der eingebettete Snapshot ist bereits vollständig sichtbar. Der Hinweis
-  // beschreibt deshalb nur die Hintergrund-Synchronisierung – keinen blockierten Ladevorgang.
-  setPending("SYNC…");
   let j=null, err=null;
-  if(!url && insideAppsScript()){
+  if(useGoogleScript){
     try{ j = await loadViaGoogleScript(); }catch(e){ err=e; }
-    if(j && j.meta){ clearAnalyticsCache(); D=normalizeLivePayload(j); LIVE=true; clearHardRefreshFlag(); render(); return true; }
   }
   // Die externe Netlify-App nutzt JSONP direkt. Google Apps Script leitet
   // Content-Service-Antworten um; ein vorgeschalteter fetch()-Versuch kann
   // besonders unter iOS mehrere Sekunden warten, bevor JSONP übernimmt.
-  if(base){
+  if((!j||!j.meta)&&base&&id===PUBLIC_REQUEST_SEQUENCE){
     try{ j = await jsonp(base); err=null; }catch(e){ err=e; }
   }
   // Robuster Fallback für alternative Datenquellen ohne JSONP-Unterstützung.
-  if(!j || !j.meta){
+  if((!j || !j.meta)&&id===PUBLIC_REQUEST_SEQUENCE){
     try{
-      const r = await fetch(target,{redirect:"follow"});
-      j = await r.json();
+      j = await fetchPublicFallback(target);
       err=null;
     }catch(e){ err=err||e; }
   }
-  if(j && j.meta){ clearAnalyticsCache(); D=normalizeLivePayload(j); LIVE=true; clearHardRefreshFlag(); render(); return true; }
+  // A late response from a previous source must never replace the selected one.
+  if(id!==PUBLIC_REQUEST_SEQUENCE)return false;
+  PUBLIC_PENDING=false;
+  if(j && j.meta){ clearAnalyticsCache(); D=normalizeLivePayload(j); PUBLIC_SAVED_AT=savePublicStartupPayload(D,base); LIVE=true; clearHardRefreshFlag(); render(); return true; }
   if(j && j.error) err = new Error(j.error);
   if(!silent) alert("Konnte keine Live-Daten laden:\n"+(err?err.message:"unbekannter Fehler")+
-    "\n\nDie App läuft weiter mit dem eingebauten Snapshot.");
+    "\n\nDer zuletzt verfügbare Datenstand bleibt sichtbar.");
   LIVE=false; render();
   return false;
 }
@@ -3782,11 +3839,12 @@ document.getElementById("cfgSave").onclick = ()=>{
   const v=document.getElementById("cfgUrl").value.trim();
   try{ localStorage.setItem("fba_api",v); }catch(e){}
   document.getElementById("cfg").classList.remove("on");
-  if(v) loadLive(v); else { clearAnalyticsCache(); D=SNAPSHOT; LIVE=false; render(); }
+  resetPublicStartupData(); render();
+  if(v) loadLive(v);
 };
 document.getElementById("cfgClear").onclick = ()=>{
   try{ localStorage.setItem("fba_api",""); }catch(e){}
-  clearAnalyticsCache(); D=SNAPSHOT; LIVE=false;
+  resetPublicStartupData();
   document.getElementById("cfg").classList.remove("on");
   render();
 };
@@ -3795,9 +3853,10 @@ async function hardReloadApp(){
   document.body.classList.add("hard-refreshing");
   const sourceText=document.getElementById("srcTxt"),hasMonsterAccess=monsterUnlocked();if(sourceText&&hasMonsterAccess)sourceText.textContent="ESPN SYNC…";
   if(hasMonsterAccess){
-    try{await requestFullEspnRefresh();localStorage.removeItem(MONSTER_FORCE_REFRESH_KEY)}catch(error){document.body.classList.remove("hard-refreshing");if(sourceText)sourceText.textContent=LIVE?"LIVE":"SNAPSHOT";alert("Live-Reset abgebrochen:\n"+(error&&error.message?error.message:String(error))+"\n\nDie App zeigt weiterhin den letzten bestätigten Stand.");return}
+    try{await requestFullEspnRefresh();localStorage.removeItem(MONSTER_FORCE_REFRESH_KEY)}catch(error){document.body.classList.remove("hard-refreshing");updatePublicSource();alert("Live-Reset abgebrochen:\n"+(error&&error.message?error.message:String(error))+"\n\nDie App zeigt weiterhin den letzten bestätigten Stand.");return}
   }
   clearAnalyticsCache();
+  try{localStorage.removeItem(PUBLIC_STARTUP_CACHE_KEY)}catch(e){}
   try{if("caches" in window){const names=await caches.keys();await Promise.all(names.map(name=>caches.delete(name)))}}catch(e){}
   try{if("serviceWorker" in navigator){const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.map(registration=>registration.unregister()))}}catch(e){}
   if(!hasMonsterAccess)try{localStorage.setItem(MONSTER_FORCE_REFRESH_KEY,"1")}catch(e){}
@@ -3819,6 +3878,7 @@ document.addEventListener("keydown",e=>{
 });
 
 /* Start */
+restorePublicStartupPayload();
 render();
 setInterval(updateCountdowns,1000);
 if(insideAppsScript() || apiUrl()) loadLive(null,true);
