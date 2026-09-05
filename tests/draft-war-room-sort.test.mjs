@@ -22,6 +22,7 @@ function harness() {
     document: {getElementById: key => elements.get(key), activeElement: elements.get('draftPlayerSort')},
     E: value => String(value ?? ''), de: value => String(value ?? 0),
     espnPlayerHeadshot: id => `${id}.png`, imageFallbackAttr: () => '', playerInitials: name => name[0],
+    nextOpenDraftPick: () => ({overall: 2, team: 'Test'}), maikValueMarkup: p => `<span class="maik-value">${lookup(p).primary?.value ?? '–'}</span>`,
     resetMaikValueContext: () => {}, refreshDraftPage: () => {}, showDraftToast: () => {},
     draftPickMeta: overall => ({overall, round: 1, slot: overall - 1, team: 'Test'}), confirm: () => true
   });
