@@ -92,7 +92,7 @@ test('the new page retains existing card analyses, pictures and positions while 
   assert.match(result, /Bestehende Statistikdetails/);
   assert.match(result, /class="draft-radar-photo"/);
   assert.match(result, /ESPN-Fantasy-Positionen">PF,C/);
-  assert.match(result, /Top 25 nach ESPN ADP/);
+  assert.match(result, /Top 100 nach ESPN ADP/);
   assert.match(result, /# = Position in dieser Liste/);
   assert.equal((result.match(/<details data-draft-player=/g) || []).length, players.length);
   assert.match(harness([], 'bad-sort').context.pgDraftPreparation(), /id="draft-prep-empty" class="model-note">Die Spieler erscheinen/);
@@ -117,7 +117,7 @@ test('sort interaction retains the selector and open player, updates only local 
   assert.equal(nodes.find(node => node.getAttribute() === '1').open, true);
   assert.strictEqual(context.document.activeElement, select);
   assert.equal(select.value, 'maik');
-  assert.match(elements.get('draft-prep-status').textContent, /Maik-Value · höchster zuerst/);
+  assert.match(elements.get('draft-prep-status').textContent, /FBA-Value · höchster zuerst/);
   assert.equal(elements.get('draft-prep-empty').hidden, true);
   assert.deepEqual([...storage], [['fba-draft-preparation-sort-v1', 'maik']]);
   assert.match(context.pgDraftPreparation(), /value="maik" selected/);

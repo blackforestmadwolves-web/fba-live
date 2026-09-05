@@ -344,7 +344,7 @@ assert.equal(pickupLiveResult.weekly[teams[0]][2].actualGames,2,"Montag und Dien
 assert.ok(pickupLiveResult.weeklyPlayers[teams[0]][2].some(row=>row.id==="P1-1"&&row.actualOnly===true),
   "Der vor dem Pickup aktive Spieler muss als historischer W2-Ist-Beitrag erhalten bleiben");
 
-// The schedule-watch name and Maik-Value identity must follow the same player
+// The schedule-watch name and FBA-Value identity must follow the same player
 // before/after a hypothetical pickup takes effect, while keeping ledger IDs.
 const futurePickupRoster=livePickupRoster.map(row=>Object.assign({},row));
 futurePickupRoster[0].pickupDropEngineProjection=engineRecords[0];
@@ -354,9 +354,9 @@ const beforeEffective=futurePickupResult.weeklyPlayers[teams[0]][2].find(row=>ro
 const afterEffective=futurePickupResult.weeklyPlayers[teams[0]][3].find(row=>row.id==="NEW-P1");
 assert.equal(beforeEffective.name,engineRecords[0].name);
 assert.equal(beforeEffective.displayId,engineRecords[0].id,
-  "Vor Wirksamkeit des Pickups muss der angezeigte Drop auch seinen eigenen Maik-Value erhalten");
+  "Vor Wirksamkeit des Pickups muss der angezeigte Drop auch seinen eigenen FBA-Value erhalten");
 assert.equal(afterEffective.name,"Mittwochs-Pickup");
 assert.equal(afterEffective.displayId,"NEW-P1",
-  "Ab Wirksamkeit des Pickups müssen angezeigter Name und Maik-Value zum neuen Spieler gehören");
+  "Ab Wirksamkeit des Pickups müssen angezeigter Name und FBA-Value zum neuen Spieler gehören");
 
 console.log("PASS · Matchup Monster v43 season projection frontend tests");

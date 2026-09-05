@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 // v43 regression suite: Monster, ROS Free Agency, live ADP, responsive layout and pickup tools.
 import fs from "node:fs";
 import vm from "node:vm";
+import pickupLab from "../pickup-lab.js";
 
 const html=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const inline=html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/);
@@ -19,7 +20,7 @@ for(const resource of localResources){
   assert.equal(fs.existsSync(new URL(resource,projectRoot)),true,`Lokale Produktionsdatei fehlt: ${resource}`);
 }
 const manifest=JSON.parse(fs.readFileSync(new URL("manifest.webmanifest",projectRoot),"utf8"));
-assert.match(manifest.start_url,/war-room-monster-v52-20260905/);
+assert.match(manifest.start_url,/war-room-monster-v53-20260905/);
 for(const icon of manifest.icons||[]){
   assert.equal(fs.existsSync(new URL(icon.src,projectRoot)),true,`Manifest-Icon fehlt: ${icon.src}`);
 }
@@ -44,12 +45,12 @@ function functionSource(name){
   throw new Error(`Funktion ${name} ist unvollständig`);
 }
 
-// Maik-Value arithmetic has its own suite. These isolated render/loader tests
+// FBA-Value arithmetic has its own suite. These isolated render/loader tests
 // retain controlled presentation dependencies while exercising their original
 // behavior and the same shared VM context (especially navigation and preload).
 const maikUiStubs={
-  maikValueMarkup:()=>'<span class="maik-value">Maik-Value –</span>',
-  maikValueText:()=>"Maik-Value –",
+  maikValueMarkup:()=>'<span class="maik-value">FBA-Value –</span>',
+  maikValueText:()=>"FBA-Value –",
   maikValueDetailsMarkup:()=>"",
   maikValueSettingsMarkup:()=>"",
   maikValueFor:player=>({id:String(player&&player.id||""),history:null,current:null,primary:null}),
@@ -70,7 +71,7 @@ function loadAsyncFunction(name,context={}){
   return vm.runInNewContext(`(async ${functionSource(name)})`,context,{filename:`${name}.js`});
 }
 
-assert.match(html,/war-room-monster-v52-20260905/,"Vorbereiteter Build muss v52 ausweisen");
+assert.match(html,/war-room-monster-v53-20260905/,"Vorbereiteter Build muss v53 ausweisen");
 assert.match(html,/\["monster","Monster",pgMonster\],[\s\S]*\["freeagency","Free Agency",pgFreeAgency\],[\s\S]*\["pr","Power Ranking",pgPR\]/,
   "Free Agency muss als geschützte Seite direkt hinter Monster stehen");
 assert.match(functionSource("monsterPrivatePage"),/key==="monster"\|\|key==="freeagency"/,
@@ -115,11 +116,10 @@ assert.match(functionSource("monsterB2bPlayersMarkup"),/monster-b2b-team-filter[
 assert.match(functionSource("toggleMonsterB2b"),/b2bTeam=""/,
   "Der erste Klick öffnet das Fenster und startet ohne alten Teamfilter");
 assert.match(html,/function monsterB2bFreeAgents\(teams,points\)/,"Aufgeklappte B2B-Zeilen brauchen freie Spieler der betroffenen NBA-Teams");
-assert.match(html,/b2bHunts:\[\]/,"Das B2B-Radar muss mit einer leeren Mehrfachauswahl starten");
-assert.match(functionSource("setMonsterB2bHunt"),/selected\.splice[\s\S]*selected\.push[\s\S]*DRAFT_CATS\.filter/,
-  "Mehrere FBA-Punkte müssen unabhängig an- und abwählbar sein");
-assert.match(functionSource("monsterB2bContribution"),/values\.reduce\([\s\S]*\/values\.length/,
-  "Kombinierte B2B-Sortierung muss den gleichgewichteten z-Score-Durchschnitt bilden");
+assert.match(html,/hunts:\[\]/,"Pickup Lab startet mit einer gemeinsamen leeren Mehrfachauswahl");
+assert.match(functionSource("monsterB2bHunts"),/return monsterHunts\(\)/,"B2B verwendet dieselbe Auswahl wie der Wochenvergleich");
+assert.match(functionSource("setMonsterB2bHunt"),/setMonsterHunt\(point\)/,"Alte B2B-Aktionen bleiben mit der gemeinsamen Auswahl kompatibel");
+assert.match(functionSource("monsterB2bContribution"),/FBA_PICKUP_LAB\.score/,"B2B und Woche nutzen denselben gleichgewichteten Mittelwert");
 assert.match(html,/FBA-Punkte kombinieren · mehrere wählbar/);
 assert.match(html,/monsterB2bDate\(group\.first\)[\s\S]* auf [\s\S]*monsterB2bDate\(group\.second\)/,
   "Das Radar braucht das kompakte numerische Datum unter dem Tagespaar");
@@ -143,9 +143,9 @@ assert.equal(espnPositionLabel({fantasyPositions:"4,7,8"}),"ESPN-Sync",
 assert.doesNotMatch(html,/ESPN-Position offen/,
   "Die Oberfläche darf keinen falschen offenen Positionsstatus mehr anzeigen");
 
-assert.match(html,/hunt:null/,"Das Pickup Impact Lab muss ohne ausgewählten FBA-Punkt starten");
+assert.match(html,/hunts:\[\]/,"Das Pickup Lab muss ohne ausgewählten FBA-Punkt starten");
 assert.match(html,/setMonsterHunt\(''\).*GESAMT/,
-  "Das Pickup Impact Lab braucht eine Gesamtprofil-Auswahl");
+  "Das Pickup Lab braucht eine Gesamtprofil-Auswahl");
 assert.match(html,/function monsterSimulation\(teamA,teamB,baseForecast\)/,
   "Drop und Add müssen ein gemeinsames Vorher-Nachher-Szenario erzeugen");
 assert.match(html,/Alle acht FBA-Punkte zeigen jetzt Vorher → Nachher/,
@@ -240,7 +240,7 @@ assert.doesNotMatch(journeyMarkup,/<details[^>]*\sopen(?:\s|>)/,
 const pgMonsterSource=functionSource("pgMonster");
 const pickupCardIndex=pgMonsterSource.indexOf("${pickupCard}"),seasonSimulatorIndex=pgMonsterSource.indexOf("${monsterSeasonProjectionMarkup()}");
 assert.ok(pickupCardIndex>=0&&seasonSimulatorIndex>pickupCardIndex,
-  "Das Pickup Impact Lab muss vor dem Season Simulator erscheinen");
+  "Das Pickup Lab muss vor dem Season Simulator erscheinen");
 assert.match(functionSource("monsterSimulatorMarkup"),/<option value="">Free Agent wählen …<\/option>/,
   "Das Pickup-Feld muss kurz Free Agent wählen heißen");
 assert.match(pgMonsterSource,/monsterSimulatorMarkup\(analysisTeam,comparisonTeam,analysisForecast,analysisSimulation\)/,
@@ -476,13 +476,13 @@ const b2bPoints=["PTS","REB","AST","3PM","STL","BLK","FG%","FT%"],b2bProfiles=ne
   ["turner",{overall:10,overallRank:15,z:{BLK:1.5,"3PM":1.5}}]
 ]);
 const b2bContribution=loadFunction("monsterB2bContribution",{
-  draftValueModel:()=>({byId:b2bProfiles}),monsterAvailability:()=>1,DRAFT_CATS:b2bPoints,de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),Array,Number,Math
+  window:{FBA_PICKUP_LAB:pickupLab},maikValueFormat:value=>(value>=0?"+":"")+value.toFixed(2).replace(".",","),draftValueModel:()=>({byId:b2bProfiles}),monsterAvailability:()=>1,DRAFT_CATS:b2bPoints,de:(value,digits)=>Number(value).toFixed(digits).replace(".",","),Array,Number,Math
 });
 const edeyCombo=b2bContribution({id:"edey",BLK:2,"3PM":0},["3PM","BLK"]),turnerCombo=b2bContribution({id:"turner",BLK:1.5,"3PM":1.5},["3PM","BLK"]);
 assert.equal(edeyCombo.value,2,"2,0 BLK-z und 0,0 3PM-z müssen über zwei B2B-Spiele den Wert 2 ergeben");
 assert.equal(turnerCombo.value,3,"Zwei gleichmäßig starke FBA-Punkte müssen den Spezialisten im Kombi-Ranking schlagen");
 assert.ok(turnerCombo.value>edeyCombo.value);
-assert.match(edeyCombo.label,/\+1,0 z Ø/);
+assert.match(edeyCombo.label,/\+2,00 Such-Value/);
 
 const impactClass=loadFunction("monsterImpactClass");
 assert.equal(impactClass(.08),"good");
@@ -512,8 +512,8 @@ assert.match(html,/FantasyPros[^\n]+Adapter[^\n]+false|FantasyPros API vorbereit
 assert.match(html,/Hashtag[^\n]+Adapter[^\n]+false|Hashtag Export vorbereitet/,
   "Hashtag darf weiterhin nur als vorbereitete Quelle erscheinen");
 
-assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*Maik-Value[\s\S]*Upside/,
-  "Free Agency muss die Hot Zone nach dem Maik-Value benennen und Upside behalten");
+assert.match(functionSource("freeAgencyZones"),/Hot Zone[\s\S]*FBA-Value[\s\S]*Upside/,
+  "Free Agency muss die Hot Zone nach dem FBA-Value benennen und Upside behalten");
 assert.doesNotMatch(functionSource("freeAgencyZones"),/B2B Edge|Wochen-Impact/,
   "Das allgemeine Free-Agent-Board darf keinen B2B- oder Wochenfokus mehr haben");
 assert.match(functionSource("pgFreeAgency"),/Free-Agent Board/,
@@ -601,7 +601,7 @@ const filterFreeAgents=loadFunction("freeAgencyFilteredRows",{
 const filterRows=Array.from({length:130},(_,index)=>({fbaRank:index+1,espnRank:130-index,upside:index,positions:index%2?"PG, SG":"C",projection:{perGame:{PTS:index}},player:{name:`Player ${index+1}`,nba:index%3?"DAL":"ATL",maikScore:index}}));
 assert.equal(filterFreeAgents(filterRows.slice()).length,100,"Auch ein großer ESPN-Pool darf maximal 100 Free Agents rendern");
 assert.equal(filterFreeAgents(filterRows.slice())[0].player.name,"Player 130",
-  "Maik-Sortierung muss den stärksten Maik-Value zuerst zeigen, unabhängig vom bisherigen FBA-Rang");
+  "Maik-Sortierung muss den stärksten FBA-Value zuerst zeigen, unabhängig vom bisherigen FBA-Rang");
 freeAgencyFilterState.sort="fba";
 assert.equal(filterFreeAgents(filterRows.slice())[0].player.name,"Player 1",
   "Die ausdrücklich gewählte bisherige FBA-Sortierung muss erhalten bleiben");
@@ -641,10 +641,10 @@ assert.match(html,/\.draft-radar-header\{[^}]*display:flex;[^}]*justify-content:
   "Rang und Kennzahlen müssen eine gemeinsame Kopfzeile im normalen Layout bilden");
 for(const rule of [...html.matchAll(/\.draft-radar-score\s*\{([^}]+)\}/g)].map(match=>match[1])){
   assert.doesNotMatch(rule,/position:(?:absolute|fixed)|(?:^|;)(?:top|right|bottom|left|inset):/,
-    "ADP und Maik-Value müssen auch mobil ihre volle Höhe vor dem Spielernamen reservieren");
+    "ADP und FBA-Value müssen auch mobil ihre volle Höhe vor dem Spielernamen reservieren");
 }
 assert.match(html,/\.draft-radar-score \.maik-value\{[^}]*justify-content:flex-end;text-align:right/,
-  "Maik-Value muss unter ESPN ADP rechtsbündig stehen");
+  "FBA-Value muss unter ESPN ADP rechtsbündig stehen");
 const renderDraftRadarCard=loadFunction("draftRadarCard",{
   E:value=>String(value),espnPlayerHeadshot:id=>`headshot-${id}.png`,imageFallbackAttr:()=>"",
   playerInitials:()=>"SG",draftAdpTrendMarkup:adpTrendMarkup,monsterEspnFantasyPositionLabel:espnPositionLabel,Number,Math,
@@ -660,10 +660,10 @@ for(const adpTrend of [undefined,{ready:true,change:2.25}]){
   assert.match(card,/<span class="draft-radar-open">Analyse <i>⌄<\/i><\/span><div class="draft-radar-bar" aria-hidden="true">[\s\S]*?<\/summary>\s*<div class="draft-radar-report">/,
     "Analyse, Heat-Leiste und aufklappbarer Bericht müssen ihre getrennten Bereiche behalten");
   const summary=card.slice(0,card.indexOf("</summary>"));
-  assert.match(summary,/<div class="draft-radar-header"><span class="draft-radar-rank">#[^<]+<\/span><div class="draft-radar-score"><b>[^<]+<\/b><small>ESPN ADP<\/small><span class="maik-value">Maik-Value –<\/span><\/div><\/div>/,
-    "Der gemeinsame Kartenkopf muss Maik-Value direkt unter ESPN ADP ausgeben");
+  assert.match(summary,/<div class="draft-radar-header"><span class="draft-radar-rank">#[^<]+<\/span><div class="draft-radar-score"><b>[^<]+<\/b><small>ESPN ADP<\/small><span class="maik-value">FBA-Value –<\/span><\/div><\/div>/,
+    "Der gemeinsame Kartenkopf muss FBA-Value direkt unter ESPN ADP ausgeben");
   assert.equal((summary.match(/class="maik-value"/g)||[]).length,1,
-    "Die geschlossene Karte darf Maik-Value nicht nochmals unter dem Spielernamen ausgeben");
+    "Die geschlossene Karte darf FBA-Value nicht nochmals unter dem Spielernamen ausgeben");
 }
 const radarPositionCard=renderDraftRadarCard({id:"guard",name:"ESPN Guard",nba:"OKC",adp:3.1,primaryPosition:"PG",fantasyPositions:"SG,PG,UTIL,BE"},0);
 assert.match(radarPositionCard,/<h3>ESPN Guard<\/h3><div class="draft-radar-meta"><span class="draft-radar-team">OKC · <span title="ESPN-Fantasy-Positionen">PG, SG<\/span>/,
@@ -680,13 +680,13 @@ assert.match(radarPositionCard,/ESPN-ADP beschreibt den Draftmarkt und ist keine
   "Die Analyse muss Marktposition und FBA-Leistungsprognose verständlich unterscheiden");
 assert.doesNotMatch(html,/Draft Heat|50 % Experten-Ränge|DRAFT_RADAR_FALLBACK/,
   "Weder unbelegte Gewichte noch statische Heat-Ranglisten dürfen als Live-Modell erscheinen");
-const radarInput=Array.from({length:30},(_,i)=>({id:`P${i}`,name:`Player ${i}`,adp:40-i,rank:99,score:100}));
+const radarInput=Array.from({length:130},(_,i)=>({id:`P${i}`,name:`Player ${i}`,adp:140-i,rank:99,score:100}));
 const radarState={draftTop25:radarInput};
 const sortedRadar=loadFunction("draftRadarData",{D:radarState,Set,Number,String,Object});
 const sortedRadarRows=sortedRadar();
-assert.equal(sortedRadarRows.length,25);
-assert.equal(sortedRadarRows[0].id,"P29");
-assert.deepEqual(Array.from(sortedRadarRows,row=>row.rank),Array.from({length:25},(_,i)=>i+1));
+assert.equal(sortedRadarRows.length,100);
+assert.equal(sortedRadarRows[0].id,"P129");
+assert.deepEqual(Array.from(sortedRadarRows,row=>row.rank),Array.from({length:100},(_,i)=>i+1));
 assert.equal(radarInput[0].rank,99,"Das Sortieren darf die Quelldaten nicht überschreiben");
 radarState.draftTop25=[{id:"giannis",name:"Giannis",adp:5.3,score:76},{id:"edwards",name:"Edwards",adp:6.8,score:78},
   {id:"zero",adp:0},{id:"nan",adp:"ungültig"},{id:"inactive",adp:1,active:false},{id:"giannis",adp:5.3}];

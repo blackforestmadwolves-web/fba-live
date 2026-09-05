@@ -7,4 +7,5 @@
 .draft-prep-status{margin:0 2px 13px;color:var(--dim,#9ba5b9);font-size:11px;line-height:1.6}
 .draft-prep-foot{display:grid;gap:5px;font-size:10px;line-height:1.6;margin-top:14px}
 .draft-preparation [hidden]{display:none!important}
+.draft-preparation .draft-radar-rank{width:auto;min-width:31px;padding:0 6px}
 @media(max-width:600px){.draft-prep-toolbar{align-items:stretch;flex-direction:column;gap:15px;padding:16px}.draft-prep-sort{flex:auto;min-width:0}.draft-prep-sort select{font-size:16px}.draft-prep-toolbar h2{font-size:19px}.draft-prep-status{font-size:10px}}

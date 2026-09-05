@@ -245,7 +245,7 @@ const ownershipBasisIssue=context.monsterProjectionBasisIssue({
 assert.match(ownershipBasisIssue,/Ownership-at-game|Besitzer zum Spielzeitpunkt/i,
   "Derselbe Ownership-Block muss Matchup Projection und Pickup Impact Lab vor einer Rueckrechnung mit heutigen Kadern schuetzen");
 assert.match(functionSource("pgMonster"),/basisIssue[\s\S]*ready=!basisIssue[\s\S]*if\(!ready\)[\s\S]*Prognose bewusst blockiert/);
-assert.match(functionSource("pgMonster"),/pickupBody=ready\?monsterSimulatorMarkup[\s\S]*Pickup Impact Lab zeigt deshalb keine erfundenen Auswirkungen/);
+assert.match(functionSource("pgMonster"),/pickupBody=ready\?monsterSimulatorMarkup[\s\S]*Der Wochenvergleich wartet auf diese Daten/);
 
 context.MONSTER_STATE.data={phase:"REGULAR_SEASON",projectionEngine:{...lifecycleEngine,actual:{
   ownershipAtGameReady:true,fbaResultsReady:false,completedFbaMatchups:[]

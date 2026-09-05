@@ -109,6 +109,31 @@ test('104 fixed reference players and all 582 actual historical profiles use sep
   assert.match(ctx.maikValueDetailsMarkup({id: wembyId}), /Projektion 2026\/27 noch nicht verfügbar/);
 });
 
+test('FBA-Value badges read number, label, then the actual statistical basis', () => {
+  const {context: history} = harness();
+  const {context: current} = harness({unlocked: true, data: projectionData()});
+  const cases = [
+    {ctx: history, id: wembyId, basis: '2025/26'},
+    {ctx: current, id: wembyId, basis: 'Ist + Rest 2026/27'},
+    {ctx: history, id: 'unknown', basis: 'Statistik fehlt'}
+  ];
+  for (const {ctx, id, basis} of cases) {
+    const player = {id}, value = ctx.maikValueFor(player).primary;
+    const number = ctx.maikValueFormat(value && value.value);
+    const markup = ctx.maikValueMarkup(player);
+    assert.ok(markup.endsWith(`<strong>${number}</strong><span class="maik-value-label">FBA-Value</span><span class="maik-value-basis">${basis}</span></span>`),
+      'each badge must have exactly three ordered lines without an invented season for missing data');
+    assert.equal(ctx.maikValueText(player), `${number} FBA-Value · ${basis}`);
+    assert.doesNotMatch(markup, /Maik-Value/);
+  }
+  assert.match(html, /\.maik-value\{[^}]*flex-direction:column;[^}]*align-items:flex-start;/,
+    'shared badges stack their three lines');
+  assert.match(html, /\.draft-radar-score \.maik-value\{[^}]*align-items:flex-end;[^}]*text-align:right/,
+    'all three draft-card lines align under the ESPN ADP at the right edge');
+  assert.doesNotMatch(html, /Maik-Value|Maik-Vergleichsmaßstab/,
+    'visible labels in the complete app consistently use the new name');
+});
+
 test('draft stats, filters and ownership cannot move the frozen historical reference', () => {
   const {context: ctx} = harness();
   const view = ctx.maikValueContext(), originalModel = view.model;
@@ -173,7 +198,7 @@ test('authorized season-finish value uses actual plus remaining games and update
   assert.strictEqual(ctx.maikValueContext().model, originalView.model, 'current projections cannot change reference');
 });
 
-test('wrong seasons, incomplete coverage and invalid records cannot become current Maik-Values', () => {
+test('wrong seasons, incomplete coverage and invalid records cannot become current FBA-Values', () => {
   const variants = [
     ['previous baseline season', data => { data.projectionEngine.baseline.seasonId = 2026; }],
     ['wrong engine season', data => { data.projectionEngine.season = '2025/26'; }],
@@ -233,7 +258,7 @@ test('badges and detail tables show basis, eight categories and escaped data wit
   const data = projectionData(), {context: ctx} = harness({unlocked: true, data});
   const markup = ctx.maikValueMarkup({id: wembyId});
   assert.match(markup, /data-maik-player="5104157"/);
-  assert.match(markup, /Maik-Value/);
+  assert.match(markup, /FBA-Value/);
   assert.match(markup, /class="maik-value-basis">Ist \+ Rest 2026\/27<\/span>/,
     'a season-finish value must remain distinguishable from actual historical stats');
   assert.match(ctx.maikValueText({id: wembyId}), / · Ist \+ Rest 2026\/27$/);
