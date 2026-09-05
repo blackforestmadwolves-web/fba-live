@@ -3,6 +3,8 @@ import test from 'node:test';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import prep from '../draft-prep.js';
+import punt from '../draft-punt.js';
+import core from '../maik-value.js';
 
 const source = fs.readFileSync(new URL('../draft-prep.js', import.meta.url), 'utf8');
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -107,6 +109,7 @@ test('player search matches partial names, accents and common punctuation withou
 function harness(rows = players, savedValue = 'adp') {
   const storage = new Map([['fba-draft-preparation-sort-v1', savedValue]]);
   const context = vm.createContext({
+    FBA_DRAFT_PUNT: punt, FBA_MAIK_VALUE: core,
     E: value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[char]),
     sect: (title, subtitle) => `<div class="secttl"><h1>${title}</h1><span>${subtitle}</span></div>`,
     draftRadarData: () => rows, maikValueFor: valueFor,
@@ -237,4 +240,79 @@ test('search retains input focus, chosen sorting and open reports through no mat
   assert.equal(nodes.find(node => node.getAttribute() === '2').open, false);
   context.draftPreparationSetQuery('\"<script>');
   assert.match(context.pgDraftPreparation(), /value="&quot;&lt;script&gt;"/);
+});
+
+test('multi-punt controls mark dependent players, keep reports and values, and persist separately from War Room', () => {
+  const {context, storage} = harness();
+  const z = overrides => Object.fromEntries(punt.categories.map(cat => [cat, overrides[cat] ?? -1]));
+  context.maikValueFor = row => ({primary: {value: valueFor(row).primary.value, kind: 'history', z: row.id === '1' ? z({AST: 3, PTS: 1}) : row.id === '2' ? z({AST: 2, REB: 2, PTS: 3}) : null}});
+  context.DRAFT_STATE = {punts: ['BLK'], sort: 'merge', picks: [{playerId: 'x'}]};
+  const originalRoom = JSON.stringify(context.DRAFT_STATE);
+  const initial = context.pgDraftPreparation();
+  assert.equal((initial.match(/type="checkbox"/g) || []).length, 8);
+  assert.doesNotMatch(initial, /class="draft-radar-card punt-mismatch"/);
+  context.draftPreparationTogglePunt('AST');
+  const single = context.pgDraftPreparation();
+  assert.match(single, /data-draft-player="1"[^>]*class="draft-radar-card punt-mismatch"/);
+  assert.match(single, /data-draft-player="2"[^>]*class="draft-radar-card"/);
+  assert.match(single, /Passt nicht gut zum AST-Punt-Build/);
+  assert.match(single, /Punt-Fit offen · Stärkenprofil fehlt/);
+  assert.match(single, /Bestehende ausführliche Analyse/);
+  assert.match(single, /75 % der positiv bewerteten Stärken/);
+  assert.match(single, /Verbleibende Stärken: PTS/);
+  context.draftPreparationTogglePunt('REB');
+  const multiple = context.pgDraftPreparation();
+  assert.match(multiple, /data-draft-player="2"[^>]*class="draft-radar-card punt-mismatch"/);
+  assert.match(multiple, /AST \+ REB-Punt-Build/);
+  assert.deepEqual([...multiple.matchAll(/class="draft-merge-value[^>]*>[\s\S]*?<strong>([^<]*)/g)].map(m => m[1]), [...initial.matchAll(/class="draft-merge-value[^>]*>[\s\S]*?<strong>([^<]*)/g)].map(m => m[1]));
+  assert.equal(JSON.stringify(context.DRAFT_STATE), originalRoom);
+  assert.equal(storage.get('fba-draft-preparation-punts-v1'), '["AST","REB"]');
+  // A new script instance simulates re-entering the app in this tab.
+  vm.runInContext(source, context);
+  assert.match(context.pgDraftPreparation(), /value="AST" checked/);
+  context.draftPreparationClearPunts();
+  assert.doesNotMatch(context.pgDraftPreparation(), /class="draft-radar-card punt-mismatch"/);
+  assert.equal(storage.get('fba-draft-preparation-punts-v1'), '[]');
+});
+
+test('punt interaction preserves the focused checkbox, open report, search and sort; seven is the limit', () => {
+  const {context} = harness(players, 'merge');
+  let nodes = [{open: true, getAttribute: () => '1'}];
+  const grid = {querySelectorAll: () => nodes, set innerHTML(markup) {
+    nodes = Array.from(markup.matchAll(/<details data-draft-player="([^"]+)"/g), m => ({open: false, getAttribute: () => m[1]}));
+  }};
+  const boxes = punt.categories.map(() => ({}));
+  const elements = new Map([['draft-prep-grid', grid], ['draft-prep-sort', {}], ['draft-prep-punt-status', {}], ['draft-prep-punt-clear', {}], ...boxes.map((box, i) => [`draft-prep-punt-${i}`, box])]);
+  context.document = {getElementById: id => elements.get(id), activeElement: boxes[2]};
+  context.draftPreparationTogglePunt('AST');
+  assert.strictEqual(context.document.activeElement, boxes[2]);
+  assert.equal(boxes[2].checked, true);
+  assert.equal(nodes.find(node => node.getAttribute() === '1').open, true);
+  assert.equal(elements.get('draft-prep-sort').value, 'merge');
+  context.draftPreparationSetQuery('Zed');
+  context.draftPreparationTogglePunt('REB');
+  assert.deepEqual(nodes.map(node => node.getAttribute()), ['1']);
+  assert.equal(nodes[0].open, true);
+  for (const cat of punt.categories) context.draftPreparationTogglePunt(cat);
+  // Toggle until exactly seven distinct categories are selected.
+  context.draftPreparationClearPunts();
+  for (const cat of punt.categories) context.draftPreparationTogglePunt(cat);
+  assert.equal(boxes.filter(box => box.checked).length, 7);
+  assert.equal(boxes[7].disabled, true);
+  assert.equal(boxes[0].disabled, false);
+  assert.match(elements.get('draft-prep-punt-status').textContent, /Mindestens eine Kategorie/);
+  context.draftPreparationClearPunts();
+  assert.ok(boxes.every(box => !box.checked && !box.disabled));
+  assert.equal(elements.get('draft-prep-punt-clear').disabled, true);
+});
+
+test('invalid or inaccessible stored punt choices fall back to an unmarked view', () => {
+  const {context, storage} = harness();
+  storage.set('fba-draft-preparation-punts-v1', '{invalid JSON');
+  assert.match(context.pgDraftPreparation(), /Alle Kategorien aktiv/);
+  context.sessionStorage = {getItem: () => {throw Error('blocked');}, setItem: () => {throw Error('blocked');}};
+  vm.runInContext(source, context);
+  assert.match(context.pgDraftPreparation(), /Alle Kategorien aktiv/);
+  context.draftPreparationTogglePunt('AST');
+  assert.match(context.pgDraftPreparation(), /value="AST" checked/);
 });

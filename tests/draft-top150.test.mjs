@@ -41,6 +41,7 @@ function harness() {
   vm.runInContext(html.slice(radarStart,radarEnd),c);
   vm.runInContext(read('draft-editorial-150.js'),c);
   vm.runInContext(read('draft-news-context.js'),c);
+  vm.runInContext(read('draft-punt.js'),c);
   vm.runInContext(read('draft-prep.js'),c);
   return c;
 }
@@ -174,4 +175,20 @@ test('opening a report never advances its editorial date and news content is esc
   assert.match(markup,/&lt;img/);assert.match(markup,/&lt;script/);
   assert.doesNotMatch(markup,/href="javascript:|<img|<script/);
   assert.match(markup,/Bericht geändert: 2026-09-01/);
+});
+
+test('real Top 150 FBA profiles support multi-punt evaluation without changing values, population or reports',()=>{
+  const c=harness(), rows=c.draftRadarData();
+  const before=rows.map(p=>({id:p.id,value:c.maikValueFor(p).primary?.value}));
+  const available=rows.map(p=>({p,fit:c.FBA_DRAFT_PUNT.evaluate(c.maikValueFor(p).primary,['AST'],core.weights)})).filter(x=>x.fit);
+  assert.ok(available.length>100,'real category contributions are available, not just mocked FBA totals');
+  assert.equal(available.find(x=>x.p.id==='3112335').fit.mismatch,false,'Jokic keeps multiple other strengths when AST alone is punted');
+  c.draftPreparationTogglePunt('AST');c.draftPreparationTogglePunt('REB');
+  const markup=c.pgDraftPreparation();
+  const expected=rows.filter(p=>c.FBA_DRAFT_PUNT.evaluate(c.maikValueFor(p).primary,['AST','REB'],core.weights)?.mismatch).length;
+  assert.ok(expected>0 && expected<150);
+  assert.equal((markup.match(/class="draft-radar-card punt-mismatch"/g)||[]).length,expected);
+  assert.equal((markup.match(/<details data-draft-player=/g)||[]).length,150);
+  assert.equal((markup.match(/class="draft-radar-editorial"/g)||[]).length,150);
+  assert.deepEqual(c.draftRadarData().map(p=>({id:p.id,value:c.maikValueFor(p).primary?.value})),before);
 });
