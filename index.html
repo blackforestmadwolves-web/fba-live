@@ -7,7 +7,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="fba-build" content="war-room-monster-v59-20260905">
+<meta name="fba-build" content="war-room-monster-v60-20260905">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="FBA">
@@ -1181,6 +1181,7 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 </style>
 <link rel="stylesheet" href="draft-prep.css">
 <link rel="stylesheet" href="draft-war-room.css">
+<link rel="stylesheet" href="espn-mock.css">
 <link rel="stylesheet" href="pickup-lab.css">
 <link rel="stylesheet" href="team-previews.css">
 </head>
@@ -1251,6 +1252,8 @@ body.draft-wide main.wrap,body.draft-wide header .wrap{max-width:1680px}
 <script src="draft-prep.js"></script>
 <script src="draft-coach.js"></script>
 <script src="draft-war-room.js"></script>
+<script src="espn-mock-core.js"></script>
+<script src="espn-mock.js"></script>
 <script src="pickup-lab.js"></script>
 <script src="team-previews-2026-27.js"></script>
 <script src="team-previews.js"></script>
@@ -1893,10 +1896,13 @@ function loadDraftState(){
     return {version:2,picks:unique,history:Array.isArray(raw.history)?raw.history.slice(-40):[],punts:Array.isArray(raw.punts)?[...new Set(raw.punts.filter(c=>DRAFT_CATS.includes(c)))].slice(0,7):[],hunt:DRAFT_CATS.includes(raw.hunt)?raw.hunt:null,panel:["room","standings","board"].includes(raw.panel)?raw.panel:"room",query:"",sort:draftPlayerSortMode(raw),myTeam:typeof raw.myTeam==="string"?raw.myTeam:fallback.myTeam,goal:["balanced","punt","strengths"].includes(raw.goal)?raw.goal:raw.hunt?"strengths":raw.punts?.length?"punt":"balanced"};
   }catch(e){return fallback}
 }
+function espnDraftReadOnly(){return Boolean(window.FBA_ESPN_MOCK?.isActive())}
 function saveDraftState(){
+  if(espnDraftReadOnly()){window.FBA_ESPN_MOCK.save();return;}
   try{localStorage.setItem(DRAFT_STORAGE_KEY,JSON.stringify({version:2,picks:DRAFT_STATE.picks,history:DRAFT_STATE.history.slice(-40),punts:DRAFT_STATE.punts,hunt:DRAFT_STATE.hunt,panel:DRAFT_STATE.panel,sort:draftPlayerSortMode(DRAFT_STATE),myTeam:DRAFT_STATE.myTeam,goal:DRAFT_STATE.goal}))}catch(e){}
 }
 function draftTeams(){
+  const imported=window.FBA_ESPN_MOCK?.teams();if(imported)return imported.slice();
   const fallback=["East Bay Pirates","Balingen Lions","Toronto Polar Bears","Guardians of Rhinos","Dormettingen Eagles","BlackForest Mad Wolves","Karlsruhe Unicorns","Bishkek Easy Snipers"];
   const live=((D&&D.draft&&Array.isArray(D.draft.teams))?D.draft.teams:[]).filter(t=>t&&t.team).slice().sort((a,b)=>Number(a.draftPosition||99)-Number(b.draftPosition||99)).map(t=>String(canonicalTeamName(t.team)));
   const unique=[...new Set(live)];
@@ -1995,6 +2001,7 @@ function showDraftToast(message,withUndo){
   draftToastTimer=setTimeout(()=>el.classList.remove("on"),4200);
 }
 function selectDraftPlayer(id){
+  if(espnDraftReadOnly()){showDraftToast("Die Picks werden aus ESPN übernommen. Änderungen bitte in ESPN vornehmen.",false);return false;}
   const player=draftPlayerById(id);if(!player)return;
   const already=DRAFT_STATE.picks.find(p=>String(p.playerId)===String(id));
   if(already){removeDraftPick(already.overall);return}
@@ -2005,16 +2012,19 @@ function selectDraftPlayer(id){
   showDraftToast(`${player.name} → ${T(next.team).s||next.team} · Pick ${next.overall}`,true);
 }
 function removeDraftPick(overall){
+  if(espnDraftReadOnly()){showDraftToast("Die Picks werden aus ESPN übernommen. Änderungen bitte in ESPN vornehmen.",false);return false;}
   const n=Number(overall),pick=DRAFT_STATE.picks.find(p=>Number(p.overall)===n);if(!pick)return;
   const player=draftPlayerById(pick.playerId);pushDraftHistory();
   DRAFT_STATE.picks=DRAFT_STATE.picks.filter(p=>Number(p.overall)!==n);saveDraftState();refreshDraftPage(true);
   showDraftToast(`${player?player.name:"Spieler"} aus Pick ${n} entfernt.`,true);
 }
 function undoDraftPick(){
+  if(espnDraftReadOnly()){showDraftToast("Die Picks werden aus ESPN übernommen. Änderungen bitte in ESPN vornehmen.",false);return false;}
   const previous=DRAFT_STATE.history.pop();if(!previous){showDraftToast("Noch keine Aktion zum Rückgängigmachen.",false);return}
   DRAFT_STATE.picks=Array.isArray(previous)?previous.map(p=>Object.assign({},p)):[];saveDraftState();refreshDraftPage(true);showDraftToast("Letzte Draft-Aktion rückgängig gemacht.",false);
 }
 function resetDraftTest(skipConfirm){
+  if(espnDraftReadOnly()){showDraftToast("Die Picks werden aus ESPN übernommen. Änderungen bitte in ESPN vornehmen.",false);return false;}
   if(!skipConfirm&&!confirm("Test-Draft wirklich komplett zurücksetzen? Deine übrigen FBA-Daten bleiben erhalten."))return false;
   if(typeof closeDraftCoachPreview==="function")closeDraftCoachPreview();
   DRAFT_STATE.picks=[];DRAFT_STATE.history=[];DRAFT_STATE.punts=[];DRAFT_STATE.hunt=null;DRAFT_STATE.query="";DRAFT_STATE.panel="room";DRAFT_STATE.sort="adp";DRAFT_STATE.goal="balanced";saveDraftState();refreshDraftPage(false);showDraftToast("Test-Draft zurückgesetzt.",false);return true;
@@ -2075,13 +2085,13 @@ function draftPlayerBadges(p,withValue=true){
 function draftPlayerResultMarkup(p,entry){
   const explicitProjected=Number(p.projectedGp),historical=Number(p.gp),gpLabel=Number.isInteger(explicitProjected)&&explicitProjected>0&&explicitProjected<=82?`${explicitProjected} GP Projektion`:Number.isFinite(historical)&&historical>=0?`${historical} GP · 2025/26`:`Basis 2025/26`;
   const fmt=value=>value==null?"–":String(Number(value.toFixed(2))).replace(".",",");
-  const next=nextOpenDraftPick(),pickLabel=next?`Draften · Pick ${next.overall}`:"Draft komplett";
+  const next=nextOpenDraftPick(),locked=espnDraftReadOnly(),pickLabel=locked?"Pick erfolgt in ESPN":next?`Draften · Pick ${next.overall}`:"Draft komplett";
   return `<article class="draft-player-row" data-testid="player-result-${E(p.id)}" aria-label="${E(p.name)}">
     <div class="draft-player-portrait"><img class="draft-pool-photo" src="${E(p.photo||espnPlayerHeadshot(p.id))}" alt="${E(p.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-pool-fallback" style="display:none">${E(playerInitials(p.name))}</span></div>
     <div class="draft-player-copy"><b>${E(p.name)}</b><small>${E(p.nba)} · ${E(p.pos||"NBA")}</small><span class="draft-player-games">${E(gpLabel)}</span></div>
     <div class="draft-player-metrics">${maikValueMarkup(p)}<span class="draft-player-metric" title="ESPN ADP aus dem War-Room-Datensatz"><b>${E(fmt(entry?.adp))}</b><small>ESPN ADP</small></span><span class="draft-player-metric draft-room-merge" title="${E(entry?.value!=null?`(ADP-Rang ${fmt(entry.adpRank)} + FBA-Rang ${fmt(entry.fbaRank)}) ÷ 2 · vollständiger War-Room-Pool`:'ADP oder vollständiger FBA-Value fehlt')}"><b>${E(fmt(entry?.value))}</b><small>Merge Value</small></span></div>
     <div class="draft-player-stat-grid">${["PTS","REB","AST","3PM","STL","BLK"].map(cat=>`<span><b>${E(de(p[cat],1))}</b> ${cat}</span>`).join("")}</div><div class="draft-player-value-badges">${draftPlayerBadges(p,false)}</div>
-    <div class="draft-player-actions"><button type="button" class="draft-preview-action" onclick="showDraftCoachPreview('${E(p.id)}')">Für mein Team prüfen</button><button type="button" class="draft-pick-action" onclick="selectDraftPlayer('${E(p.id)}')" title="${E(next?`Für ${next.team} draften`:pickLabel)}" aria-label="${E(next?`${p.name} für ${next.team} draften, Pick ${next.overall}`:pickLabel)}"${next?'':' disabled'}>${E(pickLabel)}</button></div></article>`;
+    <div class="draft-player-actions"><button type="button" class="draft-preview-action" onclick="showDraftCoachPreview('${E(p.id)}')">Für mein Team prüfen</button><button type="button" class="draft-pick-action" onclick="selectDraftPlayer('${E(p.id)}')" title="${E(locked?pickLabel:next?`Für ${next.team} draften`:pickLabel)}" aria-label="${E(locked?pickLabel:next?`${p.name} für ${next.team} draften, Pick ${next.overall}`:pickLabel)}"${next&&!locked?'':' disabled'}>${E(pickLabel)}</button></div></article>`;
 }
 function draftSearchResultsMarkup(query){
   const merged=window.FBA_DRAFT_PREP.mergeValues(draftPool(),maikValueFor),rows=matchingDraftPlayers(query,merged);return rows.length?rows.map(p=>draftPlayerResultMarkup(p,merged.get(String(p.id)))).join(""):`<div class="draft-no-results">Kein Spieler gefunden. Versuche Name, NBA-Team oder Position.</div>`;
@@ -2135,7 +2145,7 @@ function draftTabs(){
   return `<div class="draft-panel-tabs">${tabs.map(x=>`<button type="button" class="${DRAFT_STATE.panel===x[0]?"on":""}" onclick="setDraftPanel('${x[0]}')">${x[1]}<small>${x[2]}</small></button>`).join("")}</div>`;
 }
 function draftHero(){
-  return `<section class="draft-hero"><div class="draft-hero-top"><div><span class="draft-kicker">FBA Draft Lab · 2026/27</span><h1>Draft War Room</h1><p>Dein Team, dein Draft-Ziel und passende Spieler im direkten Ligavergleich.</p></div><span class="draft-test-badge">● v59 · Draft Lab</span></div></section>${draftTabs()}`;
+  return `<section class="draft-hero"><div class="draft-hero-top"><div><span class="draft-kicker">FBA Draft Lab · 2026/27</span><h1>Draft War Room</h1><p>Dein Team, dein Draft-Ziel und passende Spieler im direkten Ligavergleich.</p></div><span class="draft-test-badge">● v60 · Draft Lab</span></div></section>${draftTabs()}`;
 }
 function draftClockMarkup(next){
   const total=DRAFT_MAX_ROUNDS*8,done=DRAFT_STATE.picks.length,pct=Math.min(100,done/total*100);
@@ -2152,11 +2162,11 @@ function draftPlayerPoolPanel(){
 }
 function draftBoardMarkup(){
   const byPick=new Map(DRAFT_STATE.picks.map(p=>[Number(p.overall),p])),next=nextOpenDraftPick();
-  return `<section class="draft-board-shell draft-glass"><div class="draft-board-tools"><div><h2>Snake Draft Board</h2><span>Spielerkarte antippen = Pick rückgängig</span></div><span>${DRAFT_STATE.picks.length}/${DRAFT_MAX_ROUNDS*8} Picks</span></div><div class="draft-board">${Array.from({length:DRAFT_MAX_ROUNDS},(_,ri)=>ri+1).map(round=>`<section class="draft-board-round draft-glass"><div class="draft-board-round-head"><b>Runde ${round}</b><span>${round%2?"1 → 8":"8 → 1"}</span></div><div class="draft-board-row">${Array.from({length:8},(_,si)=>{const overall=(round-1)*8+si+1,team=snakeTeamForPick(overall),pick=byPick.get(overall),player=pick&&draftPlayerById(pick.playerId);return `<button type="button" class="draft-slot${pick?" filled":""}${next&&next.overall===overall?" is-next":""}" data-testid="pick-slot-${overall}" ${pick?`onclick="removeDraftPick(${overall})"`:"disabled"}><span class="draft-slot-no">Pick ${overall}</span><span class="draft-slot-team">${E(T(team).s||team)}</span>${player?`<span class="draft-board-player"><span class="draft-board-visual"><img class="draft-board-photo" src="${E(player.photo||espnPlayerHeadshot(player.id))}" alt="${E(player.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-board-fallback" style="display:none">${E(playerInitials(player.name))}</span></span><span><b>${E(player.name)}</b><small>${E(player.nba)} · ${E(player.pos||"")}</small>${maikValueMarkup(player)}</span></span>`:`<span class="draft-slot-empty">${next&&next.overall===overall?"ON THE CLOCK":"Noch frei"}</span>`}</button>`}).join("")}</div></section>`).join("")}</div></section>`;
+  return `<section class="draft-board-shell draft-glass"><div class="draft-board-tools"><div><h2>Snake Draft Board</h2><span>${espnDraftReadOnly()?"Picks werden aus ESPN übernommen":"Spielerkarte antippen = Pick rückgängig"}</span></div><span>${DRAFT_STATE.picks.length}/${DRAFT_MAX_ROUNDS*8} Picks</span></div><div class="draft-board">${Array.from({length:DRAFT_MAX_ROUNDS},(_,ri)=>ri+1).map(round=>`<section class="draft-board-round draft-glass"><div class="draft-board-round-head"><b>Runde ${round}</b><span>${round%2?"1 → 8":"8 → 1"}</span></div><div class="draft-board-row">${Array.from({length:8},(_,si)=>{const overall=(round-1)*8+si+1,team=snakeTeamForPick(overall),pick=byPick.get(overall),player=pick&&draftPlayerById(pick.playerId);return `<button type="button" class="draft-slot${pick?" filled":""}${next&&next.overall===overall?" is-next":""}" data-testid="pick-slot-${overall}" ${pick&&!espnDraftReadOnly()?`onclick="removeDraftPick(${overall})"`:"disabled"}><span class="draft-slot-no">Pick ${overall}</span><span class="draft-slot-team">${E(T(team).s||team)}</span>${player?`<span class="draft-board-player"><span class="draft-board-visual"><img class="draft-board-photo" src="${E(player.photo||espnPlayerHeadshot(player.id))}" alt="${E(player.name)}" loading="lazy" referrerpolicy="no-referrer" ${imageFallbackAttr()}><span class="player-photo-fallback draft-board-fallback" style="display:none">${E(playerInitials(player.name))}</span></span><span><b>${E(player.name)}</b><small>${E(player.nba)} · ${E(player.pos||"")}</small>${maikValueMarkup(player)}</span></span>`:`<span class="draft-slot-empty">${next&&next.overall===overall?"ON THE CLOCK":"Noch frei"}</span>`}</button>`}).join("")}</div></section>`).join("")}</div></section>`;
 }
 function pgDraftRoom(){
   const next=nextOpenDraftPick();
-  return `${draftCoachMarkup()}<div class="draft-workspace">${draftPlayerPoolPanel()}<div class="draft-workspace-main">${draftClockMarkup(next)}<div class="draft-control-row"><button type="button" data-testid="undo" onclick="undoDraftPick()" ${DRAFT_STATE.history.length?"":"disabled"}>↶ Letzte Aktion</button><button type="button" onclick="setDraftPanel('standings')">▦ Live-Standings</button><button type="button" class="danger" data-testid="reset" onclick="resetDraftTest()">Test zurücksetzen</button></div>${draftCoachRecommendationsMarkup()}<div id="draftCoachPreview">${draftCoachPreviewMarkup()}</div><details class="draft-coach-advanced"><summary>Erweiterter Punt-/Hunt-Fokus</summary>${draftModeControls()}</details>${draftBoardMarkup()}</div></div>`;
+  return `${draftCoachMarkup()}<div class="draft-workspace">${draftPlayerPoolPanel()}<div class="draft-workspace-main">${draftClockMarkup(next)}<div class="draft-control-row"><button type="button" data-testid="undo" onclick="undoDraftPick()" ${DRAFT_STATE.history.length&&!espnDraftReadOnly()?"":"disabled"}>↶ Letzte Aktion</button><button type="button" onclick="setDraftPanel('standings')">▦ Live-Standings</button><button type="button" class="danger" data-testid="reset" onclick="resetDraftTest()"${espnDraftReadOnly()?" disabled":""}>Test zurücksetzen</button></div>${draftCoachRecommendationsMarkup()}<div id="draftCoachPreview">${draftCoachPreviewMarkup()}</div><details class="draft-coach-advanced"><summary>Erweiterter Punt-/Hunt-Fokus</summary>${draftModeControls()}</details>${draftBoardMarkup()}</div></div>`;
 }
 function draftStandingsMobileMarkup(data){
   return `<div class="draft-standings-mobile">${data.sorted.map(row=>`<article class="draft-standing-mobile-card" data-testid="mobile-standings-row-${E(draftTeamSlug(row.team))}"><div class="draft-standing-mobile-head"><span class="draft-score-rank">#${row.overallRank}</span><div class="draft-standing-mobile-name">${chip(row.team)}<span><b>${E(T(row.team).s||row.team)}</b><small>${row.picks} Picks</small></span></div><div class="draft-standing-mobile-score"><b>${formatDraftScore(row.score)}</b><small>von ${data.maxScore}</small></div></div><div class="draft-standing-mobile-points">${DRAFT_CATS.map(cat=>`<div class="draft-standing-mobile-point ${draftRankClass(row.ranks[cat])}${DRAFT_STATE.punts.includes(cat)?" punted":""}"><span>${E(cat)}</span><b>${E(formatDraftValue(cat,row[cat]))}</b><small>${row.ranks[cat]?"#"+row.ranks[cat]+" · "+formatDraftScore(row.points[cat])+" P":"–"}${DRAFT_STATE.punts.includes(cat)?" · PUNT":""}</small></div>`).join("")}</div></article>`).join("")}</div>`;
@@ -2175,7 +2185,7 @@ function pgDraftBoard(){
 }
 function pgDraft(){
   const panel=DRAFT_STATE.panel==="standings"?pgDraftStandings():DRAFT_STATE.panel==="board"?pgDraftBoard():pgDraftRoom();
-  return `${draftHero()}${panel}${maikValueSettingsMarkup()}<div class="note" style="margin-top:12px">Draft-Picks und Hunt/Punt bleiben in diesem Test auf deinem Gerät. Der Spielerpool umfasst 500 ESPN-Spieler; 381 besitzen bereits eine verwertbare Statistikbasis. Tiefere Spieler ohne Projektion bleiben suchbar, werden aber ausdrücklich als „noch ohne Projektion“ markiert.</div>`;
+  return `${draftHero()}${window.FBA_ESPN_MOCK?.markup()||""}${panel}${maikValueSettingsMarkup()}<div class="note" style="margin-top:12px">Draft-Picks und Hunt/Punt bleiben in diesem Test auf deinem Gerät. Der Spielerpool umfasst 500 ESPN-Spieler; 381 besitzen bereits eine verwertbare Statistikbasis. Tiefere Spieler ohne Projektion bleiben suchbar, werden aber ausdrücklich als „noch ohne Projektion“ markiert.</div>`;
 }
 
 /* ===================== MATCHUP MONSTER v43 ===================== */

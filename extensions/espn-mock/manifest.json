@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "FBA ESPN Mock Bridge",
+  "version": "0.1.0",
+  "description": "Übernimmt den angezeigten ESPN-Basketball-Pick-Verlauf lokal in den FBA War Room. Testversion.",
+  "host_permissions": ["https://fantasy.espn.com/*", "https://fba-control-center.netlify.app/*"],
+  "background": {"service_worker": "background.js"},
+  "content_scripts": [
+    {"matches": ["https://fantasy.espn.com/basketball/*"], "js": ["espn-dom.js", "espn-reader.js"], "run_at": "document_idle"},
+    {"matches": ["https://fba-control-center.netlify.app/*"], "js": ["fba-relay.js"], "run_at": "document_idle"}
+  ]
+}

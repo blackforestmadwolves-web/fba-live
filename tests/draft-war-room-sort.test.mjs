@@ -27,7 +27,7 @@ function harness() {
     draftPickMeta: overall => ({overall, round: 1, slot: overall - 1, team: 'Test'}), confirm: () => true
   });
   c.window = c;
-  for (const name of ['draftDefaultState', 'loadDraftState', 'saveDraftState', 'resetDraftTest', 'toggleDraftPunt', 'toggleDraftHunt', 'draftNormalize', 'draftPlayerSortMode', 'draftPlayerSortOptions', 'setDraftPlayerSort', 'matchingDraftPlayers', 'draftPlayerStatline', 'draftPlayerResultMarkup', 'draftSearchResultsMarkup', 'draftSearch', 'draftPlayerPoolPanel']) {
+  for (const name of ['espnDraftReadOnly', 'draftDefaultState', 'loadDraftState', 'saveDraftState', 'resetDraftTest', 'toggleDraftPunt', 'toggleDraftHunt', 'draftNormalize', 'draftPlayerSortMode', 'draftPlayerSortOptions', 'setDraftPlayerSort', 'matchingDraftPlayers', 'draftPlayerStatline', 'draftPlayerResultMarkup', 'draftSearchResultsMarkup', 'draftSearch', 'draftPlayerPoolPanel']) {
     const start = html.indexOf(`function ${name}(`), end = html.indexOf('\nfunction ', start + 1);
     assert.ok(start > 0 && end > start, name);
     vm.runInContext(html.slice(start, end), c);
