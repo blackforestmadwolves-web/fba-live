@@ -1,0 +1,695 @@
+{
+  "id": 2079171393,
+  "gameId": 3,
+  "seasonId": 2027,
+  "settings": {
+    "name": "Expert 8-Team H2H Categories Mock",
+    "size": 8,
+    "isPublic": true,
+    "draftSettings": {
+      "auctionBudget": 200,
+      "availableDate": 1788642000000,
+      "date": 1788642090000,
+      "isTradingEnabled": false,
+      "keeperCount": 0,
+      "keeperCountFuture": 0,
+      "keeperOrderType": "TRADITIONAL",
+      "leagueSubType": "MOCKDRAFT_LOBBY",
+      "orderType": "MANUAL",
+      "pickOrder": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "timePerSelection": 30,
+      "type": "SNAKE"
+    }
+  },
+  "teams": [
+    {
+      "id": 1,
+      "name": "Team 1"
+    },
+    {
+      "id": 2,
+      "name": "Team 2"
+    },
+    {
+      "id": 3,
+      "name": "Team 3"
+    },
+    {
+      "id": 4,
+      "name": "Team 4"
+    },
+    {
+      "id": 5,
+      "name": "Team 5"
+    },
+    {
+      "id": 6,
+      "name": "Team 6"
+    },
+    {
+      "id": 7,
+      "name": "Team 7"
+    },
+    {
+      "id": 8,
+      "name": "Team 8"
+    }
+  ],
+  "draftDetail": {
+    "picks": [
+      {
+        "overallPickNumber": 1,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 2,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 3,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 4,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 5,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 6,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 7,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 8,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 9,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 10,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 11,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 12,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 13,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 14,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 15,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 16,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 17,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 18,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 19,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 20,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 21,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 22,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 23,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 24,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 25,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 26,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 27,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 28,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 29,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 30,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 31,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 32,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 33,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 34,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 35,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 36,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 37,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 38,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 39,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 40,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 41,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 42,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 43,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 44,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 45,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 46,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 47,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 48,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 49,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 50,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 51,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 52,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 53,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 54,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 55,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 56,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 57,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 58,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 59,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 60,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 61,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 62,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 63,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 64,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 65,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 66,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 67,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 68,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 69,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 70,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 71,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 72,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 73,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 74,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 75,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 76,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 77,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 78,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 79,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 80,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 81,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 82,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 83,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 84,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 85,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 86,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 87,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 88,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 89,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 90,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 91,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 92,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 93,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 94,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 95,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 96,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 97,
+        "teamId": 1,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 98,
+        "teamId": 2,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 99,
+        "teamId": 3,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 100,
+        "teamId": 4,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 101,
+        "teamId": 5,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 102,
+        "teamId": 6,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 103,
+        "teamId": 7,
+        "keeper": false,
+        "reservedForKeeper": false
+      },
+      {
+        "overallPickNumber": 104,
+        "teamId": 8,
+        "keeper": false,
+        "reservedForKeeper": false
+      }
+    ]
+  }
+}
