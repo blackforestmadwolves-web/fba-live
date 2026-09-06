@@ -4095,6 +4095,15 @@ function refreshMonsterEspnV35_(requestedWeek) {
       profiles:{status:sync.profileStatus||'WAITING_NBA_TEAM_PROFILES'},schedule:{status:'READY',games:Number(season.gameCount||(season.games||[]).length||0)}}};
 }
 
+// Draft season forecasts need stored player data, not a live ESPN schedule fetch.
+// Keep the same device authorization and the existing actual-game readiness rules.
+function buildDraftProjectionsV72_() {
+  var storedSchedule=readPersistedEspnNbaScheduleV33_();
+  var engine=buildProjectionEnginePayloadV36_({games:[]},storedSchedule||{games:[]});
+  engine=applyProjectionConsensusV44_(engine);
+  return {ok:true,version:72,scope:'draft-projections',generated:new Date().toISOString(),projectionEngine:engine};
+}
+
 function matchupMonsterResponseV30_(p) {
   var action=String(p.monster||'');
   if(action==='login'){
@@ -4104,6 +4113,10 @@ function matchupMonsterResponseV30_(p) {
   if(action==='data'){
     if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
     try{return monsterJsonResponseV29_(buildMonsterPayloadV30_(p.week,String(p.refresh||'')==='1'),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:String(err)},p.callback);}
+  }
+  if(action==='draft_projections'){
+    if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
+    try{return monsterJsonResponseV29_(buildDraftProjectionsV72_(),p.callback);}catch(err){return monsterJsonResponseV29_({ok:false,error:'Draft-Projektionen: '+String(err&&err.message?err.message:err)},p.callback);}
   }
   if(action==='projections_refresh'){
     if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,error:'Gerät nicht freigeschaltet.',locked:true},p.callback);
@@ -4126,7 +4139,7 @@ function syncEspnIfStale_(force) {
   if(!force&&last){var age=Date.now()-new Date(last).getTime();if(!isNaN(age)&&age<interval*60000)return getEspnSyncStatus_();}
   return syncEspnData();
 }
-function syncEspnScheduled(){var result=syncEspnIfStale_(false);try{refreshProjectionConsensusV44_(false);}catch(e){}return result;}
+function syncEspnScheduled(){try{return syncEspnIfStale_(false);}finally{try{refreshProjectionConsensusV44_(false);}catch(e){console.error('Projektionsprüfung fehlgeschlagen: '+String(e&&e.message?e.message:e));}}}
 function installEspnSync() {
   ensureEspnSheetsV1_();ensureEspnPlayerHubSheetsV2_();
   ScriptApp.getProjectTriggers().forEach(function(trigger){if(trigger.getHandlerFunction()==='syncEspnScheduled')ScriptApp.deleteTrigger(trigger);});
@@ -4358,7 +4371,10 @@ function setupProjectionConsensus() { SpreadsheetApp.getUi();return ensureConsen
 function refreshProjectionConsensus() { SpreadsheetApp.getUi();return refreshProjectionConsensusV44_(true); }
 function refreshProjectionConsensusV44_(force,importsOnly) {
   var props=espnPropertiesV1_(),previous=consensusStatusV44_(),stamp=new Date().toISOString();
-  if(previous.policyVersion===FBA_EXPERT_POLICY_V71.version&&previous.lastAttempt&&Date.parse(stamp)-Date.parse(previous.lastAttempt)<(force?15*60000:FBA_CONSENSUS_V44.intervalMs))return previous;
+  // An earlier empty migration must not prevent an already prepared import
+  // from becoming active. Provider network refreshes retain their rate limit.
+  var emptyImportBaseline=importsOnly&&!consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).some(function(r){return r.complete&&expertConsensusConfirmedV71_(r);});
+  if(!emptyImportBaseline&&previous.policyVersion===FBA_EXPERT_POLICY_V71.version&&previous.lastAttempt&&Date.parse(stamp)-Date.parse(previous.lastAttempt)<(force?15*60000:FBA_CONSENSUS_V44.intervalMs))return previous;
   var lock=LockService.getScriptLock();if(!lock.tryLock(1000))return previous;
   try{
     ensureConsensusSheetsV44_();
@@ -4431,10 +4447,13 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
   }finally{lock.releaseLock();}
 }
 function applyProjectionConsensusV44_(engine) {
-  var status=consensusStatusV44_();
+  var status=consensusStatusV44_(),rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_);
   // Activate prepared private imports on the first authenticated data load, without an extra provider fetch.
-  if(status.policyVersion!==FBA_EXPERT_POLICY_V71.version)status=refreshProjectionConsensusV44_(true,true);
-  var rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_),map={},metadata={};
+  if(status.policyVersion!==FBA_EXPERT_POLICY_V71.version||!rows.some(function(r){return r.complete;})){
+    status=refreshProjectionConsensusV44_(true,true);
+    rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_);
+  }
+  var map={},metadata={};
   var preview=mergeConsensusV44_(consensusStoredRowsV44_(FBA_CONSENSUS_V44.snapshots).filter(function(r){return expertSourceConfirmedV71_(r.sourceId);}));
   sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet).forEach(function(r){metadata[String(r.player_id)]=r;});
   (engine.players||[]).forEach(function(p){map[String(p.id)]=expertSourceConfirmedV71_('espn')?p:Object.assign({},p,{base:null,baseline:null,projectedGp:null,seasonFinish:null,consensus:null});});
@@ -4450,6 +4469,10 @@ function applyProjectionConsensusV44_(engine) {
   else if(!expertSourceConfirmedV71_('espn')){engine.active=false;engine.status='WAITING_EXPERT_PROJECTIONS';engine.baseline=Object.assign({},engine.baseline,{active:false,status:'WAITING_EXPERT_PROJECTIONS',source:'Expert-Projektion 2026/27',count:0});}
   engine.consensus={version:44,partialPlayers:preview.filter(function(p){return !p.complete;}).slice(0,100),appliedPlayers:applied,status:status.status||'NOT_CHECKED',lastAttempt:status.lastAttempt||null,frozen:status.frozen===true,sources:status.sources||FBA_CONSENSUS_V44.sources.map(function(s){return {id:s.id,name:s.name,state:'NOT_CHECKED',reason:s.reason,rows:0,contributing:false};})};
   engine.consensus.preseason=!status.frozen&&new Date().toISOString().slice(0,10)<MATCHUP_MONSTER_V30.firstWeekStart&&Number(engine.actual&&engine.actual.completeGames||0)===0;
+  if(!applied){
+    var cbsStatus=(status.sources||[]).filter(function(s){return s.id==='cbs';})[0];
+    engine.consensus.message=status.message||(cbsStatus?'CBS: '+Number(cbsStatus.rows||0)+' gültige Projektionszeilen. '+String(cbsStatus.reason||''):'Der vorbereitete Projektionsimport konnte noch nicht aktiviert werden. Bitte erneut laden.');
+  }
   return engine;
 }
 
