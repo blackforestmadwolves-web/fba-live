@@ -59,6 +59,8 @@ c.Utilities={formatDate:(_date,tz,format)=>{assert.equal(tz,'America/Los_Angeles
 assert.equal(c.consensusDateV44_(new Date('2026-09-05T02:00:00Z')),'2026-09-04');
 
 // In-memory integration: imports, source outage, freezing and private dispatch.
+// Exercise legacy multi-provider mechanics explicitly; production v71 starts with CBS only.
+c.FBA_EXPERT_POLICY_V71.confirmedSources=c.FBA_CONSENSUS_V44.sources.map(s=>s.id);
 const sheets=new Map(),props=new Map();let actualGames=0;
 c.espnPropertiesV1_=()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)});
 c.sheetObjectsV2_=name=>sheets.get(name)||[];
@@ -80,8 +82,9 @@ const engine={version:36,active:false,status:'WAITING',baseline:{},revision:'v36
 const actualRef=engine.actual,out=c.applyProjectionConsensusV44_(engine);assert.equal(out.version,36);assert.equal(out.actual,actualRef);assert.equal(out.actual.coverageReady,false);assert.equal(out.actual.ownershipAtGameReady,false);assert.equal(out.players[0].actual.byWeek[1].stats.PTS,10);assert.equal(out.players[0].base.PTS,25);assert.equal(out.consensus.frozen,true);
 actualGames=1;sheets.set(c.FBA_CONSENSUS_V44.inputs,[input('lineupexperts',{PTS:40})]);
 props.delete(c.FBA_CONSENSUS_V44.statusKey);status=c.refreshProjectionConsensusV44_(true);assert.equal(status.frozen,true);assert.equal(sheets.get(c.FBA_CONSENSUS_V44.baseline)[0].payload_json,snapshot);
-let touched=false;c.validMonsterDeviceV29_=()=>false;c.refreshProjectionConsensusV44_=()=>{touched=true;};c.monsterJsonResponseV29_=x=>x;
+let touched=false;const realRefresh=c.refreshProjectionConsensusV44_;c.validMonsterDeviceV29_=()=>false;c.refreshProjectionConsensusV44_=()=>{touched=true;};c.monsterJsonResponseV29_=x=>x;
 assert.equal(c.matchupMonsterResponseV30_({monster:'projections_refresh',token:'bad'}).locked,true);assert.equal(touched,false);
+c.refreshProjectionConsensusV44_=realRefresh;
 assert.doesNotMatch(String(c.buildData),/Consensus|consensus/,'Keine neuen Projektionsdaten im öffentlichen Payload');
 console.log('PASS · v44 source normalization, independent consensus, dates, partial coverage, real-game replacement, freeze and private access');
 
