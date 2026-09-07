@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "FBA ESPN Mock Bridge",
+  "version": "0.2.0",
+  "description": "FBA Bridge: ESPN Mock Picks und angemeldete Hashtag-Projektionen im Control Center.",
+  "host_permissions": [
+    "https://fantasy.espn.com/*",
+    "https://fba-control-center.netlify.app/*",
+    "https://hashtagbasketball.com/*",
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://fantasy.espn.com/basketball/*"
+      ],
+      "js": [
+        "espn-dom.js",
+        "espn-reader.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://fba-control-center.netlify.app/*"
+      ],
+      "js": [
+        "fba-relay.js",
+        "hashtag-relay.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://hashtagbasketball.com/import-v4/fantasy-basketball-projections*"
+      ],
+      "js": [
+        "hashtag-reader.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

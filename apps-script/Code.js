@@ -4243,24 +4243,24 @@ var FBA_CONSENSUS_V44 = {
     {id:'yahoo',name:'Yahoo / RotoWire',family:'rotowire',route:'html',reason:'Öffentliche ROS-Tabelle; Statistikabdeckung wird je Spieler geprüft.',url:'https://basketball.fantasysports.yahoo.com/nba/969/players?stat1=S_PSR&count='},
     {id:'cbs',name:'CBS Sports',family:'cbs',route:'cbs',reason:'2026/27-Projektionen · fünf Positionslisten mit fester Spielerzuordnung.',url:'https://www.cbssports.com/fantasy/basketball/stats/'},
     {id:'lineupexperts',name:'LineupExperts',family:'lineupexperts',route:'import',reason:'Bestätigter Preseason-Import 2026/27. Automatischer Webabruf blockiert; Aktualisierung per geprüftem Import.'},
-    {id:'hashtag',name:'Hashtag Basketball',family:'hashtag',route:'import',reason:'Serverabruf HTTP 403; kostenlos nur Top 30.'},
+    {id:'hashtag',name:'Hashtag Basketball',family:'hashtag',route:'import',reason:'Angemeldete 2026/27-Projektionen über die FBA Browser Bridge.'},
     {id:'fantasypros',name:'FantasyPros',family:'',route:'audit',reason:'Noch keine Projections; Konsens-Ursprungsquellen ungeklärt.',url:'https://www.fantasypros.com/nba/projections/overall.php'},
     {id:'fanscout',name:'FanScout',family:'fanscout',route:'import',reason:'Serverabruf HTTP 403; vollständiger aktueller Export noch ungeprüft.'},
     {id:'basketballreference',name:'Basketball-Reference',family:'bref',route:'import',reason:'Serverabruf HTTP 403; pro 36 Minuten, benötigt belegte Minuten und GP.'}
   ]
 };
 var FBA_CONSENSUS_INPUT_HEADERS_V44 = ['source_id','season_id','player_id','full_name','basis','projected_gp','projected_mpg','snapshot_date','source_url','origin_family']
-  .concat(FBA_PROJECTION_ENGINE_V36.projectionStats).concat(['provider_player_id','provider_name','observed_at']);
+  .concat(FBA_PROJECTION_ENGINE_V36.projectionStats).concat(['provider_player_id','provider_name','observed_at','provider_updated_at']);
 var FBA_CONSENSUS_SNAPSHOT_HEADERS_V44 = ['season_id','source_id','player_id','payload_json','updated_at'];
 var FBA_CONSENSUS_BASELINE_HEADERS_V44 = ['season_id','player_id','payload_json','updated_at'];
 function consensusSourceV44_(id) { return FBA_CONSENSUS_V44.sources.filter(function(s){return s.id===id;})[0] || null; }
 // Only explicitly confirmed season providers contribute; archived sources remain available for later activation.
-var FBA_EXPERT_POLICY_V71 = {version:74,seasonId:2027,confirmedSources:['cbs','lineupexperts']};
+var FBA_EXPERT_POLICY_V71 = {version:75,seasonId:2027,confirmedSources:['cbs','lineupexperts','hashtag']};
 var FBA_LINEUPEXPERTS_V74 = {mapSheet:'FBA_LineupExperts_Player_Map'};
 function expertSourceConfirmedV71_(id) { return FBA_EXPERT_POLICY_V71.confirmedSources.indexOf(id)>=0; }
 function expertConsensusConfirmedV71_(row) { return row&&Array.isArray(row.sourceIds)&&row.sourceIds.length>0&&row.sourceIds.every(expertSourceConfirmedV71_); }
 function expertSnapshotInputV71_(row) {
-  return Object.assign({},row.base,{source_id:row.sourceId,season_id:row.seasonId,player_id:row.id,full_name:row.name,basis:'per_game',projected_gp:row.projectedGp,snapshot_date:row.snapshotDate,source_url:row.sourceUrl,origin_family:row.family,provider_player_id:row.providerPlayerId,provider_name:row.providerName,observed_at:row.observedAt,position_lists:row.positionLists});
+  return Object.assign({},row.base,{source_id:row.sourceId,season_id:row.seasonId,player_id:row.id,full_name:row.name,basis:'per_game',projected_gp:row.projectedGp,snapshot_date:row.snapshotDate,source_url:row.sourceUrl,origin_family:row.family,provider_player_id:row.providerPlayerId,provider_name:row.providerName,observed_at:row.observedAt,provider_updated_at:row.providerUpdatedAt,position_lists:row.positionLists});
 }
 function consensusNumberV44_(value) {
   if (typeof value==='number') return isFinite(value)&&value>=0 ? value : null;
@@ -4313,7 +4313,7 @@ function normalizeConsensusRowV44_(input,index,now) {
   if(Object.keys(caps).some(function(k){return base[k]!=null&&base[k]>caps[k];}))return reject('IMPLAUSIBLE_PER_GAME');
   if(!Object.keys(base).some(function(k){return base[k]!=null;}))return reject('NO_STATS');
   return {ok:true,row:{id:identity.id,name:identity.name,sourceId:source.id,family:family,seasonId:season,projectedGp:gp,base:base,snapshotDate:date,sourceUrl:String(input.source_url||''),basis:basis,
-    providerPlayerId:String(input.provider_player_id||''),providerName:String(input.provider_name||''),observedAt:String(input.observed_at||''),providerUpdatedAt:null,
+    providerPlayerId:String(input.provider_player_id||''),providerName:String(input.provider_name||''),observedAt:String(input.observed_at||''),providerUpdatedAt:input.provider_updated_at?consensusDateV44_(input.provider_updated_at):null,
     positionLists:Array.isArray(input.position_lists)?input.position_lists.slice():[]}};
 }
 function mergeConsensusV44_(rows) {
@@ -4360,7 +4360,8 @@ function consensusStoredRowsV44_(sheet) {
   return sheetObjectsV2_(sheet).filter(function(r){return Number(r.season_id)===Number(ESPN_SYNC_V1.seasonId);}).map(function(r){try{return JSON.parse(r.payload_json);}catch(e){return null;}}).filter(Boolean);
 }
 function ensureConsensusSheetsV44_() {
-  ensureSimpleEspnSheetV1_(FBA_CONSENSUS_V44.inputs,FBA_CONSENSUS_INPUT_HEADERS_V44);
+  var inputSheet=ensureSimpleEspnSheetV1_(FBA_CONSENSUS_V44.inputs,FBA_CONSENSUS_INPUT_HEADERS_V44);
+  if(inputSheet.getRange&&inputSheet.getRange(1,FBA_CONSENSUS_INPUT_HEADERS_V44.length).getValue()!=='provider_updated_at')inputSheet.getRange(1,1,1,FBA_CONSENSUS_INPUT_HEADERS_V44.length).setValues([FBA_CONSENSUS_INPUT_HEADERS_V44]);
   ensureSimpleEspnSheetV1_(FBA_CONSENSUS_V44.snapshots,FBA_CONSENSUS_SNAPSHOT_HEADERS_V44);
   ensureSimpleEspnSheetV1_(FBA_CONSENSUS_V44.baseline,FBA_CONSENSUS_BASELINE_HEADERS_V44);
   return {ok:true,inputSheet:FBA_CONSENSUS_V44.inputs};
@@ -4375,7 +4376,7 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
   // An earlier empty migration must not prevent an already prepared import
   // from becoming active. Provider network refreshes retain their rate limit.
   var emptyImportBaseline=importsOnly&&!consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).some(function(r){return r.complete&&expertConsensusConfirmedV71_(r);});
-  if(!emptyImportBaseline&&previous.policyVersion===FBA_EXPERT_POLICY_V71.version&&previous.lastAttempt&&Date.parse(stamp)-Date.parse(previous.lastAttempt)<(force?15*60000:FBA_CONSENSUS_V44.intervalMs))return previous;
+  if(!previous.importsDirty&&!emptyImportBaseline&&previous.policyVersion===FBA_EXPERT_POLICY_V71.version&&previous.lastAttempt&&Date.parse(stamp)-Date.parse(previous.lastAttempt)<(force?15*60000:FBA_CONSENSUS_V44.intervalMs))return previous;
   var lock=LockService.getScriptLock();if(!lock.tryLock(1000))return previous;
   try{
     ensureConsensusSheetsV44_();
@@ -4442,6 +4443,14 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
         sourceStatus.lastImported=valid.map(function(r){return r.observedAt||r.snapshotDate;}).sort().pop()||null;
         sourceStatus.reason='Preseason-Import 2026/27 · sechs Zählkategorien und GP. Ohne belegte Wurfversuche kein Beitrag zu FG%/FT%. Automatischer Abruf blockiert; Aktualisierung per geprüftem Import.';
       }
+      if(source.id==='hashtag'){
+        var htBindings=sheetObjectsV2_(FBA_HASHTAG_V75.mapSheet).filter(function(r){return Number(r.season_id)===2027;}),htPending=htBindings.filter(function(r){return r.status!=='MATCHED';});
+        sourceStatus.mapping={matched:htBindings.filter(function(r){return r.status==='MATCHED';}).length,pending:htPending.length,issues:htPending.slice(0,100).map(function(r){return {name:r.provider_name,reason:r.status};})};
+        sourceStatus.refreshMode='browser_bridge';sourceStatus.providerIdentityType='provider_id';
+        sourceStatus.lastChecked=valid.map(function(r){return r.observedAt||r.snapshotDate;}).sort().pop()||null;
+        sourceStatus.providerUpdatedAt=valid.map(function(r){return r.providerUpdatedAt;}).filter(Boolean).sort().pop()||null;
+        sourceStatus.reason='2026/27 · alle acht Kategorien einschließlich Wurfvolumen. Neuabruf über die angemeldete Browser Bridge; Serverprüfungen allein laden Hashtag nicht neu.';
+      }
       statuses.push(sourceStatus);
     });
     var merged=mergeConsensusV44_(kept.filter(function(r){return expertSourceConfirmedV71_(r.sourceId);})),complete=merged.filter(function(r){return r.complete;}),revision=stableHashV36_(JSON.stringify(merged));
@@ -4458,7 +4467,7 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
 function applyProjectionConsensusV44_(engine) {
   var status=consensusStatusV44_(),rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_);
   // Activate prepared private imports on the first authenticated data load, without an extra provider fetch.
-  if(status.policyVersion!==FBA_EXPERT_POLICY_V71.version||!rows.some(function(r){return r.complete;})){
+  if(status.importsDirty||status.policyVersion!==FBA_EXPERT_POLICY_V71.version||!rows.some(function(r){return r.complete;})){
     status=refreshProjectionConsensusV44_(true,true);
     rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_);
   }
@@ -4628,4 +4637,101 @@ function refreshCbsProjectionRowsV70_(index,stamp){
   writeConsensusRowsV44_(FBA_CBS_V70.mapSheet,FBA_CBS_V70.headers,mapped.mappings.map(function(r){return FBA_CBS_V70.headers.map(function(h){return r[h];});}));
   mapped.audit.positionEntries=pages.reduce(function(sum,p){return sum+p.rows.length;},0);mapped.audit.uniquePlayers=combined.rows.length;mapped.audit.duplicates=combined.duplicates;
   return {ok:true,state:'PARSED',rows:mapped.rows,pages:pageStatus,mapping:mapped.audit,reason:'CBS 2026/27 · '+mapped.rows.length+' Spieler fest zugeordnet · '+mapped.audit.pending+' Zuordnungen/Daten offen. Abrufzeit ist kein Veröffentlichungsdatum.'};
+}
+
+/* Hashtag: authenticated browser table -> persistent provider IDs -> private consensus. */
+var FBA_HASHTAG_V75={mapSheet:'FBA_Hashtag_Player_Map',statusKey:'FBA_HASHTAG_SYNC_V75',url:'https://hashtagbasketball.com/import-v4/fantasy-basketball-projections'};
+// Provider-specific spellings checked against the current ESPN player identities.
+var FBA_HASHTAG_NAMES_V75={
+  '120000':{name:'Alexandre Sarr',id:'5160992',espn:'Alex Sarr'},
+  '17252':{name:'Nicolas Claxton',id:'4278067',espn:'Nic Claxton'},
+  '120010':{name:'Ron Holland II',id:'4683771',espn:'Ronald Holland II'}
+};
+function parseHashtagSnapshotV75_(data,stamp){
+  function fail(message){throw new Error('Hashtag: '+message);}
+  if(!data||data.sourceUrl!==FBA_HASHTAG_V75.url||data.heading!=='Fantasy Basketball Projections')fail('Projektionsseite nicht bestätigt.');
+  var opts=data.options||{},required={DDSHOW:'900',DDGAMES:'0',DropDownList1:'Off',DDPOS:'All',DDTSUM:'All',DDDURATION:'0',DDRANK:'AVG'};
+  Object.keys(required).forEach(function(k){if(!opts[k]||opts[k].value!==required[k])fail('Vollständige Pro-Spiel-Ansicht erforderlich ('+k+').');});
+  if(opts.DDDURATION.label!=='2026-27 Rest of Season Projections')fail('Falsche Saison oder BLEND/STREAM-Ansicht.');
+  var months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var dm=String(data.updatedText||'').match(/^Updated:\s*(\d{1,2}) ([A-Za-z]+) (\d{4})$/),updated=dm&&dm[3]+'-'+('0'+(months.indexOf(dm[2])+1)).slice(-2)+'-'+('0'+dm[1]).slice(-2);
+  if(!updated||!isFinite(Date.parse(updated))||new Date(updated).toISOString().slice(0,10)!==updated||updated>stamp.slice(0,10))fail('Veröffentlichungsdatum ungültig.');
+  var h=data.headers,keys=['PLAYER','GP','MPG','FG%','FT%','3PM','PTS','TREB','AST','STL','BLK'];
+  if(!Array.isArray(h)||keys.some(function(k){return h.filter(function(v){return v===k;}).length!==1;}))fail('Tabellenspalten geändert.');
+  if(!Array.isArray(data.rows)||data.rows.length<100||data.rows.length>900)fail('Gesamtliste unvollständig.');
+  var ids={},names={};
+  return data.rows.map(function(r){
+    var match=String(r.playerLink||'').match(/^\/(\d+)\/player$/),name=String(r.playerName||'').trim();
+    if(!match||!name||name.length>100||/^[=+@\-]/.test(name)||!Array.isArray(r.cells)||r.cells.length!==h.length)fail('Spielerzeile ungültig.');
+    var id=match[1];if(ids[id]||names[consensusNameV44_(name)])fail('Doppelte Spielerkennung.');ids[id]=true;names[consensusNameV44_(name)]=true;
+    function val(k){return String(r.cells[h.indexOf(k)]).trim();}
+    function num(k){var n=consensusNumberV44_(val(k));if(n==null)fail('Ungültige Statistik '+name+' / '+k);return n;}
+    function shots(k){var m=val(k).match(/^(\d*\.?\d+)\s*\((\d*\.?\d+)\s*\/\s*(\d*\.?\d+)\)$/);if(!m||Number(m[1])>1||Number(m[2])>Number(m[3]))fail('Wurfvolumen fehlt: '+name+' / '+k);return [Number(m[2]),Number(m[3])];}
+    var fg=shots('FG%'),ft=shots('FT%');
+    return {source_id:'hashtag',season_id:2027,provider_player_id:id,provider_name:name,basis:'per_game',projected_gp:num('GP'),projected_mpg:num('MPG'),
+      snapshot_date:stamp.slice(0,10),observed_at:stamp,provider_updated_at:updated,source_url:FBA_HASHTAG_V75.url,origin_family:'hashtag',
+      PTS:num('PTS'),REB:num('TREB'),AST:num('AST'),'3PM':num('3PM'),STL:num('STL'),BLK:num('BLK'),FGM:fg[0],FGA:fg[1],FTM:ft[0],FTA:ft[1]};
+  });
+}
+function mapHashtagPlayersV75_(rows,index,stored,stamp){
+  var bindings={},duplicates={},used={},updates={},accepted=[],issues=[];
+  var suffix=function(n){return consensusNameV44_(String(n).replace(/\s+(?:Jr\.?|Sr\.?|II|III|IV)$/i,''));},names={};
+  Object.keys(index.ids).forEach(function(id){var key=suffix(index.ids[id].name);(names[key]=names[key]||[]).push(id);});
+  (stored||[]).filter(function(r){return Number(r.season_id)===2027;}).forEach(function(r){var id=String(r.provider_player_id);if(bindings[id])duplicates[id]=true;bindings[id]=r;});
+  rows.forEach(function(r){
+    var id=r.provider_player_id,old=bindings[id],matches=index.names[consensusNameV44_(r.provider_name)]||names[suffix(r.provider_name)]||[],identity=null,status='';
+    var variant=FBA_HASHTAG_NAMES_V75[id],target=variant&&index.ids[variant.id];
+    if(!matches.length&&variant&&target&&r.provider_name===variant.name&&target.name===variant.espn)matches=[target.id];
+    if(duplicates[id])status='DUPLICATE_MAPPING';
+    else if(old&&old.player_id){
+      identity=index.ids[String(old.player_id)];
+      if(!identity)status='UNKNOWN_PLAYER_ID';
+      else if(consensusNameV44_(old.provider_name)!==consensusNameV44_(r.provider_name))status='PROVIDER_NAME_CHANGED';
+      else if(matches.length!==1||matches[0]!==identity.id)status='PLAYER_ID_NAME_CONFLICT';
+    }else if(matches.length===1)identity=index.ids[matches[0]];
+    else status=matches.length?'AMBIGUOUS_PLAYER':'UNMATCHED_PLAYER';
+    if(!status&&identity){
+      var row=Object.assign({},r,{player_id:identity.id,full_name:identity.name}),check=normalizeConsensusRowV44_(row,index,stamp);
+      if(!check.ok)status=check.reason;
+      else {if(used[identity.id])throw new Error('Hashtag: Mehrere IDs für denselben ESPN-Spieler.');used[identity.id]=true;accepted.push(row);status='MATCHED';}
+    }
+    if(status!=='MATCHED')issues.push({providerPlayerId:id,name:r.provider_name,reason:status});
+    updates[id]={season_id:2027,provider_player_id:id,player_id:identity?identity.id:String(old&&old.player_id||''),provider_name:r.provider_name,espn_name:identity?identity.name:'',status:status,first_seen:String(old&&old.first_seen||stamp),last_seen:stamp};
+  });
+  Object.keys(bindings).forEach(function(id){if(!updates[id])updates[id]=bindings[id];});
+  return {rows:accepted,mappings:Object.keys(updates).sort().map(function(id){return updates[id];}),audit:{matched:accepted.length,pending:issues.length,issues:issues.slice(0,100)}};
+}
+function importHashtagSnapshotV75_(data){
+  var stamp=new Date().toISOString(),raw=parseHashtagSnapshotV75_(data,stamp),lock=LockService.getScriptLock();
+  if(!lock.tryLock(1000))throw new Error('Datenabgleich läuft bereits. Bitte erneut versuchen.');
+  var result;
+  try{
+    var props=espnPropertiesV1_(),previous=consensusStatusV44_();
+    if(props.getProperty(FBA_CONSENSUS_V44.freezeKey)==='1'||aggregateProjectionActualsV36_(sheetObjectsV2_(ESPN_PLAYER_HUB_V2.dailySheet)).completeGames>0)throw new Error('Saisonbasis ist eingefroren. Kein Preseason-Import nach Saisonstart.');
+    var mapped=mapHashtagPlayersV75_(raw,consensusIdentityIndexV44_(sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet)),sheetObjectsV2_(FBA_HASHTAG_V75.mapSheet),stamp);
+    if(mapped.rows.length<100||mapped.rows.length<raw.length*.8)throw new Error('Zu wenige eindeutige Spielerzuordnungen; bisherige Werte bleiben erhalten.');
+    var inputs=sheetObjectsV2_(FBA_CONSENSUS_V44.inputs),prior=inputs.filter(function(r){return r.source_id==='hashtag'&&Number(r.season_id)===2027;});
+    if(prior.length&&mapped.rows.length<prior.length*.9)throw new Error('Unerwartet verkürzte Hashtag-Liste; bisherige Werte bleiben erhalten.');
+    // Replace this provider only. Missing identities keep their last valid row.
+    var newIds={};mapped.rows.forEach(function(r){newIds[r.player_id]=true;});
+    var current=inputs.filter(function(r){return Number(r.season_id)===2027&&(r.source_id!=='hashtag'||!newIds[String(r.player_id)]);}).concat(mapped.rows);
+    ensureConsensusSheetsV44_();
+    writeConsensusRowsV44_(FBA_HASHTAG_V75.mapSheet,FBA_CBS_V70.headers,mapped.mappings.map(function(r){return FBA_CBS_V70.headers.map(function(h){return r[h];});}));
+    writeConsensusRowsV44_(FBA_CONSENSUS_V44.inputs,FBA_CONSENSUS_INPUT_HEADERS_V44,current.map(function(r){return FBA_CONSENSUS_INPUT_HEADERS_V44.map(function(h){return r[h]==null?'':r[h];});}));
+    result={ok:true,version:75,sourceId:'hashtag',lastChecked:stamp,providerUpdatedAt:raw[0].provider_updated_at,received:raw.length,mapping:mapped.audit};
+    props.setProperty(FBA_HASHTAG_V75.statusKey,JSON.stringify(result));
+    // Mark the private baseline dirty. Import-only refresh bypasses provider network throttles.
+    previous.importsDirty=true;props.setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(previous));
+  }finally{lock.releaseLock();}
+  result.merged=false;return result;
+}
+function doPost(e){
+  var p;
+  try{
+    if(!e||!e.postData||typeof e.postData.contents!=='string'||e.postData.contents.length>650000)throw new Error('Ungültige Anfrage.');
+    p=JSON.parse(e.postData.contents);
+    if(p.action!=='hashtag_import')throw new Error('Unbekannte Aktion.');
+    if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,locked:true,error:'Gerät nicht freigeschaltet.'});
+    return monsterJsonResponseV29_(importHashtagSnapshotV75_(p.snapshot));
+  }catch(err){return monsterJsonResponseV29_({ok:false,error:String(err&&err.message||'Hashtag-Import fehlgeschlagen.')});}
 }
