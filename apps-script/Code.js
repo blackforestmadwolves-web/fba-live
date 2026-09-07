@@ -4372,6 +4372,7 @@ function consensusStatusV44_() {
 function setupProjectionConsensus() { SpreadsheetApp.getUi();return ensureConsensusSheetsV44_(); }
 function refreshProjectionConsensus() { SpreadsheetApp.getUi();return refreshProjectionConsensusV44_(true); }
 function refreshProjectionConsensusV44_(force,importsOnly) {
+  processHashtagCloudInboxV76_();
   var props=espnPropertiesV1_(),previous=consensusStatusV44_(),stamp=new Date().toISOString();
   // An earlier empty migration must not prevent an already prepared import
   // from becoming active. Provider network refreshes retain their rate limit.
@@ -4446,10 +4447,11 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
       if(source.id==='hashtag'){
         var htBindings=sheetObjectsV2_(FBA_HASHTAG_V75.mapSheet).filter(function(r){return Number(r.season_id)===2027;}),htPending=htBindings.filter(function(r){return r.status!=='MATCHED';});
         sourceStatus.mapping={matched:htBindings.filter(function(r){return r.status==='MATCHED';}).length,pending:htPending.length,issues:htPending.slice(0,100).map(function(r){return {name:r.provider_name,reason:r.status};})};
-        sourceStatus.refreshMode='browser_bridge';sourceStatus.providerIdentityType='provider_id';
+        var htSync={};try{htSync=JSON.parse(props.getProperty(FBA_HASHTAG_V75.statusKey)||'{}');}catch(e){}
+        sourceStatus.refreshMode=htSync.refreshMode||'browser_bridge';sourceStatus.providerIdentityType='provider_id';
         sourceStatus.lastChecked=valid.map(function(r){return r.observedAt||r.snapshotDate;}).sort().pop()||null;
         sourceStatus.providerUpdatedAt=valid.map(function(r){return r.providerUpdatedAt;}).filter(Boolean).sort().pop()||null;
-        sourceStatus.reason='2026/27 · alle acht Kategorien einschließlich Wurfvolumen. Neuabruf über die angemeldete Browser Bridge; Serverprüfungen allein laden Hashtag nicht neu.';
+        sourceStatus.reason=sourceStatus.refreshMode==='cloud_browser'?'2026/27 · alle acht Kategorien einschließlich Wurfvolumen. Import aus dem angemeldeten Cloud-Browser; kein laufender Mac erforderlich.':'2026/27 · alle acht Kategorien einschließlich Wurfvolumen. Neuabruf über die angemeldete Browser Bridge; Serverprüfungen allein laden Hashtag nicht neu.';
       }
       statuses.push(sourceStatus);
     });
@@ -4465,6 +4467,7 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
   }finally{lock.releaseLock();}
 }
 function applyProjectionConsensusV44_(engine) {
+  processHashtagCloudInboxV76_();
   var status=consensusStatusV44_(),rows=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_);
   // Activate prepared private imports on the first authenticated data load, without an extra provider fetch.
   if(status.importsDirty||status.policyVersion!==FBA_EXPERT_POLICY_V71.version||!rows.some(function(r){return r.complete;})){
@@ -4486,6 +4489,8 @@ function applyProjectionConsensusV44_(engine) {
   if(applied){engine.active=true;engine.status='READY';engine.baseline=Object.assign({},engine.baseline,{active:true,status:'READY',source:'Expert-Projektion 2026/27',count:engine.players.filter(function(p){return p.projectedGp>0;}).length,lastSuccess:status.lastSuccess,frozen:status.frozen===true,rosterCoverage:null,rosterExpected:null,rosterProjected:null});engine.revision+='|consensus:'+String(status.revision||'');}
   else if(!expertSourceConfirmedV71_('espn')){engine.active=false;engine.status='WAITING_EXPERT_PROJECTIONS';engine.baseline=Object.assign({},engine.baseline,{active:false,status:'WAITING_EXPERT_PROJECTIONS',source:'Expert-Projektion 2026/27',count:0});}
   engine.consensus={version:44,partialPlayers:preview.filter(function(p){return !p.complete;}).slice(0,100),appliedPlayers:applied,status:status.status||'NOT_CHECKED',lastAttempt:status.lastAttempt||null,frozen:status.frozen===true,sources:status.sources||FBA_CONSENSUS_V44.sources.map(function(s){return {id:s.id,name:s.name,state:'NOT_CHECKED',reason:s.reason,rows:0,contributing:false};})};
+  var htCloud=hashtagCloudStatusV76_();
+  if(htCloud)engine.consensus.sources=engine.consensus.sources.map(function(s){return s.id==='hashtag'?Object.assign({},s,{cloudSync:htCloud}):s;});
   engine.consensus.preseason=!status.frozen&&new Date().toISOString().slice(0,10)<MATCHUP_MONSTER_V30.firstWeekStart&&Number(engine.actual&&engine.actual.completeGames||0)===0;
   if(!applied){
     var cbsStatus=(status.sources||[]).filter(function(s){return s.id==='cbs';})[0];
@@ -4701,13 +4706,15 @@ function mapHashtagPlayersV75_(rows,index,stored,stamp){
   Object.keys(bindings).forEach(function(id){if(!updates[id])updates[id]=bindings[id];});
   return {rows:accepted,mappings:Object.keys(updates).sort().map(function(id){return updates[id];}),audit:{matched:accepted.length,pending:issues.length,issues:issues.slice(0,100)}};
 }
-function importHashtagSnapshotV75_(data){
-  var stamp=new Date().toISOString(),raw=parseHashtagSnapshotV75_(data,stamp),lock=LockService.getScriptLock();
+function importHashtagSnapshotV75_(data,cloud){
+  var stamp=cloud&&cloud.observedAt||new Date().toISOString(),raw=parseHashtagSnapshotV75_(data,stamp),lock=LockService.getScriptLock();
   if(!lock.tryLock(1000))throw new Error('Datenabgleich läuft bereits. Bitte erneut versuchen.');
   var result;
   try{
     var props=espnPropertiesV1_(),previous=consensusStatusV44_();
     if(props.getProperty(FBA_CONSENSUS_V44.freezeKey)==='1'||aggregateProjectionActualsV36_(sheetObjectsV2_(ESPN_PLAYER_HUB_V2.dailySheet)).completeGames>0)throw new Error('Saisonbasis ist eingefroren. Kein Preseason-Import nach Saisonstart.');
+    if(cloud){var last={};try{last=JSON.parse(props.getProperty(FBA_HASHTAG_V75.statusKey)||'{}');}catch(e){}
+      if(Date.parse(last.lastChecked)>=Date.parse(stamp))return {ok:true,skipped:true,lastChecked:last.lastChecked};}
     var mapped=mapHashtagPlayersV75_(raw,consensusIdentityIndexV44_(sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet)),sheetObjectsV2_(FBA_HASHTAG_V75.mapSheet),stamp);
     if(mapped.rows.length<100||mapped.rows.length<raw.length*.8)throw new Error('Zu wenige eindeutige Spielerzuordnungen; bisherige Werte bleiben erhalten.');
     var inputs=sheetObjectsV2_(FBA_CONSENSUS_V44.inputs),prior=inputs.filter(function(r){return r.source_id==='hashtag'&&Number(r.season_id)===2027;});
@@ -4718,7 +4725,7 @@ function importHashtagSnapshotV75_(data){
     ensureConsensusSheetsV44_();
     writeConsensusRowsV44_(FBA_HASHTAG_V75.mapSheet,FBA_CBS_V70.headers,mapped.mappings.map(function(r){return FBA_CBS_V70.headers.map(function(h){return r[h];});}));
     writeConsensusRowsV44_(FBA_CONSENSUS_V44.inputs,FBA_CONSENSUS_INPUT_HEADERS_V44,current.map(function(r){return FBA_CONSENSUS_INPUT_HEADERS_V44.map(function(h){return r[h]==null?'':r[h];});}));
-    result={ok:true,version:75,sourceId:'hashtag',lastChecked:stamp,providerUpdatedAt:raw[0].provider_updated_at,received:raw.length,mapping:mapped.audit};
+    result={ok:true,version:75,sourceId:'hashtag',lastChecked:stamp,providerUpdatedAt:raw[0].provider_updated_at,received:raw.length,mapping:mapped.audit,refreshMode:cloud?'cloud_browser':'browser_bridge'};
     props.setProperty(FBA_HASHTAG_V75.statusKey,JSON.stringify(result));
     // Mark the private baseline dirty. Import-only refresh bypasses provider network throttles.
     previous.importsDirty=true;props.setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(previous));
@@ -4734,4 +4741,34 @@ function doPost(e){
     if(!validMonsterDeviceV29_(p.token||''))return monsterJsonResponseV29_({ok:false,locked:true,error:'Gerät nicht freigeschaltet.'});
     return monsterJsonResponseV29_(importHashtagSnapshotV75_(p.snapshot));
   }catch(err){return monsterJsonResponseV29_({ok:false,error:String(err&&err.message||'Hashtag-Import fehlgeschlagen.')});}
+}
+
+// Private Sheets inbox: only an authorized Sheets writer can submit snapshots.
+// No new public write route, browser credentials or external fetches are added.
+var FBA_HASHTAG_CLOUD_V76={sheet:'FBA_Hashtag_Cloud_Inbox'};
+function hashtagCloudStatusV76_(){
+  var sh=SpreadsheetApp.getActive().getSheetByName(FBA_HASHTAG_CLOUD_V76.sheet);if(!sh)return null;
+  try{var fetchStatus=JSON.parse(sh.getRange(2,8).getValue()||'{}'),ack=JSON.parse(sh.getRange(2,6).getValue()||'{}');
+    return {enabled:fetchStatus.enabled===true,state:fetchStatus.state||'NOT_CONFIGURED',lastAttempt:fetchStatus.lastAttempt||null,message:String(fetchStatus.message||'').slice(0,300),importState:ack.state||'WAITING',lastAccepted:ack.lastChecked||null};
+  }catch(e){return {enabled:false,state:'ERROR',message:'Cloud-Status konnte nicht gelesen werden.'};}
+}
+function processHashtagCloudInboxV76_(){
+  var sh=SpreadsheetApp.getActive().getSheetByName(FBA_HASHTAG_CLOUD_V76.sheet);if(!sh||sh.getLastRow()<2)return null;
+  var head=sh.getRange(2,1,1,4).getValues()[0],id=String(head[0]||''),ack={};if(!id)return null;
+  try{ack=JSON.parse(sh.getRange(2,6).getValue()||'{}');}catch(e){}
+  if(ack.snapshotId===id&&ack.state!=='RETRY')return ack;
+  var now=new Date().toISOString(),result;
+  try{
+    if(!/^[A-Za-z0-9-]{8,80}$/.test(id))throw new Error('Ungültige Cloud-Snapshot-ID.');
+    var observed=String(head[1]||''),age=Date.parse(now)-Date.parse(observed);
+    if(!/Z$/.test(observed)||!isFinite(age)||age< -60000||age>48*3600000)throw new Error('Cloud-Abrufzeit fehlt oder ist veraltet.');
+    var meta=JSON.parse(String(head[2]||'')),count=meta.rowCount;
+    if(!Number.isInteger(count)||count<100||count>900)throw new Error('Unvollständige Cloud-Spielerliste.');
+    var cells=sh.getRange(2,4,count,1).getValues(),size=String(head[2]).length;
+    var rows=cells.map(function(r){var s=String(r[0]||'');size+=s.length;if(s.length>4000||size>650000)throw new Error('Cloud-Daten sind zu groß.');return JSON.parse(s);});
+    var snapshot={sourceUrl:meta.sourceUrl,heading:meta.heading,updatedText:meta.updatedText,options:meta.options,headers:meta.headers,rows:rows};
+    var imported=importHashtagSnapshotV75_(snapshot,{observedAt:observed});
+    result={snapshotId:id,state:imported.skipped?'SKIPPED':'READY',processedAt:now,lastChecked:imported.lastChecked,mapping:imported.mapping||null};
+  }catch(e){var message=String(e&&e.message||e).slice(0,300);result={snapshotId:id,state:/eingefroren/.test(message)?'FROZEN':/läuft bereits/.test(message)?'RETRY':'REJECTED',processedAt:now,message:message};}
+  sh.getRange(2,6,1,1).setValues([[JSON.stringify(result)]]);return result;
 }
