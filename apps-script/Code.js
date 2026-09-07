@@ -4242,7 +4242,7 @@ var FBA_CONSENSUS_V44 = {
     {id:'espn',name:'ESPN',family:'espn',route:'native',reason:'Aktuelle Saison wird im nativen Feed geprüft.'},
     {id:'yahoo',name:'Yahoo / RotoWire',family:'rotowire',route:'html',reason:'Öffentliche ROS-Tabelle; Statistikabdeckung wird je Spieler geprüft.',url:'https://basketball.fantasysports.yahoo.com/nba/969/players?stat1=S_PSR&count='},
     {id:'cbs',name:'CBS Sports',family:'cbs',route:'cbs',reason:'2026/27-Projektionen · fünf Positionslisten mit fester Spielerzuordnung.',url:'https://www.cbssports.com/fantasy/basketball/stats/'},
-    {id:'lineupexperts',name:'LineupExperts',family:'lineupexperts',route:'import',reason:'Serverabruf HTTP 403; offizieller API-Zugang kostenpflichtig.'},
+    {id:'lineupexperts',name:'LineupExperts',family:'lineupexperts',route:'import',reason:'Bestätigter Preseason-Import 2026/27. Automatischer Webabruf blockiert; Aktualisierung per geprüftem Import.'},
     {id:'hashtag',name:'Hashtag Basketball',family:'hashtag',route:'import',reason:'Serverabruf HTTP 403; kostenlos nur Top 30.'},
     {id:'fantasypros',name:'FantasyPros',family:'',route:'audit',reason:'Noch keine Projections; Konsens-Ursprungsquellen ungeklärt.',url:'https://www.fantasypros.com/nba/projections/overall.php'},
     {id:'fanscout',name:'FanScout',family:'fanscout',route:'import',reason:'Serverabruf HTTP 403; vollständiger aktueller Export noch ungeprüft.'},
@@ -4250,12 +4250,13 @@ var FBA_CONSENSUS_V44 = {
   ]
 };
 var FBA_CONSENSUS_INPUT_HEADERS_V44 = ['source_id','season_id','player_id','full_name','basis','projected_gp','projected_mpg','snapshot_date','source_url','origin_family']
-  .concat(FBA_PROJECTION_ENGINE_V36.projectionStats);
+  .concat(FBA_PROJECTION_ENGINE_V36.projectionStats).concat(['provider_player_id','provider_name','observed_at']);
 var FBA_CONSENSUS_SNAPSHOT_HEADERS_V44 = ['season_id','source_id','player_id','payload_json','updated_at'];
 var FBA_CONSENSUS_BASELINE_HEADERS_V44 = ['season_id','player_id','payload_json','updated_at'];
 function consensusSourceV44_(id) { return FBA_CONSENSUS_V44.sources.filter(function(s){return s.id===id;})[0] || null; }
 // Only explicitly confirmed season providers contribute; archived sources remain available for later activation.
-var FBA_EXPERT_POLICY_V71 = {version:71,seasonId:2027,confirmedSources:['cbs']};
+var FBA_EXPERT_POLICY_V71 = {version:74,seasonId:2027,confirmedSources:['cbs','lineupexperts']};
+var FBA_LINEUPEXPERTS_V74 = {mapSheet:'FBA_LineupExperts_Player_Map'};
 function expertSourceConfirmedV71_(id) { return FBA_EXPERT_POLICY_V71.confirmedSources.indexOf(id)>=0; }
 function expertConsensusConfirmedV71_(row) { return row&&Array.isArray(row.sourceIds)&&row.sourceIds.length>0&&row.sourceIds.every(expertSourceConfirmedV71_); }
 function expertSnapshotInputV71_(row) {
@@ -4433,6 +4434,14 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
       else if(valid.length)state=source.id!=='yahoo'&&valid.every(function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.every(function(k){return r.base[k]!=null;});})?'READY':'PARTIAL';
       kept=kept.concat(valid);var sourceStatus={id:source.id,name:source.name,state:state,reason:reason,rows:valid.length,rejected:rejected,contributing:valid.length>0,completeRows:valid.filter(function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.every(function(k){return r.base[k]!=null;});}).length};
       if(cbsAudit){sourceStatus.mapping=cbsAudit.mapping;sourceStatus.pages=cbsAudit.pages;sourceStatus.lastChecked=importsOnly?null:stamp;sourceStatus.providerUpdatedAt=null;sourceStatus.retainedPlayers=retainedCbs;}
+      sourceStatus.coverage={};FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function(k){sourceStatus.coverage[k]=valid.filter(function(r){return r.base[k]!=null;}).length;});
+      if(source.id==='lineupexperts'){
+        var leBindings=sheetObjectsV2_(FBA_LINEUPEXPERTS_V74.mapSheet).filter(function(r){return Number(r.season_id)===Number(ESPN_SYNC_V1.seasonId);}),lePending=leBindings.filter(function(r){return r.status!=='MATCHED';});
+        sourceStatus.mapping={matched:leBindings.filter(function(r){return r.status==='MATCHED';}).length,pending:lePending.length,issues:lePending.slice(0,100).map(function(r){return {name:r.provider_name,reason:r.status};})};
+        sourceStatus.refreshMode='manual_import';sourceStatus.providerIdentityType='normalized_name_binding';sourceStatus.providerUpdatedAt=null;
+        sourceStatus.lastImported=valid.map(function(r){return r.observedAt||r.snapshotDate;}).sort().pop()||null;
+        sourceStatus.reason='Preseason-Import 2026/27 · sechs Zählkategorien und GP. Ohne belegte Wurfversuche kein Beitrag zu FG%/FT%. Automatischer Abruf blockiert; Aktualisierung per geprüftem Import.';
+      }
       statuses.push(sourceStatus);
     });
     var merged=mergeConsensusV44_(kept.filter(function(r){return expertSourceConfirmedV71_(r.sourceId);})),complete=merged.filter(function(r){return r.complete;}),revision=stableHashV36_(JSON.stringify(merged));
@@ -4482,7 +4491,13 @@ function consensusDateV44_(value){if(Object.prototype.toString.call(value)==='[o
 
 function writeConsensusRowsV44_(name,headers,rows){var other=sheetObjectsV2_(name).filter(function(r){return Number(r.season_id)!==Number(ESPN_SYNC_V1.seasonId);}).map(function(r){return headers.map(function(h){return r[h]==null?'':r[h];});});rows=other.concat(rows);var sheet=ensureSimpleEspnSheetV1_(name,headers),count=Math.max(rows.length,sheet.getLastRow()-1);if(sheet.getMaxRows()<count+1)sheet.insertRowsAfter(sheet.getMaxRows(),count+1-sheet.getMaxRows());var values=rows.slice();while(values.length<count)values.push(headers.map(function(){return '';}));if(count)sheet.getRange(2,1,count,headers.length).setValues(values);}
 
-function consensusPreferRowV44_(candidate,previous){if(candidate.snapshotDate!==previous.snapshotDate)return candidate.snapshotDate>previous.snapshotDate;var count=function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.filter(function(k){return r.base[k]!=null;}).length;};return count(candidate)>count(previous);}
+function consensusPreferRowV44_(candidate,previous){
+  if(candidate.snapshotDate!==previous.snapshotDate)return candidate.snapshotDate>previous.snapshotDate;
+  // A later checked import on the same day must replace its previous values, too.
+  var nextObserved=Date.parse(candidate.observedAt||''),oldObserved=Date.parse(previous.observedAt||'');
+  if(isFinite(nextObserved)&&isFinite(oldObserved)&&nextObserved!==oldObserved)return nextObserved>oldObserved;
+  var count=function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.filter(function(k){return r.base[k]!=null;}).length;};return count(candidate)>count(previous);
+}
 
 /* CBS v70: native public tables -> persistent CBS ID / ESPN ID map -> private
  * consensus snapshots. No provider rows or device tokens enter public data=1.
