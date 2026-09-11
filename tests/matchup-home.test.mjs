@@ -57,7 +57,7 @@ test('three versus one actual appearances is described without inventing overper
   const {c,props}=server(),{f,daily}=dailyFixture(c,props),m=run(c,f,daily).matches[0];
   assert.deepEqual(clone(m.score),[6,2]);assert.deepEqual(clone(m.gp),[3,1]);
   assert.ok(m.report.text.includes('30 PTS aus 3 Einsätzen'));assert.ok(m.report.text.includes('10 PTS aus 1 Einsatz'));
-  assert.ok(m.report.text.includes('unterschiedliche Zahl an Einsätzen'));assert.ok(m.report.text.includes('daraus allein noch nicht ableiten'));
+  assert.ok(m.report.text.includes('unterschiedliche Zahl an Einsätzen'));assert.ok(!m.report.text.includes('Ob ein Spieler über')); 
   assert.ok(!/Kategorie/i.test(JSON.stringify(m.report)));assert.equal(m.report.throughDate,'2026-10-21');
 });
 test('partial, duplicate, unknown ownership, wrong totals and live rows block the report',()=>{
@@ -97,5 +97,31 @@ test('all inline scripts parse after integration',()=>{
   for(const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)){
     if(/\bsrc=|application\/(?:ld\+)?json/i.test(match[1])||!match[2].trim())continue;
     new vm.Script(match[2]);
+  }
+});
+
+function pwInput(gp,rate=10){return {gp,stats:{PTS:gp*rate,REB:gp*rate,AST:gp*rate,'3PM':gp*rate,STL:gp*rate,BLK:gp*rate,FGM:gp*5,FGA:gp*10,FTM:gp*5,FTA:gp*10}}}
+function pwWeek(week,a,b,status='FINAL'){return {week,status:'READY',matches:[{away:'Wolves',home:'Pirates',status,performanceInputs:[a,b]}]}}
+test('team PW stays empty in week one; extra appearances alone do not create positive performance',()=>{
+  const {c}=server(),weeks=[pwWeek(1,pwInput(10),pwInput(10)),pwWeek(2,pwInput(3),pwInput(1),'IN_PROGRESS')];
+  c.matchupHomePerformanceV78_(weeks);
+  assert.equal(weeks[0].matches[0].performance[0].value,null);
+  for(const p of weeks[1].matches[0].performance){assert.equal(p.value,0);assert.equal(p.baselineWeeks,1)}
+  assert.equal(weeks[1].matches[0].performanceInputs,undefined);
+});
+test('team PW preserves positive and negative deviations independently from the score',()=>{
+  const {c}=server(),weeks=[pwWeek(1,pwInput(10),pwInput(10)),pwWeek(2,pwInput(2,11),pwInput(3,9),'IN_PROGRESS')];
+  c.matchupHomePerformanceV78_(weeks);const p=weeks[1].matches[0].performance;
+  assert.ok(Math.abs(p[0].value-.075)<1e-10);assert.ok(Math.abs(p[1].value+.075)<1e-10);
+});
+test('baseline is weighted by appearances, excludes target/future and blocks missing history',()=>{
+  const {c}=server();
+  const weeks=[pwWeek(1,pwInput(1,20),pwInput(1)),pwWeek(2,pwInput(8,10),pwInput(8)),pwWeek(3,pwInput(1,10),pwInput(1),'IN_PROGRESS'),pwWeek(4,pwInput(100,100),pwInput(100))];
+  c.matchupHomePerformanceV78_(weeks);assert.ok(Math.abs(weeks[2].matches[0].performance[0].value+.075)<1e-10);
+  const missing=[pwWeek(1,pwInput(1),pwInput(1)),pwWeek(3,pwInput(1),pwInput(1),'IN_PROGRESS')];c.matchupHomePerformanceV78_(missing);assert.equal(missing[1].matches[0].performance[0].value,null);
+});
+test('zero baseline, zero appearances or undefined shooting rate never produce a misleading PW',()=>{
+  for(const change of [w=>w[0].matches[0].performanceInputs[0].stats.BLK=0,w=>w[1].matches[0].performanceInputs[0].gp=0,w=>w[1].matches[0].performanceInputs[0].stats.FTA=0]){
+    const {c}=server(),weeks=[pwWeek(1,pwInput(10),pwInput(10)),pwWeek(2,pwInput(2),pwInput(2),'IN_PROGRESS')];change(weeks);c.matchupHomePerformanceV78_(weeks);assert.equal(weeks[1].matches[0].performance[0].value,null);
   }
 });

@@ -3369,6 +3369,7 @@ function buildMatchupHomeV77_(cfg) {
       return matchupHomeWeekV77_(week,weeks[week],stats.filter(function(r){return Number(r.Woche)===week;}),
         results.filter(function(r){return Number(r.Week)===week;}),dailyByWeek[week] || [],current,phase);
     });
+    matchupHomePerformanceV78_(out.weeks);
   } catch (error) {
     out.weeks = [{week:current,status:'DATA_ISSUE',issue:'Der aktuelle Spielplan oder die Spieldaten konnten nicht vollständig gelesen werden.',matches:[]}];
   }
@@ -3429,11 +3430,53 @@ function matchupHomeWeekV77_(week, schedule, stats, results, daily, current, pha
         if(point.key==='FT%'){v=t.stats.FTA?t.stats.FTM/t.stats.FTA:0;tolerance=.00051;}
         return typeof v==='number'&&isFinite(v)&&Math.abs(v-point.values[k])<=tolerance;
       });});
-      if(agrees){m.gp=[left.gp,right.gp];m.report=matchupHomeReportV77_(m,left,right,actual.throughDate,daily);}
+      if(agrees){m.gp=[left.gp,right.gp];m.performanceInputs=[{gp:left.gp,stats:left.stats},{gp:right.gp,stats:right.stats}];m.report=matchupHomeReportV77_(m,left,right,actual.throughDate,daily);}
     }
     return m;
   });
   return out;
+}
+
+/* Equal-weight mean of the eight relative team deviations. Counting stats are
+ * per scored appearance; shooting rates use summed makes/attempts. Only fully
+ * reconciled prior weeks of this same season enter the baseline. */
+function matchupHomePerformanceV78_(weeks) {
+  var records={};
+  weeks.forEach(function(w){(w.matches||[]).forEach(function(m){
+    [m.away,m.home].forEach(function(team,k){
+      if(m.performanceInputs&&m.performanceInputs[k]){
+        records[team]=records[team]||{};
+        records[team][w.week]={input:m.performanceInputs[k],final:m.status==='FINAL'};
+      }
+    });
+  });});
+  weeks.forEach(function(w){(w.matches||[]).forEach(function(m){
+    m.performance=[m.away,m.home].map(function(team,k){
+      var result={value:null,status:w.week===1?'FIRST_WEEK':'WAITING',baselineWeeks:0}, own=m.performanceInputs&&m.performanceInputs[k];
+      if(w.week===1||!own||!(own.gp>0))return result;
+      var base={gp:0,stats:emptyProjectionStatsV36_()};
+      for(var previous=1;previous<w.week;previous++){
+        var record=(records[team]||{})[previous];
+        if(!record||!record.final||!(record.input.gp>0))return result;
+        base.gp+=record.input.gp;
+        Object.keys(base.stats).forEach(function(key){base.stats[key]+=record.input.stats[key];});
+        result.baselineWeeks++;
+      }
+      var deviations=CATS.map(function(key){
+        var a,b;
+        if(key==='FG%'||key==='FT%'){
+          var prefix=key==='FG%'?'FG':'FT';
+          if(!(own.stats[prefix+'A']>0)||!(base.stats[prefix+'A']>0))return null;
+          a=own.stats[prefix+'M']/own.stats[prefix+'A'];b=base.stats[prefix+'M']/base.stats[prefix+'A'];
+        }else{a=own.stats[key]/own.gp;b=base.stats[key]/base.gp;}
+        return typeof a==='number'&&isFinite(a)&&typeof b==='number'&&isFinite(b)&&b>0?a/b-1:null;
+      });
+      if(deviations.length!==8||deviations.some(function(v){return v===null||!isFinite(v);}))return result;
+      result.value=deviations.reduce(function(sum,v){return sum+v;},0)/8;
+      result.status='READY';return result;
+    });
+    delete m.performanceInputs;
+  });});
 }
 
 function matchupHomeReportV77_(m,left,right,date,daily) {
@@ -3453,7 +3496,6 @@ function matchupHomeReportV77_(m,left,right,date,daily) {
   if(closest)sentences.push('Bei '+closest.key+' lautet der Stand '+closest.values[0]+' zu '+closest.values[1]+' aus Sicht von '+m.away+(closest.values[0]===closest.values[1]?'; der Gleichstand zählt für das Heimteam.':'.'));
   var top=day.slice().sort(function(a,b){return b.PTS-a.PTS||String(a.player_id).localeCompare(String(b.player_id));})[0];
   if(top){var shared=day.filter(function(r){return r.PTS===top.PTS;}).length>1;sentences.push(String(top.player_name)+' erzielte '+top.PTS+' PTS für '+top.owner_team+' und war damit '+(shared?'einer der punktbesten Spieler':'der punktbeste Spieler')+' des Duells an diesem Spieltag.');}
-  sentences.push(m.status==='FINAL'?'Die Einordnung einer Über- oder Unterperformance braucht zusätzlich belastbare Vergleichswerte pro Einsatz.':'Ob ein Spieler über oder unter seinem üblichen Niveau liegt, lässt sich daraus allein noch nicht ableiten.');
   return {title:title,text:sentences.join(' '),throughDate:date};
 }
 

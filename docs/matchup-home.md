@@ -12,18 +12,22 @@ Auftrag von Maik, 11.09.2026. Diese Produktrichtung gilt auch für weitere App-A
 - Einsatz- und Spielerangaben nur bei vollständigen finalen Boxscores mit bestätigter damaliger Eigentümer- und Lineup-Zuordnung; Zählwerte müssen zu StatsRaw passen. DNP, Bank und spätere Transfers dürfen die Auswertung nicht verfälschen.
 - Bei offenen oder widersprüchlichen Daten bleibt der Bericht gesperrt. Der Zeitpunkt des letzten erfolgreichen Datenabrufs wird angezeigt; ein Seitenaufruf ist kein neuer Datenstand.
 
-## Performance Watch: geprüfter Stand und offene Erweiterung
+## Team-Performance Watch – Entscheidung vom 11.09.2026
 
-Der geprüfte Code auf Basis von main 31eb5a15f34ae36ce0b7be268f4e427521ed2968 vergleicht Wochenwerte mit vorherigen Wochen. Die Frontendfunktion analyticsCompute setzt GP sogar auf null. Das Backend liest zwar GP, verwendet es aber nicht als Divisor der Leistungsabweichung. Auch die beigefügte Excel enthält in S25_26 Performance Watch einen Wochenvergleich. Eine fertige Bereinigung pro Einsatz oder pro individuellem Spieler ist damit nicht belegt.
+Maik lehnt einzelne Spieler-Performance-Watches ausdrücklich ab: zu viel Information, offensichtliche Einzelabweichungen brauchen keine eigene Auswertung. Diese Idee ist verworfen. Gewünscht ist eine kleine Plus-/Minus-Prozentzahl direkt bei jedem Team im Matchup. Positiv grün, negativ rot, null neutral. Spielstand und Performance bleiben unabhängig.
 
-Die bestehende Performance Watch wird in diesem Schritt nicht fachlich umdefiniert. Berichte behaupten keine Über- oder Unterperformance aus bloßen Punktsummen oder aus unterschiedlichen Einsatzzahlen.
+Die Startseite zeigt Team-PW pro gewertetem Einsatz. Woche 1: Strich statt eines erfundenen Nullwerts. Woche 2: Zahl mit Hinweis „erste Tendenz“. Weitere Wochen erweitern die Baseline; mehr Daten beseitigen aber keine Unsicherheit durch kleine aktuelle Stichproben oder Kaderwechsel.
 
-Geplante Weiterentwicklung, noch offen: Zählwerte pro tatsächlich gewertetem Spielereinsatz vergleichen; für individuelle Aussagen die eigene Baseline jedes Spielers verwenden. Vorherige Wochen und aktuelle Woche strikt trennen. Wurfquoten aus summierten Treffern und Versuchen bestimmen, niemals durch GP teilen. Auswahl der Baseline, ausreichende Stichprobe und Schwellen für redaktionelle Wertungen müssen festgelegt und anhand echter Daten geprüft werden. Frühe Saisonwerte als erste Eindrücke kennzeichnen.
+Berechnung: Für die sechs Zählwerte wird der aktuelle Teamwert durch tatsächlich gewertete Einsätze geteilt. Die Baseline ist die Summe der Teamwerte aus allen vollständig abgeschlossenen Vorwochen derselben Saison, geteilt durch deren gesamte gewertete Einsätze. FG% und FT% werden jeweils aus summierten Treffern und Versuchen berechnet. Pro Punkt: Ist/Baseline − 1. Team-PW ist das gleichgewichtete Mittel aller acht relativen Abweichungen, in Prozent dargestellt. Das entspricht der bisherigen Gleichgewichtung, mit korrekter Einsatzbereinigung und Quotenaggregation.
+
+Alle Vorwochen müssen vollständig mit StatsRaw, Spielplan und Results abgeglichen sein. Fehlende Eigentümer-/Lineup-Zuordnung, unvollständige Boxscores, fehlende Einsätze oder ein nicht definierter Vergleich (z. B. Baseline null) ergeben keine Zahl. Zielwoche und spätere Wochen fließen nie in die Baseline ein. Spielerbezogene Leistungsnoten werden weder berechnet noch angezeigt.
+
+Der historische Performance-Tab bleibt in diesem Schritt unverändert. Sein älterer Wochenvergleich ist nicht die Quelle der neuen ausdrücklich als „Teamleistung pro Einsatz“ bezeichneten Startseitenzahl.
 
 ## Aktualisierung und Grenzen
 
 Das Modul hängt an der bestehenden öffentlichen Datenkette und deren ESPN-Sync, ergänzt deren Cache und aktualisiert sich bei erneuten Abrufen. Auf der sichtbaren Startseite und bei Rückkehr in die App werden nach fünf Minuten erneut Daten angefragt. Fehlversuche werden ebenfalls gedrosselt. Es richtet keinen separaten ChatGPT-Task ein. Tägliche Inhalte brauchen den laufenden serverseitigen ESPN-Sync; der Frontend-Umbau allein aktiviert keine Datensammlung.
 
-Diese Änderung ist vorbereitet und getestet, aber nicht produktiv veröffentlicht. Es werden keine bestehenden historischen Excel-Werte geändert. Berichte enthalten keine historischen H2H-Behauptungen oder neue Performance-Watch-Berechnungen.
+Diese Änderung ist vorbereitet und getestet, aber nicht produktiv veröffentlicht. Es werden keine bestehenden historischen Excel-Werte geändert. Berichte enthalten keine historischen H2H-Behauptungen .
 
 Geprüft: neue Regressionsfälle für vollständigen Spielplan, Saisonabweichung, fehlende Werte, Start ohne Spiele, Heim-Ties, Endstand-Abgleich, drei gegen einen Einsatz, Boxscore-/Eigentümerfehler, Aktualisierung und Wurfquoten. Die bestehenden acht Startup-/Cachetests bestehen ebenfalls. Das Inline-JavaScript wurde vollständig geparst. Kein visueller Browsertest auf einem iPhone wurde durchgeführt.
