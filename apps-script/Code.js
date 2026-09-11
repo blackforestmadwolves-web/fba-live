@@ -3334,7 +3334,127 @@ function enhancePayloadPhaseV1(data, cfg) {
   data.draftPredictions = buildDraftPredictionsV3_();
   data.adpTrend = buildEspnAdpTrendPayloadV40_();
   data.draftTop25 = buildDraftRadar_(data.adpTrend);
+  data.matchupHome = buildMatchupHomeV77_(cfg);
   return data;
+}
+
+/* Public matchup home. Only the current configured MASTER sheets may supply
+ * pairings/scores. The old analytics snapshot is never a fallback here. */
+function buildMatchupHomeV77_(cfg) {
+  var season = String((cfg || {}).seasonCode || ''), props = espnPropertiesV1_();
+  var phase = String((cfg || {}).effectivePhase || (cfg || {}).phase || '').toUpperCase();
+  var current = Number(props.getProperty('FBA_ESPN_CURRENT_MATCHUP_PERIOD_V38') || 0);
+  if (/^(PRESEASON|DRAFT|OFFSEASON)$/.test(phase) || !current) current = 1;
+  var out = {schema:1,seasonCode:season,currentWeek:current,updatedAt:props.getProperty('FBA_ESPN_LAST_SUCCESS') || null,weeks:[]};
+  if (season !== ESPN_SYNC_V1.seasonKey) return out;
+  try {
+    var schedule = sheetObjectsV2_(season + ' Schedule'), stats = sheetObjectsV2_(season + ' StatsRaw'), results = sheetObjectsV2_(season + ' Results');
+    var daily = sheetObjectsV2_(ESPN_PLAYER_HUB_V2.dailySheet), dailyByWeek = {}, weeks = {};
+    weeks[current] = [];
+    daily.forEach(function(row) {
+      if (Number(row.season_id) !== Number(ESPN_SYNC_V1.seasonId)) return;
+      if (Object.prototype.toString.call(row.nba_date)==='[object Date]') {
+        row=Object.assign({},row);
+        row.nba_date=Utilities.formatDate(row.nba_date,book().getSpreadsheetTimeZone(),'yyyy-MM-dd');
+      }
+      var week = Number(row.matchup_period);
+      (dailyByWeek[week] = dailyByWeek[week] || []).push(row);
+    });
+    schedule.forEach(function(row) {
+      var week = Number(row.week);
+      if (!Number.isInteger(week) || week < 1 || week > ESPN_SYNC_V1.seasonEnd) return;
+      (weeks[week] = weeks[week] || []).push(row);
+    });
+    out.weeks = Object.keys(weeks).map(Number).sort(function(a,b){return a-b;}).map(function(week) {
+      return matchupHomeWeekV77_(week,weeks[week],stats.filter(function(r){return Number(r.Woche)===week;}),
+        results.filter(function(r){return Number(r.Week)===week;}),dailyByWeek[week] || [],current,phase);
+    });
+  } catch (error) {
+    out.weeks = [{week:current,status:'DATA_ISSUE',issue:'Der aktuelle Spielplan oder die Spieldaten konnten nicht vollständig gelesen werden.',matches:[]}];
+  }
+  return out;
+}
+
+function matchupHomeWeekV77_(week, schedule, stats, results, daily, current, phase) {
+  var out = {week:week,status:'READY',matches:[]}, teamSet = {}, keys = {}, cats = CATS.slice();
+  function issue(message) {out.status='DATA_ISSUE';out.issue=message;out.matches=[];return out;}
+  if (!schedule.length) {out.status='WAITING';return out;}
+  if (schedule.length !== 4) return issue('Für Woche '+week+' liegen noch nicht genau vier eindeutige Paarungen vor.');
+  var normalizedSeason = function(v){return String(v || '').toUpperCase().replace(/^S/,'20').replace(/\D/g,'');};
+  var wanted = normalizedSeason(ESPN_SYNC_V1.seasonLabel);
+  for (var i=0;i<schedule.length;i++) {
+    var row=schedule[i], a=String(row.away_team || ''), b=String(row.home_team || '');
+    if (!a || !b || a===b || teamSet[a] || teamSet[b] || normalizedSeason(row.season_id)!==wanted)
+      return issue('Spielplan: Saison, Heim/Auswärts oder die acht Teams sind noch nicht eindeutig.');
+    teamSet[a]=true;teamSet[b]=true;keys[a+'|'+b]=true;
+  }
+  if (stats.some(function(r){return !keys[String(r['Team A'])+'|'+String(r['Team B'])];}))
+    return issue('StatsRaw und Spielplan stimmen bei Heim/Auswärts nicht überein.');
+  var finalWeek=week<current || phase==='SAISON_BEENDET', seenDaily={}, duplicateDaily=false;
+  daily.forEach(function(r){var key=String(r.event_id)+'|'+String(r.player_id);if(seenDaily[key])duplicateDaily=true;seenDaily[key]=true;});
+  var actual = daily.length && !duplicateDaily ? aggregateProjectionActualsV36_(daily) : null;
+  var usable = actual && actual.ownershipAtGameReady && !actual.inProgressRows && !actual.excludedFinalRows;
+  out.matches = schedule.map(function(row,index) {
+    var a=String(row.away_team),b=String(row.home_team),m={no:index+1,away:a,home:b,status:'SCHEDULED',score:null,report:null,gp:null};
+    var found=stats.filter(function(r){return r['Team A']===a&&r['Team B']===b;});
+    function bad(message){m.status='DATA_ISSUE';m.issue=message;m.score=null;m.points=null;return m;}
+    if (found.length>1)return bad('Doppelte StatsRaw-Zeilen für dieses Matchup.');
+    if (!found.length)return finalWeek?bad('Für diese abgeschlossene Woche fehlen bestätigte Werte.'):m;
+    var raw=found[0],invalid=false,hasActivity=false,score=[0,0];
+    m.points=cats.map(function(c){
+      var x=raw[c+'_A'],y=raw[c+'_B'];
+      if(typeof x!=='number'||typeof y!=='number'||!isFinite(x)||!isFinite(y)||x<0||y<0 ||
+        (c.indexOf('%')>=0&&(x>1||y>1)))invalid=true;
+      if(c.indexOf('%')<0&&(x>0||y>0))hasActivity=true;
+      var winner=x>y?0:1;score[winner]++;
+      return {key:c,values:[x,y],winner:winner};
+    });
+    if(invalid)return bad('Noch nicht alle acht Punktwerte sind vollständig bestätigt.');
+    // ESPN can publish all-zero shells before tip-off. They are not a 0:8 lead.
+    if(!hasActivity){m.points=null;return finalWeek?bad('Für diese abgeschlossene Woche fehlt ein bestätigter Spielstand.'):m;}
+    if(week>current || /^(PRESEASON|DRAFT|OFFSEASON)$/.test(phase))return bad('Spieldaten und aktuelle Saisonphase stimmen noch nicht überein.');
+    if(score[0]+score[1]!==8)return bad('Der Spielstand ergibt nicht acht FBA-Punkte.');
+    if(finalWeek){
+      var result=results.filter(function(r){return r.Away===a&&r.Home===b;});
+      if(result.length!==1||result[0]['Away Cats']!==score[0]||result[0]['Home Cats']!==score[1])
+        return bad('Results und StatsRaw bestätigen noch nicht denselben Endstand.');
+    }
+    m.score=score;m.status=finalWeek?'FINAL':'IN_PROGRESS';
+    if(usable){
+      var empty=function(){return {gp:0,stats:emptyProjectionStatsV36_(),players:{}};};
+      var left=(actual.byTeamWeek[a] || {})[String(week)] || empty(),right=(actual.byTeamWeek[b] || {})[String(week)] || empty();
+      var agrees=m.points.every(function(point){return [left,right].every(function(t,k){
+        var v=t.stats[point.key],tolerance=0;
+        if(point.key==='FG%'){v=t.stats.FGA?t.stats.FGM/t.stats.FGA:0;tolerance=.00051;}
+        if(point.key==='FT%'){v=t.stats.FTA?t.stats.FTM/t.stats.FTA:0;tolerance=.00051;}
+        return typeof v==='number'&&isFinite(v)&&Math.abs(v-point.values[k])<=tolerance;
+      });});
+      if(agrees){m.gp=[left.gp,right.gp];m.report=matchupHomeReportV77_(m,left,right,actual.throughDate,daily);}
+    }
+    return m;
+  });
+  return out;
+}
+
+function matchupHomeReportV77_(m,left,right,date,daily) {
+  var score=m.score, tied=score[0]===score[1],leader=score[0]>score[1]?m.away:m.home;
+  var title=tied?'Alles offen zwischen '+m.away+' und '+m.home:leader+(m.status==='FINAL'?' entscheidet das Duell für sich':' liegt vorne');
+  var sentences=[m.status==='FINAL'?(tied?'Das Matchup endet '+score[0]+':'+score[1]+'.':leader+' gewinnt das Matchup '+Math.max.apply(null,score)+':'+Math.min.apply(null,score)+'.'):
+    (tied?'Zwischen '+m.away+' und '+m.home+' steht es aktuell '+score[0]+':'+score[1]+'.':leader+' führt aktuell '+Math.max.apply(null,score)+':'+Math.min.apply(null,score)+'.')];
+  var day=daily.filter(function(r){return String(r.nba_date)===date&&(r.owner_team===m.away||r.owner_team===m.home)&&(r.active_lineup===true||String(r.active_lineup).toUpperCase()==='TRUE');});
+  var dayPts=[0,0],dayGp=[0,0];
+  day.forEach(function(r){var k=r.owner_team===m.away?0:1;dayPts[k]+=Number(r.PTS);dayGp[k]++;});
+  var appearances=function(n){return n+' '+(n===1?'Einsatz':'Einsätzen');};
+  if(day.length)sentences.push('Am letzten erfassten Spieltag steuerten die aktiven Spieler von '+m.away+' '+dayPts[0]+' PTS aus '+appearances(dayGp[0])+' bei; '+m.home+' kam auf '+dayPts[1]+' PTS aus '+appearances(dayGp[1])+'.');
+  sentences.push('Insgesamt wurden bisher '+left.gp+' Einsätze für '+m.away+' und '+right.gp+' für '+m.home+' gewertet.');
+  if(left.gp!==right.gp)sentences.push('Diese unterschiedliche Zahl an Einsätzen ist bei der Einordnung der bisherigen Summen zu berücksichtigen.');
+  else sentences.push('Beide Teams haben damit bislang dieselbe Zahl gewerteter Einsätze.');
+  var closest=m.points.filter(function(p){return p.key.indexOf('%')<0;}).sort(function(a,b){return Math.abs(a.values[0]-a.values[1])-Math.abs(b.values[0]-b.values[1]);})[0];
+  if(closest)sentences.push('Bei '+closest.key+' lautet der Stand '+closest.values[0]+' zu '+closest.values[1]+' aus Sicht von '+m.away+(closest.values[0]===closest.values[1]?'; der Gleichstand zählt für das Heimteam.':'.'));
+  var top=day.slice().sort(function(a,b){return b.PTS-a.PTS||String(a.player_id).localeCompare(String(b.player_id));})[0];
+  if(top){var shared=day.filter(function(r){return r.PTS===top.PTS;}).length>1;sentences.push(String(top.player_name)+' erzielte '+top.PTS+' PTS für '+top.owner_team+' und war damit '+(shared?'einer der punktbesten Spieler':'der punktbeste Spieler')+' des Duells an diesem Spieltag.');}
+  sentences.push(m.status==='FINAL'?'Die Einordnung einer Über- oder Unterperformance braucht zusätzlich belastbare Vergleichswerte pro Einsatz.':'Ob ein Spieler über oder unter seinem üblichen Niveau liegt, lässt sich daraus allein noch nicht ableiten.');
+  return {title:title,text:sentences.join(' '),throughDate:date};
 }
 
 /* Public Draft Radar: the 25 lowest confirmed ESPN ADPs in the latest
