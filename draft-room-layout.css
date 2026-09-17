@@ -1,0 +1,43 @@
+/* v81: compact recommendations beside ESPN roster coverage. */
+.draft-advice-row{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;align-items:start;margin-bottom:16px}
+.draft-advice-row .draft-coach-recommendations{min-width:0;margin:0}
+.draft-advice-row .draft-coach-suggestions{gap:7px}
+.draft-advice-row .draft-coach-suggestion{padding:10px;gap:5px;border-radius:10px}
+.draft-advice-row .draft-coach-suggestion strong{font-size:12px}
+.draft-advice-row .draft-coach-suggestion b{font-size:10px}
+.draft-advice-row .draft-coach-suggestion span,.draft-advice-row .draft-coach-suggestion small{font-size:9px}
+.draft-roster-positions{padding:13px;border-radius:14px;min-width:0;background:#192331;border:1px solid #42516a}
+.draft-roster-heading{display:grid;gap:4px;margin-bottom:12px}
+.draft-roster-heading b{font-size:13px;color:#eef3fb}.draft-roster-heading small{font-size:10px;color:#b6c5dc}
+.draft-roster-counts{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.draft-roster-counts>div{display:grid;gap:4px;padding:7px 2px;text-align:center;border-radius:7px;background:#253348}
+.draft-roster-counts span{font-size:10px;color:#a9bbd3}.draft-roster-counts strong{font-size:21px;color:#eef4fc;font-variant-numeric:tabular-nums}
+.draft-center-limit{display:grid;grid-template-columns:1fr auto;align-items:center;gap:5px;margin-top:10px;padding:9px;border:1px solid #416c63;border-radius:8px;background:#1e3936;color:#c5f2de}
+.draft-center-limit>span{font-size:11px;font-weight:750}.draft-center-limit>strong{font-size:17px;font-variant-numeric:tabular-nums}.draft-center-limit>small{grid-column:1/-1;font-size:10px}
+.draft-center-limit[data-limit-state="near"]{background:#3e3323;border-color:#a58147;color:#ffe0a7}
+.draft-center-limit[data-limit-state="full"]{background:#432931;border-color:#b3697b;color:#ffd2dc}
+.draft-roster-positions p{font-size:9px;line-height:1.5;color:#b2c1d7;margin:9px 0 0}
+.draft-roster-positions .draft-position-warning{color:#ffdcab}
+.page-draft .draft-board-scroll{height:1120px;max-height:none;overflow:auto;overscroll-behavior:contain;overflow-anchor:none;scrollbar-gutter:stable}
+.page-draft .draft-board-shell .draft-board{align-content:start}
+.page-draft .draft-board-round{scroll-margin-top:0}
+.page-draft .draft-current-round{border:1px solid #626f87;border-radius:8px;background:#28344a;color:#dfebff;padding:8px 10px;min-height:38px;font:inherit;font-size:11px;cursor:pointer}
+.page-draft .draft-current-round:focus-visible{outline:2px solid #ffb877;outline-offset:3px}
+@media(min-width:821px) and (max-width:1350px){
+  .draft-advice-row{grid-template-columns:minmax(0,1fr) 225px}
+  .draft-advice-row .draft-coach-suggestions{grid-template-columns:1fr}
+  .draft-advice-row .draft-coach-suggestion{display:grid;grid-template-columns:1fr auto;gap:3px 8px;padding:8px 10px}
+  .draft-advice-row .draft-coach-suggestion strong{grid-column:1/-1}
+  .draft-advice-row .draft-coach-suggestion b,.draft-advice-row .draft-coach-suggestion small{grid-column:1/-1}
+  .draft-advice-row .draft-coach-preview-link{grid-column:1/-1;padding-top:0}
+}
+@media(max-width:820px){.draft-advice-row{grid-template-columns:minmax(0,1fr) 225px}.draft-advice-row .draft-coach-suggestions{grid-template-columns:1fr}}
+@media(max-width:560px){.draft-advice-row{grid-template-columns:1fr}.draft-roster-positions{grid-row:1}.draft-advice-row .draft-coach-suggestions{grid-template-columns:1fr}.draft-advice-row .draft-coach-suggestion{display:grid;grid-template-columns:1fr auto}.draft-advice-row .draft-coach-suggestion b,.draft-advice-row .draft-coach-suggestion small,.draft-advice-row .draft-coach-preview-link{grid-column:1/-1}.draft-roster-positions p{font-size:10px}}
+/* Both desktop columns share the board's lower edge; the pool uses the spare
+   height for players rather than growing the page from its own content. */
+@media(min-width:821px){
+  .page-draft .draft-workspace{align-items:stretch}
+  .page-draft .draft-workspace-side{align-self:stretch;min-height:0;max-height:none}
+  .page-draft .draft-workspace-side>:not(.draft-pool-scroll){flex:0 0 auto}
+  .page-draft .draft-workspace-side .draft-pool-scroll{height:0;min-height:280px;max-height:none;flex:1 1 0}
+}

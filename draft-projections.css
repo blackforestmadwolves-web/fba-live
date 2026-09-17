@@ -1,0 +1,4 @@
+.draft-projection-source{margin:12px 0;padding:10px 12px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(255,255,255,.025);font-size:12px}
+.draft-projection-source summary{cursor:pointer;font-weight:700;line-height:1.45}
+.draft-projection-source p{color:var(--muted,#aab2c5);line-height:1.6;margin:8px 0}
+.draft-projection-source .btn{font-size:12px;padding:8px 12px;margin-top:6px}

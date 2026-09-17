@@ -1,0 +1,81 @@
+/* All rules are scoped to the new homepage section. */
+#fba-matchup-home{margin:0 0 32px;color:var(--txt,#e9edf7)}
+#fba-matchup-home .fmh-header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding:24px 2px 18px}
+#fba-matchup-home .fmh-eyebrow{display:block;color:var(--acc,#f4712c);font-size:10px;font-weight:800;letter-spacing:1.7px;text-transform:uppercase}
+#fba-matchup-home h1{margin:6px 0;font-size:clamp(26px,4vw,40px);line-height:1.12;letter-spacing:-1.2px;color:#fff}
+#fba-matchup-home .fmh-header p{margin:9px 0 0;color:#a4aec2;font-size:13px}
+#fba-matchup-home .fmh-week-label{display:grid;gap:6px;font-size:10px;color:#9cabc2;min-width:170px}
+#fba-matchup-home select{width:100%;min-height:44px;padding:9px 12px;border-radius:12px;border:1px solid #354258;background:#171e2c;color:#eef4ff;font:inherit;font-size:13px;cursor:pointer}
+#fba-matchup-home .fmh-meta{display:flex;justify-content:space-between;gap:12px;color:#8f9db5;font-size:11px;margin:0 2px 12px}
+#fba-matchup-home .fmh-scoreboard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#fba-matchup-home .fmh-card{display:block;width:100%;min-width:0;text-align:left;color:inherit;font:inherit;padding:16px 18px 10px;border:1px solid rgba(132,155,191,.2);border-radius:18px;background:linear-gradient(125deg,rgba(38,47,65,.9),rgba(19,24,35,.95));box-shadow:0 8px 26px rgba(0,0,0,.13);cursor:pointer;transition:border-color .15s,background .15s}
+#fba-matchup-home .fmh-card:hover:not(:disabled){border-color:rgba(244,113,44,.6);background:linear-gradient(125deg,rgba(48,53,69,.96),rgba(24,30,43,.95))}
+#fba-matchup-home .fmh-card:disabled{opacity:1;cursor:default}
+#fba-matchup-home .fmh-card-top{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#92a0b8;padding-bottom:8px}
+#fba-matchup-home .fmh-status{color:#bdc9dc}
+#fba-matchup-home .fmh-team{display:flex;align-items:center;gap:12px;min-height:58px}
+#fba-matchup-home .fmh-team img{flex:0 0 42px;width:42px;height:42px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))}
+#fba-matchup-home .fmh-placeholder{flex:0 0 42px;display:grid;place-items:center;width:42px;height:42px;border-radius:50%;border:1px dashed #45516a;font-size:19px;color:#8491a9}
+#fba-matchup-home .fmh-team-copy{display:grid;gap:3px;min-width:0;flex:1}
+#fba-matchup-home .fmh-team-copy b{font-size:16px;line-height:1.2;overflow-wrap:anywhere}
+#fba-matchup-home .fmh-pw{font-size:11px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+#fba-matchup-home .fmh-pw.positive{color:#75e3b4}
+#fba-matchup-home .fmh-pw.negative{color:#ff929e}
+#fba-matchup-home .fmh-pw.pending{color:#8291aa}
+#fba-matchup-home .fmh-pw.neutral{color:#dce5f3}
+#fba-matchup-home .fmh-score{font-size:29px;line-height:1;font-weight:850;min-width:28px;text-align:right;font-variant-numeric:tabular-nums;color:#b2bfd4}
+#fba-matchup-home .fmh-score.leading{color:#fff}
+#fba-matchup-home .fmh-card-foot{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding-top:9px;border-top:1px solid rgba(151,171,208,.13);color:#a3b2ca;font-size:10px}
+#fba-matchup-home .fmh-card-foot>span{color:#f7aa73}
+#fba-matchup-home .fmh-explainer{margin:14px 2px;color:#9facbf;font-size:12px;line-height:1.7}
+#fba-matchup-home .fmh-explainer summary{cursor:pointer;min-height:34px;color:#c3cede}
+#fba-matchup-home .fmh-explainer p{max-width:850px;margin:6px 0}
+#fba-matchup-home .fmh-report-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:28px 2px 14px}
+#fba-matchup-home .fmh-report-heading h2{font-size:20px;margin:6px 0 0;line-height:1.25;letter-spacing:-.4px}
+#fba-matchup-home .fmh-report-heading>span{font-size:10px;color:#93a3bb;text-align:right}
+#fba-matchup-home .fmh-reports{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#fba-matchup-home .fmh-report,#fba-matchup-home .fmh-waiting{padding:22px;border-radius:18px;border:1px solid rgba(137,158,192,.17);background:rgba(20,26,39,.78);scroll-margin-top:140px}
+#fba-matchup-home .fmh-report-kicker{font-size:11px;font-weight:700;color:#c7d5ea}
+#fba-matchup-home .fmh-report-kicker span{font-weight:400;color:#7688a4;margin:0 5px}
+#fba-matchup-home .fmh-story-meta{font-size:10px;line-height:1.6;color:#93a3bb;margin-top:8px}
+#fba-matchup-home .fmh-report h3{font-size:20px;line-height:1.25;margin:12px 0;color:#f1f5ff;letter-spacing:-.3px}
+#fba-matchup-home .fmh-report p,#fba-matchup-home .fmh-waiting p{font-size:13px;line-height:1.8;color:#aab8ce;margin:10px 0 0}
+#fba-matchup-home .fmh-waiting b{font-size:15px;color:#d6e0f0}
+#fba-matchup-home .fmh-point-details{margin-top:14px;border-top:1px solid rgba(140,162,195,.15);padding-top:4px}
+#fba-matchup-home .fmh-point-details summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:#ccdaed;font-size:12px}
+#fba-matchup-home .fmh-point-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#fba-matchup-home .fmh-point-grid>div{background:rgba(255,255,255,.035);padding:10px;border-radius:10px}
+#fba-matchup-home .fmh-point-grid small{display:block;font-size:10px;color:#93a7c2;margin-bottom:5px}
+#fba-matchup-home .fmh-point-grid b{display:flex;justify-content:space-between;gap:4px;font-size:12px;color:#91a0b7;font-variant-numeric:tabular-nums}
+#fba-matchup-home .fmh-point-grid i{font-style:normal;color:#62738d}
+#fba-matchup-home .fmh-point-grid .winner{color:#fff}
+#fba-matchup-home .fmh-point-note{font-size:10px!important}
+#fba-matchup-home :is(button,select,summary):focus-visible,#fba-matchup-home .fmh-report:focus{outline:2px solid #f4aa72;outline-offset:4px}
+@media(max-width:640px){
+  #fba-matchup-home .fmh-header{align-items:flex-start;gap:12px;padding-top:12px}
+  #fba-matchup-home .fmh-header h1{font-size:26px}
+  #fba-matchup-home .fmh-header p{font-size:11px;max-width:210px}
+  #fba-matchup-home .fmh-week-label{min-width:113px;max-width:130px;font-size:9px}
+  #fba-matchup-home select{padding:8px;font-size:11px}
+  #fba-matchup-home .fmh-meta{font-size:9px;gap:6px;flex-wrap:wrap}
+  #fba-matchup-home .fmh-scoreboard{gap:8px}
+  #fba-matchup-home .fmh-card{padding:10px 9px 9px;border-radius:14px}
+  #fba-matchup-home .fmh-card-top{font-size:8px;gap:4px;flex-wrap:wrap;padding-bottom:4px}
+  #fba-matchup-home .fmh-team{gap:6px;min-height:52px}
+  #fba-matchup-home .fmh-team img,#fba-matchup-home .fmh-placeholder{flex-basis:30px;width:30px;height:30px}
+  #fba-matchup-home .fmh-team-copy b{font-size:11px}
+  #fba-matchup-home .fmh-pw{font-size:9px}
+  #fba-matchup-home .fmh-score{font-size:23px;min-width:14px}
+  #fba-matchup-home .fmh-card-foot{font-size:8px;margin-top:5px;padding-top:7px}
+  #fba-matchup-home .fmh-report-heading{display:block;margin-top:22px}
+  #fba-matchup-home .fmh-report-heading h2{font-size:20px}
+  #fba-matchup-home .fmh-report-heading>span{display:block;text-align:left;margin-top:7px}
+  #fba-matchup-home .fmh-reports{grid-template-columns:1fr}
+  #fba-matchup-home .fmh-report,#fba-matchup-home .fmh-waiting{padding:17px}
+}
+@media(prefers-reduced-motion:reduce){#fba-matchup-home .fmh-card{transition:none}}
+#fba-matchup-home .fmh-status.forecast{color:#d1b7ff;font-weight:800}
+#fba-matchup-home .fmh-score.forecast{color:#d1b7ff}
+#fba-matchup-home .fmh-forecast-note{font-size:12px;color:var(--dim,#9ba5b9);line-height:1.6}
+#fba-matchup-home .fmh-forecast-note button{border:0;background:transparent;color:var(--acc2,#ff9a48);font:inherit;text-decoration:underline;cursor:pointer}
+#fba-matchup-home .fmh-forecast-details{border-color:rgba(188,153,255,.35)}

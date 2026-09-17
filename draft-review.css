@@ -1,0 +1,53 @@
+/* v69: one scroll surface and eight permanent team columns at every viewport. */
+.page-draft .draft-board-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border-radius:14px;padding-bottom:8px}
+.page-draft .draft-board-scroll:focus-visible{outline:2px solid #ffb877;outline-offset:2px}
+.page-draft .draft-board-shell .draft-board{min-width:1040px}
+.page-draft .draft-board-shell .draft-board-scroll .draft-board-row{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));overflow:visible}
+.page-draft .draft-board-shell .draft-slot{position:relative;text-align:left}
+.page-draft .draft-board-shell .draft-slot-no{display:block;min-height:28px;padding-right:32px}
+.page-draft .draft-board-shell .draft-slot-team-logo{position:absolute;top:8px;right:8px;width:32px;height:32px;object-fit:contain;opacity:.48;pointer-events:none;filter:none}
+.page-draft .draft-board-shell .draft-slot-team-initials{display:grid;place-items:center;font-size:9px;font-weight:900}
+.page-draft .draft-board-tools-actions,.page-draft .draft-hero-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.page-draft .draft-review-button{border:1px solid #aa7146;border-radius:9px;background:#402e22;color:#ffceab;padding:10px 13px;min-height:42px;font-family:inherit;font-size:12px;font-weight:800;line-height:1.3;cursor:pointer}
+.page-draft .draft-review-button:disabled{opacity:.5;cursor:default}
+.page-draft .draft-review-button:focus-visible,.draft-review button:focus-visible,.draft-review select:focus-visible{outline:2px solid #ffb877;outline-offset:3px}
+#draftReviewReport{scroll-margin-top:145px}
+.page-draft .draft-review{margin:0 0 20px;padding:22px;min-width:0;border:1px solid #4b5264;border-radius:22px;background:#171d28;color:#e5ebf6}
+.draft-review-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.draft-review-heading h2{font-size:26px;line-height:1.15;margin:7px 0 0}
+.draft-review h3{font-size:18px;line-height:1.3;margin:26px 0 12px}
+.draft-review-close{flex:none;width:42px;height:42px;border-radius:9px;border:1px solid #4b5264;background:#252d3e;color:#e5ebf6;font-size:26px;cursor:pointer}
+.draft-review-intro,.draft-review-prose p{font-size:13px;line-height:1.7;color:#c4ccdc;margin:12px 0}
+.draft-review-prose{max-width:1000px}
+.draft-review-method{padding:12px 14px;margin:14px 0;border:1px solid #3b455a;border-radius:10px;background:#202737;color:#b8c4dc;font-size:11px;line-height:1.6}
+.draft-review-method summary{cursor:pointer;font-weight:800;color:#dbe3f3}
+.draft-review-method p{margin:9px 0 0}
+.draft-review-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border:1px solid #394154;border-radius:11px}
+.draft-review table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.draft-review th,.draft-review td{padding:10px 12px;text-align:left;border-bottom:1px solid #30394c;vertical-align:middle;white-space:nowrap}
+.draft-review thead th{font-size:10px;color:#aebbd3;background:#202737;white-space:normal;min-width:65px}
+.draft-review tbody tr:last-child>*{border-bottom:0}
+.draft-review tbody tr.is-selected{background:#32291f}
+.draft-review tbody th{color:#e5ebf6;font-weight:750}
+.draft-review td small{color:#aab4c9}
+.draft-review-team-link{color:inherit;font:inherit;text-align:left;padding:4px 0;border:0;background:transparent;cursor:pointer;text-decoration:underline;text-decoration-color:#6a758e;text-underline-offset:4px}
+.draft-review-team-select{display:grid;gap:7px;margin:24px 0 12px;color:#b8c4dc;font-size:12px;max-width:420px}
+.draft-review-team-select select{width:100%;min-height:44px;padding:9px;border:1px solid #58657f;border-radius:8px;background:#222b3b;color:#e5ebf6;font-size:16px}
+.draft-review-positions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.draft-review-positions>span{padding:9px 12px;border-radius:9px;background:#242d3d;border:1px solid #424d65;font-size:12px;color:#c9d2e6}
+.draft-review-positions b{margin-right:7px;color:#f0f3fa}
+.draft-review-caption{font-size:11px;color:#aab4c9;line-height:1.6;margin:9px 0 12px}
+.draft-review-warning{font-size:12px;line-height:1.6;padding:12px;background:#382b23;border:1px solid #8d6746;border-radius:9px;color:#ffd6b2}
+.draft-review td[data-review-rank]{font-weight:900}
+.draft-review [data-review-rank="1"]{color:#22c98a}.draft-review [data-review-rank="2"]{color:#59d7a7}
+.draft-review [data-review-rank="3"]{color:#91e4c5}.draft-review [data-review-rank="4"]{color:#c8f2e2}
+.draft-review [data-review-rank="5"]{color:#ffd3d7}.draft-review [data-review-rank="6"]{color:#ffa6af}
+.draft-review [data-review-rank="7"]{color:#ff7a86}.draft-review [data-review-rank="8"]{color:#ff4d5e}
+@media(max-width:560px){
+  .page-draft .draft-review{padding:15px;border-radius:16px}
+  .draft-review-heading h2{font-size:23px}
+  .draft-review th,.draft-review td{padding:9px}
+  .page-draft .draft-board-tools{flex-wrap:wrap;gap:10px}
+  .page-draft .draft-board-tools-actions{width:100%;justify-content:space-between}
+  .page-draft .draft-hero-actions{justify-content:flex-start}
+}

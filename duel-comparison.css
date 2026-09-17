@@ -1,0 +1,55 @@
+/* Scoped to the archive comparison and its report link. */
+.fdc-tabs{margin-bottom:22px}
+#fba-duel-comparison{max-width:1000px;margin:0 auto;color:var(--text,#edf0f7)}
+#fba-duel-comparison *{box-sizing:border-box}
+#fba-duel-comparison header{margin-bottom:24px}
+#fba-duel-comparison .fdc-eyebrow{color:var(--accent,#ff8735);font-size:11px;font-weight:850;letter-spacing:2px;text-transform:uppercase}
+#fba-duel-comparison h1{font-size:clamp(25px,4vw,38px);line-height:1.12;letter-spacing:-.8px;margin:10px 0}
+#fba-duel-comparison header p{color:var(--dim,#929db0);margin:0}
+#fba-duel-comparison .fdc-selectors{display:grid;grid-template-columns:minmax(0,1fr) 40px minmax(0,1fr);gap:12px;align-items:end}
+#fba-duel-comparison label{display:flex;min-width:0;flex-direction:column;gap:7px;color:var(--dim,#929db0);font-size:12px}
+#fba-duel-comparison select{width:100%;min-width:0;max-width:100%;height:44px;background:var(--card,#161d29);color:var(--text,#edf0f7);border:1px solid var(--line,#2a3344);border-radius:12px;padding:0 10px;font:inherit;font-size:14px}
+#fba-duel-comparison .fdc-swap{height:44px;border:1px solid var(--line,#2a3344);border-radius:12px;background:var(--card,#161d29);color:var(--accent,#ff8735);font-size:23px;cursor:pointer}
+#fba-duel-comparison .fdc-filters{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin:18px 0 24px}
+#fba-duel-comparison .fdc-comparison{border:1px solid var(--line,#2a3344);border-radius:22px;overflow:hidden;background:var(--card,#111722)}
+#fba-duel-comparison .fdc-teams{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;padding:22px 12px;background:linear-gradient(120deg,rgba(255,135,53,.06),transparent 65%)}
+#fba-duel-comparison .fdc-teams>div{display:flex;align-items:center;flex-direction:column;gap:10px;min-width:0}
+#fba-duel-comparison .fdc-teams img{width:64px;height:64px;object-fit:contain}
+#fba-duel-comparison .fdc-teams strong{font-size:18px;text-align:center}
+#fba-duel-comparison .fdc-teams>span{text-align:center;font-size:12px;color:var(--dim,#929db0)}
+#fba-duel-comparison .fdc-teams>span b{display:block;font-size:31px;color:var(--text,#edf0f7);line-height:1.2}
+#fba-duel-comparison .fdc-initials{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--line,#2a3344);font-size:22px}
+#fba-duel-comparison .fdc-table{width:100%;table-layout:fixed;border-collapse:collapse}
+#fba-duel-comparison .fdc-table col{width:32%}
+#fba-duel-comparison .fdc-table col:nth-child(2){width:36%}
+#fba-duel-comparison .fdc-table thead th{font-size:11px;color:var(--dim,#929db0);font-weight:600;padding:9px 6px;text-align:center}
+#fba-duel-comparison .fdc-table tbody tr{border-top:1px solid var(--line,#2a3344)}
+#fba-duel-comparison .fdc-table tbody th{font-size:12px;font-weight:600;color:var(--dim,#929db0);text-align:center;white-space:normal;overflow-wrap:anywhere;padding:15px 5px}
+#fba-duel-comparison .fdc-table td{text-align:center;padding:15px 9px;white-space:normal;overflow-wrap:anywhere}
+#fba-duel-comparison .fdc-table td b{font-size:21px;font-variant-numeric:tabular-nums}
+#fba-duel-comparison .fdc-table td small{display:block;color:var(--dim,#929db0);font-size:10px;line-height:1.5;margin-top:5px;font-weight:400}
+#fba-duel-comparison .fdc-better{color:var(--good,#6fd6b3)}
+#fba-duel-comparison .fdc-empty{padding:20px;text-align:center;color:var(--dim,#929db0)}
+#fba-duel-comparison .fdc-history{border:1px solid var(--line,#2a3344);border-radius:18px;padding:18px;margin-top:18px}
+#fba-duel-comparison .fdc-history summary{cursor:pointer;font-size:14px;font-weight:700;min-height:26px}
+#fba-duel-comparison .fdc-history ol{list-style:none;padding:0;margin:12px 0 0}
+#fba-duel-comparison .fdc-history li{padding:14px 0;border-top:1px solid var(--line,#2a3344);text-align:center}
+#fba-duel-comparison .fdc-history li>span,#fba-duel-comparison .fdc-history small{font-size:11px;color:var(--dim,#929db0)}
+#fba-duel-comparison .fdc-history li>div{display:grid;grid-template-columns:1fr 15px 1fr;gap:8px;margin:7px 0;font-size:14px}
+#fba-duel-comparison .fdc-history i{font-style:normal;color:var(--dim,#929db0)}
+#fba-duel-comparison .fdc-history li b:first-child{text-align:right}
+#fba-duel-comparison .fdc-history li b:last-child{text-align:left}
+#fba-duel-comparison .fdc-game{display:block;width:100%;padding:8px 0;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:center}
+#fba-duel-comparison .fdc-game:hover{background:rgba(255,255,255,.035)}
+#fba-duel-comparison .fdc-game-date{display:block;font-size:11px;color:var(--dim,#929db0)}
+#fba-duel-comparison .fdc-game-score{display:grid;grid-template-columns:minmax(0,1fr) 12px minmax(0,1fr);gap:8px;align-items:center;margin:10px 0}
+#fba-duel-comparison .fdc-game-team{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;font-size:14px}
+#fba-duel-comparison .fdc-game-team:last-child{justify-content:flex-start}
+#fba-duel-comparison .fdc-game-team img,#fba-duel-comparison .fdc-game-team .fdc-initials{width:32px;height:32px;flex:0 0 32px;object-fit:contain;font-size:10px}
+#fba-duel-comparison .fdc-game-team strong{font-size:21px;font-variant-numeric:tabular-nums}
+#fba-duel-comparison .fdc-game-team b{min-width:0;overflow-wrap:anywhere}
+.fdc-detail-note{font-size:13px;color:var(--dim,#929db0);line-height:1.6}
+@media(max-width:520px){#fba-duel-comparison .fdc-game-score{gap:5px}#fba-duel-comparison .fdc-game-team{gap:5px;font-size:11px}#fba-duel-comparison .fdc-game-team img,#fba-duel-comparison .fdc-game-team .fdc-initials{width:25px;height:25px;flex-basis:25px}#fba-duel-comparison .fdc-game-team strong{font-size:18px}}
+.fdc-report-link{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;padding:14px 0 0;margin-top:18px;border:0;border-top:1px solid var(--line,#2a3344);background:transparent;color:var(--accent,#ff8735);font:inherit;font-size:13px;font-weight:750;text-align:left;cursor:pointer}
+#fba-duel-comparison :focus-visible,.fdc-report-link:focus-visible,.fdc-tabs button:focus-visible{outline:2px solid var(--accent,#ff8735);outline-offset:4px}
+@media(max-width:520px){#fba-duel-comparison .fdc-selectors{gap:7px;grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr)}#fba-duel-comparison select{font-size:12px;padding:0 5px}#fba-duel-comparison .fdc-filters{gap:10px}#fba-duel-comparison .fdc-teams strong{font-size:15px}#fba-duel-comparison .fdc-table td{padding:13px 6px}#fba-duel-comparison .fdc-table td b{font-size:18px}#fba-duel-comparison .fdc-table tbody th{font-size:11px}#fba-duel-comparison .fdc-teams img{width:52px;height:52px}}

@@ -2258,7 +2258,9 @@ function validateProjectionTotalsV36_(projectedGp, totals) {
   var gp = Number(projectedGp);
   if (!isFinite(gp) || gp <= 0 || gp > 82 || !totals) return false;
   for (var i = 0; i < FBA_PROJECTION_ENGINE_V36.projectionStats.length; i++) {
-    var value = Number(totals[FBA_PROJECTION_ENGINE_V36.projectionStats[i]]);
+    var raw = totals[FBA_PROJECTION_ENGINE_V36.projectionStats[i]];
+    if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return false;
+    var value = Number(raw);
     if (!isFinite(value) || value < 0) return false;
   }
   return Number(totals.FGM) <= Number(totals.FGA) && Number(totals.FTM) <= Number(totals.FTA) &&
@@ -4255,7 +4257,7 @@ var FBA_CONSENSUS_SNAPSHOT_HEADERS_V44 = ['season_id','source_id','player_id','p
 var FBA_CONSENSUS_BASELINE_HEADERS_V44 = ['season_id','player_id','payload_json','updated_at'];
 function consensusSourceV44_(id) { return FBA_CONSENSUS_V44.sources.filter(function(s){return s.id===id;})[0] || null; }
 // Only explicitly confirmed season providers contribute; archived sources remain available for later activation.
-var FBA_EXPERT_POLICY_V71 = {version:75,seasonId:2027,confirmedSources:['cbs','lineupexperts','hashtag']};
+var FBA_EXPERT_POLICY_V71 = {version:93,seasonId:2027,confirmedSources:['espn','cbs','lineupexperts','hashtag']};
 var FBA_LINEUPEXPERTS_V74 = {mapSheet:'FBA_LineupExperts_Player_Map'};
 function expertSourceConfirmedV71_(id) { return FBA_EXPERT_POLICY_V71.confirmedSources.indexOf(id)>=0; }
 function expertConsensusConfirmedV71_(row) { return row&&Array.isArray(row.sourceIds)&&row.sourceIds.length>0&&row.sourceIds.every(expertSourceConfirmedV71_); }
@@ -4371,6 +4373,24 @@ function consensusStatusV44_() {
 }
 function setupProjectionConsensus() { SpreadsheetApp.getUi();return ensureConsensusSheetsV44_(); }
 function refreshProjectionConsensus() { SpreadsheetApp.getUi();return refreshProjectionConsensusV44_(true); }
+// ESPN omits some statistics entirely. Preserve those as missing so a partial
+// source can contribute its supplied fields without inventing zeroes.
+function parseEspnConsensusRowsV93_(hub,stamp) {
+  if(Number((hub||{}).seasonId)!==Number(ESPN_SYNC_V1.seasonId))return [];
+  var byId={};
+  (hub.players||[]).forEach(function(entry){
+    var player=rawFantasyPlayerV36_(entry),id=String(player.id||'');if(!id)return;
+    projectionStatRowsV36_(player).forEach(function(stat){
+      if(Number(stat.seasonId)!==Number(ESPN_SYNC_V1.seasonId)||Number(stat.statSourceId)!==1||Number(stat.statSplitTypeId)!==0)return;
+      var gp=projectionNumberV36_(stat.stats,FBA_PROJECTION_ENGINE_V36.projectionStatIds.GP);
+      if(!gp||gp>82)return;
+      var row={source_id:'espn',season_id:ESPN_SYNC_V1.seasonId,player_id:id,full_name:player.fullName,projected_gp:gp,basis:'totals',snapshot_date:stamp.slice(0,10),observed_at:stamp,source_url:'https://fantasy.espn.com/basketball/players/projections'};
+      FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function(k){row[k]=projectionNumberV36_(stat.stats,FBA_PROJECTION_ENGINE_V36.projectionStatIds[k]);});
+      if(!byId[id]||row.projected_gp>byId[id].projected_gp)byId[id]=row;
+    });
+  });
+  return Object.keys(byId).sort().map(function(id){return byId[id];});
+}
 function refreshProjectionConsensusV44_(force,importsOnly) {
   processHashtagCloudInboxV76_();
   var props=espnPropertiesV1_(),previous=consensusStatusV44_(),stamp=new Date().toISOString();
@@ -4385,10 +4405,12 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
     var started=actual.completeGames>0,existing=consensusStoredRowsV44_(FBA_CONSENSUS_V44.baseline).filter(expertConsensusConfirmedV71_),frozen=props.getProperty(FBA_CONSENSUS_V44.freezeKey)==='1'||started;
     if(frozen){props.setProperty(FBA_CONSENSUS_V44.freezeKey,'1');var frozenStatus=Object.assign({},previous,{policyVersion:FBA_EXPERT_POLICY_V71.version,lastAttempt:stamp,frozenAt:previous.frozenAt||stamp,frozen:true,status:existing.length?'FROZEN':'WAITING_PRESEASON_BASELINE',message:'Baseline eingefroren; echte Spiele werden ausschließlich durch die v36-Ist-Kette ersetzt.'});props.setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(frozenStatus));return frozenStatus;}
     var metadata=sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet),native=[],espnError='';
-    if(!importsOnly&&expertSourceConfirmedV71_('espn'))try{
+    // On policy migration, activate newly confirmed ESPN on the first private
+    // load. Existing imported providers need no extra network refresh here.
+    if((!importsOnly||previous.policyVersion!==FBA_EXPERT_POLICY_V71.version)&&expertSourceConfirmedV71_('espn'))try{
       var hub=fetchEspnFantasyHubV2_();if(Number(hub.seasonId)!==Number(ESPN_SYNC_V1.seasonId))throw new Error('WRONG_SEASON');
       (hub.players||[]).forEach(function(entry){var p=rawFantasyPlayerV36_(entry);if(p&&p.id)metadata.push({player_id:String(p.id),full_name:p.fullName,season_id:hub.seasonId});});
-      native=parseEspnProjectionRowsV36_(hub,stamp).map(function(values){var row={source_id:'espn',season_id:ESPN_SYNC_V1.seasonId,player_id:String(values[1]),full_name:values[2],projected_gp:values[5],basis:'totals',snapshot_date:stamp.slice(0,10),source_url:'https://fantasy.espn.com/basketball/players/projections'};FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function(k,i){row[k]=values[6+i];});return row;});
+      native=parseEspnConsensusRowsV93_(hub,stamp);
     }catch(e){espnError='ESPN-Abruf fehlgeschlagen';}
     var index=consensusIdentityIndexV44_(metadata),imports=sheetObjectsV2_(FBA_CONSENSUS_V44.inputs),old=consensusStoredRowsV44_(FBA_CONSENSUS_V44.snapshots),kept=[],statuses=[];
     FBA_CONSENSUS_V44.sources.forEach(function(source){
@@ -4397,8 +4419,8 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
         statuses.push({id:source.id,name:source.name,state:'WAITING_CONFIRMATION',reason:'Für 2026/27 noch nicht als Projektionsquelle bestätigt.',rows:0,completeRows:0,contributing:false});return;
       }
       var raw=source.id==='espn'?native:[],state=source.route==='import'?'IMPORT_REQUIRED':'WAITING',reason=source.reason,fetchFailed=false,cbsAudit=null;
-      if(importsOnly){raw=old.filter(function(r){return r.sourceId===source.id;}).map(expertSnapshotInputV71_);reason='Bestätigter Import mit fester Spielerzuordnung.';}
-      if(source.id==='espn'){state=native.length?'PARSED':'WAITING_CURRENT_SEASON';reason=espnError||(!native.length?'Keine gültigen ESPN-Projektionszeilen für 2026/27.':'Aktueller ESPN-Feed.');}
+      if(importsOnly&&!(source.id==='espn'&&native.length)){raw=old.filter(function(r){return r.sourceId===source.id;}).map(expertSnapshotInputV71_);reason='Bestätigter Import mit fester Spielerzuordnung.';}
+      if(source.id==='espn'){fetchFailed=Boolean(espnError);state=raw.length?'PARSED':'WAITING_CURRENT_SEASON';reason=espnError||(!raw.length?'Keine gültigen ESPN-Projektionszeilen für 2026/27.':'ESPN Saison-Projections 2026/27 · erwartete Spiele und vollständiges Wurfvolumen. Kein bestätigter ROS-Feed.');}
       if(source.id==='yahoo'&&!importsOnly){
         // Sequential, bounded pagination; stop on any access restriction.
         try{for(var page=0;page<1;page++){
@@ -4426,7 +4448,7 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
       var previousRows=old.filter(function(r){return r.sourceId===source.id;}),oldIds=previousRows.map(function(r){return r.id;}),lost=oldIds.some(function(id){var before=previousRows.filter(function(r){return r.id===id;})[0],after=valid.filter(function(r){return r.id===id;})[0];return !after||FBA_PROJECTION_ENGINE_V36.projectionStats.some(function(k){return before.base[k]!=null&&after.base[k]==null;});});
       var lkg=previousRows.filter(function(r){return Date.parse(stamp)-Date.parse(r.snapshotDate+'T00:00:00Z')<32*86400000;});
       var retainedCbs=0;
-      if(source.id==='cbs'&&!fetchFailed&&valid.length&&lost){
+      if((source.id==='cbs'||source.id==='espn')&&!fetchFailed&&valid.length&&lost){
         var freshById={};valid.forEach(function(r){freshById[r.id]=r;});
         lkg.forEach(function(before){var after=freshById[before.id];if(!after||FBA_PROJECTION_ENGINE_V36.projectionStats.some(function(k){return before.base[k]!=null&&after.base[k]==null;})){freshById[before.id]=before;retainedCbs++;}});
         valid=Object.keys(freshById).sort().map(function(id){return freshById[id];});lost=false;
@@ -4436,6 +4458,12 @@ function refreshProjectionConsensusV44_(force,importsOnly) {
       else if(valid.length)state=source.id!=='yahoo'&&valid.every(function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.every(function(k){return r.base[k]!=null;});})?'READY':'PARTIAL';
       kept=kept.concat(valid);var sourceStatus={id:source.id,name:source.name,state:state,reason:reason,rows:valid.length,rejected:rejected,contributing:valid.length>0,completeRows:valid.filter(function(r){return FBA_PROJECTION_ENGINE_V36.projectionStats.every(function(k){return r.base[k]!=null;});}).length};
       if(cbsAudit){sourceStatus.mapping=cbsAudit.mapping;sourceStatus.pages=cbsAudit.pages;sourceStatus.lastChecked=importsOnly?null:stamp;sourceStatus.providerUpdatedAt=null;sourceStatus.retainedPlayers=retainedCbs;}
+      if(source.id==='espn'){
+        sourceStatus.refreshMode='native';sourceStatus.providerIdentityType='espn_id';
+        sourceStatus.lastChecked=valid.map(function(r){return r.observedAt||r.snapshotDate;}).sort().pop()||null;
+        sourceStatus.providerUpdatedAt=null;sourceStatus.retainedPlayers=retainedCbs;
+        sourceStatus.projectionHorizon='season';sourceStatus.rosVerified=false;
+      }
       sourceStatus.coverage={};FBA_PROJECTION_ENGINE_V36.projectionStats.forEach(function(k){sourceStatus.coverage[k]=valid.filter(function(r){return r.base[k]!=null;}).length;});
       if(source.id==='lineupexperts'){
         var leBindings=sheetObjectsV2_(FBA_LINEUPEXPERTS_V74.mapSheet).filter(function(r){return Number(r.season_id)===Number(ESPN_SYNC_V1.seasonId);}),lePending=leBindings.filter(function(r){return r.status!=='MATCHED';});
@@ -4477,7 +4505,9 @@ function applyProjectionConsensusV44_(engine) {
   var map={},metadata={};
   var preview=mergeConsensusV44_(consensusStoredRowsV44_(FBA_CONSENSUS_V44.snapshots).filter(function(r){return expertSourceConfirmedV71_(r.sourceId);}));
   sheetObjectsV2_(ESPN_PLAYER_HUB_V2.playersSheet).forEach(function(r){metadata[String(r.player_id)]=r;});
-  (engine.players||[]).forEach(function(p){map[String(p.id)]=expertSourceConfirmedV71_('espn')?p:Object.assign({},p,{base:null,baseline:null,projectedGp:null,seasonFinish:null,consensus:null});});
+  // Every provider, including ESPN, must pass the same consensus validation.
+  // Do not leak an older native baseline around freshness/identity checks.
+  (engine.players||[]).forEach(function(p){map[String(p.id)]=Object.assign({},p,{base:null,baseline:null,projectedGp:null,seasonFinish:null,consensus:null});});
   if(engine.actual&&engine.actual.completeGames>0&&rows.length&&!status.frozen){status.frozen=true;status.frozenAt=new Date().toISOString();espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.freezeKey,'1');espnPropertiesV1_().setProperty(FBA_CONSENSUS_V44.statusKey,JSON.stringify(status));}
   var applied=0;rows.forEach(function(row){
     if(!row.complete||Number(row.seasonId)!==Number(ESPN_SYNC_V1.seasonId))return;
@@ -4487,11 +4517,14 @@ function applyProjectionConsensusV44_(engine) {
   });
   engine.players=Object.keys(map).sort().map(function(id){return map[id];});
   if(applied){engine.active=true;engine.status='READY';engine.baseline=Object.assign({},engine.baseline,{active:true,status:'READY',source:'Expert-Projektion 2026/27',count:engine.players.filter(function(p){return p.projectedGp>0;}).length,lastSuccess:status.lastSuccess,frozen:status.frozen===true,rosterCoverage:null,rosterExpected:null,rosterProjected:null});engine.revision+='|consensus:'+String(status.revision||'');}
-  else if(!expertSourceConfirmedV71_('espn')){engine.active=false;engine.status='WAITING_EXPERT_PROJECTIONS';engine.baseline=Object.assign({},engine.baseline,{active:false,status:'WAITING_EXPERT_PROJECTIONS',source:'Expert-Projektion 2026/27',count:0});}
+  else{engine.active=false;engine.status='WAITING_EXPERT_PROJECTIONS';engine.baseline=Object.assign({},engine.baseline,{active:false,status:'WAITING_EXPERT_PROJECTIONS',source:'Expert-Projektion 2026/27',count:0});}
   engine.consensus={version:44,partialPlayers:preview.filter(function(p){return !p.complete;}).slice(0,100),appliedPlayers:applied,status:status.status||'NOT_CHECKED',lastAttempt:status.lastAttempt||null,frozen:status.frozen===true,sources:status.sources||FBA_CONSENSUS_V44.sources.map(function(s){return {id:s.id,name:s.name,state:'NOT_CHECKED',reason:s.reason,rows:0,contributing:false};})};
   var htCloud=hashtagCloudStatusV76_();
   if(htCloud)engine.consensus.sources=engine.consensus.sources.map(function(s){return s.id==='hashtag'?Object.assign({},s,{cloudSync:htCloud}):s;});
   engine.consensus.preseason=!status.frozen&&new Date().toISOString().slice(0,10)<MATCHUP_MONSTER_V30.firstWeekStart&&Number(engine.actual&&engine.actual.completeGames||0)===0;
+  engine.consensus.projectionHorizon='season';
+  engine.consensus.rosReady=false;
+  engine.consensus.rosIssue='Aktuelle ROS-Projections fehlen. Die gemeinsame Saison-Projection steht für die Draft-Vorbereitung bereit; Simulation und Matchup-Prognosen benötigen bestätigte Rest-of-Season-Werte.';
   if(!applied){
     var cbsStatus=(status.sources||[]).filter(function(s){return s.id==='cbs';})[0];
     engine.consensus.message=status.message||(cbsStatus?'CBS: '+Number(cbsStatus.rows||0)+' gültige Projektionszeilen. '+String(cbsStatus.reason||''):'Der vorbereitete Projektionsimport konnte noch nicht aktiviert werden. Bitte erneut laden.');

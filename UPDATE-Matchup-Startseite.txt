@@ -1,0 +1,265 @@
+FBA v86 – Matchup-Übersicht auf der Startseite
+Stand: 12.09.2026
+
+AUSSCHLIESSLICHE GRUNDLAGE
+Die von Maik bereitgestellte FBA-v86-Netlify-Upload.zip.
+SHA-256 des Originals: 6e440179b4b3d1a8df3348fad60ef5fe3051f638a3d8f1603f7b0908aeb32899
+Keine Dateien aus einem älteren App-Stand wurden übernommen.
+
+ÄNDERUNGSUMFANG
+Von 69 Originaldateien sind 68 vollständig bytegleich erhalten.
+Nur index.html hat vier eng begrenzte Integrationsstellen:
+1. Einbindung matchup-home.css.
+2. Einbindung matchup-home.js.
+3. Neue Übersicht vor die bisherige Startseite setzen.
+4. Öffentliches Matchup-Paket im bestehenden Startcache berücksichtigen.
+
+Neue App-Dateien: matchup-home.js, matchup-home.css.
+Zusätzlich enthalten: diese Änderungsnotiz.
+Alle Draft-Dateien, Season Simulation, Pickup Lab, ESPN-Steuerung,
+Spielerberichte, Teamseiten, Bilder, Daten-Snapshots und die bisherige
+UPDATE-v86.txt wurden unverändert aus Maiks ZIP übernommen.
+Insbesondere wurden keine zusätzlichen Season-Move-Vorschläge eingebaut.
+
+DIE NEUE STARTSEITEN-ÜBERSICHT
+- Vier kompakte Matchup-Karten in einem Zweier-Raster.
+- Wochenwahl W1–18, aktueller Zwischenstand bzw. bestätigter Endstand.
+- Kleine Plus-/Minus-Team-PW bei beiden Teams; Woche 1 bleibt ohne Wert.
+- Mini-Bericht je Duell und aufklappbare acht Punktwerte.
+- Karten springen direkt zum zugehörigen Bericht.
+- Neue öffentliche Daten werden auf der sichtbaren Startseite nach fünf
+  Minuten erneut abgerufen; Wechsel in andere Bereiche startet keine Abrufe.
+
+DATEN UND WARTEMODUS
+Es werden nur Daten verwendet, die der aktuellen Saison eindeutig zugeordnet
+werden können. Die eingebetteten Vorjahres-Paarungen werden nicht als neue
+Matchups angezeigt. Fehlt der aktuelle Spielplan, stehen vier neutrale
+Wartekarten bereit. Es werden keine Paarungen oder Spielstände erfunden.
+
+Die vorhandene öffentliche Datenverbindung bleibt bestehen. Berichte entstehen
+neu aus bestätigten Werten beim Datenabruf. Der Frontend-Umbau erzeugt keine
+NBA-Spieldaten und aktiviert keine zusätzliche serverseitige Datensammlung.
+
+Team-PW benötigt gewertete Einsätze und vollständige, abgeschlossene Vorwochen.
+Die Oberfläche kann ein bereits bereitgestelltes matchupHome-Paket verwenden
+oder GP-bezogene StatsRaw-Erweiterungen auswerten. Fehlen solche Einsatzzahlen
+und Wurfvolumina in der bestehenden Datenquelle, bleibt PW bei einem Strich.
+Der bisherige Performance-Bereich bleibt vollständig unverändert.
+
+VERPACKUNG UND PRÜFUNG
+index.html liegt wie im Original direkt im Hauptverzeichnis.
+Alle Originaldateien im fertigen Archiv wurden noch einmal verglichen.
+Die neuen App-Skriptverweise wurden auf vorhandene Dateien geprüft.
+Zehn Funktionstests bestanden, einschließlich Saisontrennung, Heimregel,
+fehlender/duplizierter Daten, GP-bereinigter PW, vollständiger Baseline,
+Quotenaggregation, Aktualisierung und Erhalt der bisherigen Startseiteninhalte.
+Kein abgeschlossener visueller Browser-/iPhone-Test: Der benötigte Browser
+konnte in dieser Umgebung nicht heruntergeladen werden.
+Kein Live-Deployment durch die Erstellung dieses Pakets.
+
+REGEL FÜR WEITERE ÄNDERUNGEN
+Maiks aktuell bereitgestellte ZIP ist die maßgebliche Grundlage. Ausschließlich
+konkret besprochene Bereiche ändern; alle anderen Dateien und Funktionen
+beibehalten. Vor jeder neuen ZIP einen vollständigen Dateiabgleich durchführen.
+
+
+Spielplan-Korrektur vom 13.09.2026
+Die Startseite verwendet jetzt auch den aktuellen ESPN-Spielplan aus dem bestehenden Monster-Datenstrom. Ein am 13.09.2026 direkt bei ESPN geprüfter Stand aller 72 Paarungen für 2026/27 ist zusätzlich enthalten, damit die Teams schon beim ersten Aufruf ohne Monster-Freischaltung erscheinen. Neu geladene aktuelle Paarungen haben Vorrang.
+Woche 1 (Auswärts – Heim): East Bay Pirates – BlackForest Mad Wolves; Balingen Lions – Karlsruhe Unicorns; Bishkek Easy Snipers – Toronto Polar Bears; Guardians of Rhinos – Dormettingen Eagles.
+Quelle: ESPN Fantasy, Liga 1152091056, seasonId 2027, mMatchup. ESPN-Team-ID 3 verwendet die bereits bestehende FBA-Zuordnung zu Bishkek Easy Snipers. Historische Spielstände von 2025/26 werden nicht übernommen. Spielstände, Berichte und PW folgen erst mit passenden aktuellen Spieldaten.
+Geprüft: alle 72 Paarungen inklusive Heim/Auswärts gegen den ESPN-Abruf; Saisontrennung; Vorrang neuer Monster-Paarungen; bestehende Matchup-Prüfungen. 12 Prüfungen bestanden. Alle 68 übrigen Originaldateien aus v86 sind bytegleich. In index.html wurden ausschließlich die Einbindungen und Aktualisierung der Startseiten-Übersicht ergänzt.
+
+
+Kontext für Matchup-Berichte – 13.09.2026
+Die vier Matchups haben nun bereits vor den ersten Stats eine Wochenvorschau. Sie enthält die direkte Historie, bisherige Serien und das letzte erfasste Duell. Laufende Berichte verbinden diese Historie mit Zwischenständen, engen Kategorien, Spielvolumen und vorhandener Team-PW; abgeschlossene Spiele erhalten einen Abschlussbericht.
+Die vorhandenen verifizierten H2H-Gesamtwerte werden als historische Basis verwendet, sofern sie vor der ausgewählten Saison liegen. Datierte Ergebnisse werden vor der ausgewählten Woche abgeschnitten; spätere Ergebnisse sollen nicht in frühere Vorschauen einfließen. Regular Season und Postseason werden einbezogen. Die historischen Teamzuordnungen aus Team_Mapping bleiben erhalten; Snipers und Wild Cheetahs sind getrennte Franchises.
+Der öffentliche ESPN-Abruf lädt ausschließlich lesend echte Kader und Statusdaten für Liga 1152091056, Saison 2027. Browser-CORS für die bestehende Netlify-Adresse wurde bestätigt. Der Abruf benötigt keine Cookies und keinen Monster-Login. Vor abgeschlossenem ESPN-Draft werden keine Kader als aktueller Draftkader ausgegeben. Testdraft-Picks werden nie für diese Berichte verwendet.
+Statusangaben werden in laufenden Matchups der aktuellen Woche eingeordnet. OUT/IR und fragliche Einsätze werden unterschiedlich formuliert. Ein konkreter Kategorienbezug erfordert eine passende aktuelle Expert-Projektion und einen entsprechenden Abstand im Matchup; anderenfalls bleibt der Hinweis beim bestätigten Status. Statusquellen älter als 36 Stunden werden nicht als aktuell ausgegeben. Vergangene Wochen und Finalberichte bekommen keine heutigen Verletzungen angehängt. Es wird keine Verletzungsdiagnose oder Ausfalldauer erfunden.
+Aktualisierung: Die vorhandenen öffentlichen Spieldaten werden auf der sichtbaren Startseite wie bisher im Abstand von fünf Minuten geprüft. Der ergänzende ESPN-Kaderabruf ist auf 15 Minuten begrenzt, läuft nur auf der sichtbaren Startseite und bricht nach 20 Sekunden ab. Beim Öffnen wird der Bericht aus dem verfügbaren Datenstand erstellt; kein zusätzlicher externer Zeitplan oder Hintergrunddienst ist erforderlich. Ohne neue Fakten bleiben Formulierungen stabil. Der Statuszeitpunkt wird bei Verletzungshinweisen angezeigt.
+Zum Erstellungszeitpunkt hat ESPN den Draft noch nicht als abgeschlossen gemeldet und liefert keine aktuellen Draftkader. Die Status- und Kategoriepfade wurden deshalb zusätzlich mit kontrollierten Datenfällen geprüft. Alle 19 Prüfungen bestanden; 68 von 69 Originaldateien aus v86 sind bytegleich. index.html enthält nur die bisherigen Startseiten-Einbindungen plus den neuen Bericht-Baustein.
+
+
+v87 – Berichtssprache und laufender Saisonkontext – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v86-Matchup-Berichte.zip.
+In dieser Version wurden ausschließlich matchup-home.js, matchup-reports.js
+und diese Änderungsnotiz angepasst. Alle anderen Dateien sind bytegleich.
+
+Ergebnisformulierungen nennen den Sieger ausdrücklich, unabhängig von der
+Heim-/Auswärts-Reihenfolge. Das letzte direkte Duell wird mit Woche und Saison
+angegeben. Unentschieden werden ausdrücklich als solche bezeichnet.
+Allgemeine Regelerklärungen entfallen in den Berichten. Dort heißt es künftig
+„Punkt“ bzw. „Punkte“ statt „FBA-Punkt“ bzw. „FBA-Punkte“.
+
+Die direkte Historie bleibt in jeder Vorschau erhalten. Hinzu kommt der Verlauf
+der laufenden Saison: bestätigte Siege, Niederlagen, Unentschieden und Serien.
+Für Woche 5 werden nach Beginn dieser Woche die abgeschlossenen Wochen 1–4
+berücksichtigt. Zukünftige Vorschauen wachsen mit dem verfügbaren Saisonstand
+mit und sind als „Frühe Vorschau“ gekennzeichnet. Der berücksichtigte Saisonstand
+steht am Bericht. Fehlende oder widersprüchliche Resultate werden nicht als
+vollständige Bilanz oder makellose Serie ausgegeben.
+
+Der Wechsel der Berichtswoche folgt dem vorhandenen FBA-Kalender, ab Woche 2
+montags um 08:00 Uhr deutscher Zeit (Europe/Berlin, einschließlich Zeitumstellung).
+Beim Öffnen sowie auf der sichtbaren Startseite werden die Berichte aus den
+verfügbaren Daten neu berechnet. Ein Wochenwechsel stößt dort auch einen
+Datenabruf an; die laufende Tagesaktualisierung mit neuen Daten bleibt erhalten.
+Dies ist kein zusätzlicher serverseitiger Zeitplan: Ohne neue Quelldaten werden
+keine neuen Resultate, Saisonserien oder Verletzungsmeldungen erfunden.
+
+Prüfung: 23 Funktionstests bestanden, einschließlich eindeutiger Ergebnis-
+zuordnung, Unentschieden, wachsender Zukunftsvorschau, unvollständiger Saisonform,
+Montagswechsel, deutscher Sommer-/Winterzeit und Aktualisierung einer bereits
+geöffneten Wochenvorschau. Archiv vollständig gegen die letzte ZIP verglichen.
+Kein zusätzliches Live-Deployment oder visueller Browser-Test in dieser Version.
+Die ZIP-Version wird künftig fortlaufend erhöht: v87, v88, v89 usw.
+
+
+v88 – ADP-Richtung und direkter Teamvergleich – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v87-Netlify-Upload.zip.
+
+ADP-ANZEIGE
+Farbe und Pfeil richten sich jetzt nach dem angezeigten Zehntel. Jedes sichtbare
+0,1 erhält die tatsächliche Richtung. Werte, die auf 0,0 gerundet werden, bleiben
+neutral. Keine Änderung der ADP-Quelle, Berechnung oder Rangfolge. Im geprüften
+Datenstand für Giannis ist der Rohwert -0,08: Anzeige rot, ▼ 0,1 Plätze.
+
+ARCHIV: DIREKTER VERGLEICH
+Zusätzlicher Reiter im Archiv, zwei frei wählbare Teams und Tauschknopf.
+Kennzahlen mittig, Teamwerte links/rechts: Siege, Unentschieden, Punkte,
+Ø Punkte pro Duell, letzte drei direkten Begegnungen, aktuelle Siegesserie,
+längste direkte Siegesserie und höchster Sieg. Rekorde enthalten Woche/Saison.
+Filter: alle/einzelne Saisons, Regular Season, Postseason oder beides.
+Alle passenden Begegnungen mit eindeutigem Sieger sind aufklappbar.
+Historische Franchises bleiben getrennt; Snipers werden nicht mit Wild Cheetahs
+zusammengelegt. Die Vergleichsdaten werden beim Öffnen aus dem vorhandenen
+aktuellen Datenstand berechnet. Laufende/future Ergebnisse werden nicht als
+abgeschlossen behandelt. Ein aktueller Finalstand erfordert bestätigte,
+vollständige und zum Ergebnis passende Kategorien im öffentlichen Datenpaket.
+Jeder Matchup-Bericht verlinkt mit „Zu den Duell-Daten“ die passende Teamauswahl.
+
+EXCEL-ABGLEICH
+Die beigefügte Super-Excel enthält die Duellmatrix und „Letzte 3“, aber nicht die
+beschriebene separate Face-to-Face-Ansicht. Die neue Ansicht folgt deshalb Maiks
+Beschreibung und den vorhandenen Duell-Daten. Keine Änderungen an der Excel.
+Die datierten alten Ergebnisse (2019/20 und 2020/21) und das Team_Mapping aus
+der Datei ergänzen fehlende/ungültig gerundete Alt-Exporte nur im neuen Vergleich.
+Geteilte Punkte bleiben dabei erhalten. Die vorhandenen Liga-/Archivtabellen und
+die bisherigen Matchup-Berichte werden durch diese Ergänzung nicht umgerechnet.
+
+ERHALT UND PRÜFUNG
+Geändert gegenüber v87: index.html (nur ADP-Anzeigeschwelle, drei Einbindungen,
+Archiv-Reiter/Abzweig), matchup-home.js (nur Link zum Vergleich), diese Notiz.
+Neu: duel-comparison.js, duel-comparison.css, duel-history.js.
+Alle übrigen Dateien sind bytegleich. Der bisherige Season-Archiv-Inhalt wurde
+zusätzlich nach Entfernung der zwei neuen Integrationsstellen bytegleich geprüft.
+30 Funktionstests bestanden. Darunter: tatsächlicher Giannis-Datenfall, positive/
+negative Zehntel, spiegelverkehrte Teamwahl, direkte Serien über Saisongrenzen,
+Unentschieden, beide Filter, leere Paarungen, historische Teamzuordnungen,
+Wolves–Pirates (16 Duelle, ein PS-Duell), neue Finaldaten, Links und sämtliche
+bisherigen 23 Matchup-/Berichtsprüfungen. Kein visueller Browser-/iPhone-Test
+in dieser Umgebung. Kein Live-Deployment.
+
+
+v89 – Duell-Details, genaue Serien und Montagsprognose – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v88-Netlify-Upload.zip.
+
+DIREKTER VERGLEICH
+Die längste Siegesserie nennt jede einzelne direkte Begegnung mit Woche und
+Saison, statt einen vermeintlich durchgehenden Zeitraum anzugeben. Beispiel:
+Pirates gegen Wolves: W7 (2024/25), W14 (2024/25), W20 (2024/25).
+Alle Begegnungen enthalten beide Teamlogos und öffnen das historische Duell
+mit Ergebnis, eindeutigem Sieger und den acht einzelnen Kategorien. Die
+gewählte Links-/Rechts-Reihenfolge bleibt erhalten. Für alte Begegnungen, bei
+denen nur das Endergebnis gespeichert ist, wird das ausdrücklich angezeigt;
+fehlende Kategorie-Werte werden nicht ergänzt oder geschätzt.
+
+DRAFT-VORBEREITUNG
+Unter FBA-Value stehen Projektion und 26–27 in zwei eigenen Zeilen. Expert
+entfällt. Die bestehende alternative Kennzeichnung Ist + Rest bleibt erhalten.
+Keine Änderung der Projektionen, Werte, ADP-Richtung oder Rangfolge.
+
+MONTAGSPROGNOSE AUF DER STARTSEITE
+Ab Montag 08:00 Uhr deutscher Zeit (Europe/Berlin) kann die aktuelle Woche
+vor ihrem Spielbeginn eine ausdrücklich als Prognose gekennzeichnete
+Punkteverteilung zeigen. In Woche 1 gilt der Montag vor dem Saisonauftakt.
+Grundlage sind die tatsächlichen gedrafteten Kader, aktuelle Projektionen und
+der NBA-Wochenspielplan. Die vorhandene Berechnung der Season Simulation
+berücksichtigt projizierte Einsätze und Wurfvolumen. Testdraft-Picks oder
+angenommene Pickups fließen nicht ein. Aufklappbare Details zeigen Kategorien
+und erwartete Einsätze. Echte Spielstände haben immer Vorrang. Prognosewerte
+werden nicht als Ist-Daten in Berichte oder Performance Watch geschrieben.
+
+Die Prognose nutzt ausschließlich die vorhandene Monster-Freischaltung und
+Datenverbindung. Ohne Freischaltung oder bei fehlenden, veralteten bzw.
+unvollständigen Daten erscheint ein entsprechender Hinweis. Es gibt keine
+neue öffentliche Datenfreigabe. Die Berechnung erfolgt beim Öffnen bzw. auf
+der sichtbaren Startseite; kein zusätzlicher serverseitiger Zeitplan.
+Nach Beginn der NBA-Spiele wird keine neue Vorabprognose berechnet.
+
+ERHALT UND PRÜFUNG
+Geändert gegenüber v88: duel-comparison.js/.css, draft-prep.js/.css,
+matchup-home.js/.css, index.html (nur eine neue Script-Einbindung), diese Notiz.
+Neu: matchup-forecast.js. Alle übrigen Dateien sind bytegleich. Die bestehende
+Season Simulation, Zugangskontrollen, Daten und Berichtserzeugung bleiben
+unverändert.
+41 Funktionstests bestanden: Serienwochen, Logos/Detailöffnung, Kategorie-
+Zuordnung, historische Lücken, Projektionsbeschriftung, Montag/Sommerzeit,
+Einsatz- und Quotenberechnung, Datenvollständigkeit, Freischaltung, verspätete
+Antworten und Vorrang echter Spielstände sowie bisherige Archiv-/Berichtstests.
+Kein visueller Browser-/iPhone-Test und kein Live-Deployment in dieser Umgebung.
+
+
+v90 – Größere Spielerbilder in der mobilen Draft-Vorbereitung – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v89-Netlify-Upload.zip.
+
+Bis 680 px Bildschirmbreite erhalten die Spielerkarten eine eigene rechte
+Bildspalte. Die Porträts sind auf typischen iPhone-Breiten rund 30 % breiter.
+Der Name nutzt die volle Kartenbreite; Beschreibung und Team-/ADP-Zeile stehen
+links neben dem Porträt und können auf mehr Zeilen umbrechen. Die Analyse
+bleibt aufklappbar. FBA-Value, Projektion und 26–27 bleiben übereinander.
+Alle neuen Layoutregeln gelten ausschließlich für die mobile Draft-Vorbereitung.
+
+Geändert gegenüber v89: draft-prep.css (zusätzlicher mobiler CSS-Block),
+index.html (nur Versionskennung dieser CSS-Datei), diese Notiz. Alle übrigen
+Dateien sind bytegleich. Keine Änderung an Desktop-Ansicht, Inhalten, Daten,
+Berechnungen, Zugängen oder anderen App-Bereichen.
+
+Geprüft: Begrenzung sämtlicher neuer Regeln auf die mobile Draft-Vorbereitung,
+Bildbreiten für 320/375/390/393/430 px, vollständiger Dateivergleich mit v89
+und ZIP-Integrität. Kein visueller Browser-/iPhone-Test in dieser Umgebung;
+der lokale Browser konnte nicht heruntergeladen werden. Kein Live-Deployment.
+
+
+v91 – Kompaktere mobile Spielerkarten – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v90-Netlify-Upload.zip.
+
+Merge Value steht auf mobilen Spielerkarten klein direkt rechts neben der
+Platzierung. ADP und FBA-Value stehen im rechten Teil der Kopfzeile nebeneinander,
+damit die bisher hohe Stapelung entfällt und der Spielername höher rückt.
+FBA-Value, Projektion und 26–27 bleiben innerhalb ihres Blocks untereinander.
+Die größeren Porträts und die Textspalte aus v90 behalten ihre Abmessungen.
+Es werden keine Texte gekürzt und keine Kennzahlen entfernt.
+
+Alle Anpassungen sind auf die Draft-Vorbereitung bis 680 px beschränkt.
+Desktop, andere App-Bereiche, Berechnungen und Daten bleiben unverändert.
+Geändert: draft-prep.css (nur der mobile Block), index.html (nur CSS-Version
+v90 auf v91), diese Notiz. Alle übrigen Dateien sind bytegleich mit v90.
+Prüfung: Begrenzung sämtlicher neuer CSS-Regeln, unveränderte Porträt-/Text-
+Regeln, vollständiger Dateivergleich und ZIP-Integrität. Kein visueller
+Browser-/iPhone-Test in dieser Umgebung. Kein Live-Deployment.
+
+
+v92 – Mobile Porträts nochmals größer – 13.09.2026
+Grundlage: zuletzt ausgelieferte FBA-v91-Netlify-Upload.zip.
+
+Die Spielerporträts in der mobilen Draft-Vorbereitung werden um weitere 18 %
+vergrößert, unten rechts verankert. Die Vergrößerung erfolgt per CSS-Transform
+und verändert damit weder Kartenhöhe noch Spaltenbreiten oder Textumbrüche.
+Die kompakte Kopfzeile aus v91 bleibt erhalten. Desktop bleibt unverändert.
+
+Geändert: draft-prep.css (nur scale und transform-origin der mobilen Porträts),
+index.html (nur CSS-Version v91 auf v92), diese Notiz. Alle anderen Dateien
+sind bytegleich mit v91. Keine Änderungen an Daten, Bildern, Berechnungen
+oder anderen App-Bereichen. Geprüft: exakter CSS-Unterschied, mobiler Geltungs-
+bereich, vollständiger Dateivergleich und ZIP-Integrität. Kein visueller
+Browser-/iPhone-Test in dieser Umgebung. Kein Live-Deployment.

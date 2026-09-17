@@ -1,0 +1,19 @@
+FBA Control Center – Version 86 – 08.09.2026
+
+Direkt Version 86 bei Netlify hochladen. Bridge 0.3.3 bleibt passend.
+Danach FBA neu laden; im War Room muss „v86 · ESPN Control“ stehen.
+
+- Snake Draft Board mit Platz für vier vollständige Runden. Die Höhe folgt den
+  tatsächlichen Rundenzeilen inklusive Abständen, auch bei längeren Spielernamen.
+- Am Draftende bleiben die letzten vier Runden zusammen sichtbar. Die aktuelle
+  Runde rückt während des Drafts weiter nach; manuelles Scrollen bleibt erhalten.
+- Auf breiten Bildschirmen enden Spielerpool und rechter Bereich auf gleicher Höhe.
+  Der Spielerpool nutzt den zusätzlichen Platz nach unten für weitere Spieler.
+- Keine Häkchen mehr bei Fokus-Kategorien. Farbe und 0/2–2/2-Anzeige bleiben.
+- Die nächsten Teams sind ausschließlich mit ihrer Picknummer beschriftet.
+- Abstand zwischen den ESPN-Buttonzeilen; lange Texte und schmale Felder umbrechen.
+
+Alle bisherigen Funktionen einschließlich Doppelfokus, Live-Roto, Rundenschalter,
+ESPN-Picks ohne Sechs-Sekunden-Sperre und Analyse mit fehlenden Projektionen bleiben.
+
+Prüfung: DOM- und Geometrie-Tests; keine visuelle Kontrolle im echten Browser.

@@ -8,6 +8,8 @@ const now='2026-09-06T12:00:00Z';
 const stats={PTS:20,REB:8,AST:4,'3PM':2,STL:1,BLK:1,FGM:7,FGA:14,FTM:4,FTA:5};
 export function fixture(){
   const c={console,Date,JSON};vm.createContext(c);vm.runInContext(code,c);
+  c.FBA_EXPERT_POLICY_V71.confirmedSources=['cbs','lineupexperts','hashtag'];
+  c.processHashtagCloudInboxV76_=()=>null;c.hashtagCloudStatusV76_=()=>null;
   const sheets=new Map(),props=new Map();let actualGames=0,fetches=0,writes=0;
   c.Date=class extends Date{constructor(...args){super(...(args.length?args:[now]));}static now(){return Date.parse(now);}};
   c.espnPropertiesV1_=()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)});
@@ -39,7 +41,7 @@ test('a later confirmed independent source merges raw stats and shooting volume'
   sheets.set(c.FBA_CONSENSUS_V44.inputs,[f.input(),f.input('espn',{PTS:30,FGM:9,FGA:24,projected_gp:80})]);
   const p=c.applyProjectionConsensusV44_(f.engine()).players[0];
   assert.equal(p.base.PTS,25);assert.equal(p.base.FGM,8);assert.equal(p.base.FGA,19);assert.equal(p.projectedGp,75);assert.equal(p.consensus.sourceCount,2);
-  assert.notEqual(p.base.FGM/p.base.FGA,(.5+9/24)/2,'Ratios come from merged shot volume');assert.equal(f.fetches(),0);
+  assert.notEqual(p.base.FGM/p.base.FGA,(.5+9/24)/2,'Ratios come from merged shot volume');assert.equal(f.fetches(),1,'Newly enabled ESPN is checked once during migration');
 });
 test('missing, stale and wrong-season imports do not activate a historical or unconfirmed forecast',()=>{
   for(const inputs of [[],[{snapshot_date:'2026-07-01'}],[{season_id:2026}],[{FGA:null}]]){

@@ -16,6 +16,7 @@ export function nativeFixture(){
   const properties={getProperty:k=>props.get(k)||null,getProperties:()=>Object.fromEntries(props),setProperty(k,v){props.set(k,v);return properties;},deleteProperty:k=>props.delete(k)};
   const c={console,JSON,Date:class extends Date{constructor(...args){super(...(args.length?args:['2026-09-06T22:30:00Z']));}static now(){return Date.parse('2026-09-06T22:30:00Z');}},SpreadsheetApp:{getActive:()=>book},PropertiesService:{getScriptProperties:()=>properties},LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},Utilities:{formatDate:(date)=>date.toISOString().slice(0,10)},UrlFetchApp:{fetch(){fetches++;throw Error('ESPN unavailable');}}};
   vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('../apps-script/Code.js',import.meta.url),'utf8'),c);
+  c.FBA_EXPERT_POLICY_V71.confirmedSources=['cbs','lineupexperts','hashtag'];
   const set=(name,rows)=>sheets.set(name,sheet(rows));
   set(c.ESPN_PLAYER_HUB_V2.playersSheet,[['season_id','player_id','full_name'],[2027,'1','Example Player']]);
   set(c.FBA_CONSENSUS_V44.inputs,[Array.from(c.FBA_CONSENSUS_INPUT_HEADERS_V44),['cbs',2027,'1','Example Player','per_game',70,'','2026-09-06','https://www.cbssports.com/','',20,8,4,2,1,1,7,14,4,5]]);

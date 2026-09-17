@@ -1,0 +1,68 @@
+/* v85: three-column advice row; recommendation typography stays unchanged. */
+.page-draft .draft-workspace-main{container-type:inline-size;container-name:draft-main}
+.page-draft .draft-advice-row{grid-template-columns:minmax(0,1fr) minmax(250px,1fr) 235px;gap:12px}
+.page-draft .draft-advice-row .draft-coach-suggestions{grid-template-columns:repeat(3,minmax(0,1fr))}
+.page-draft .draft-advice-row .draft-coach-suggestion{display:flex;flex-direction:column;align-items:flex-start;white-space:normal;overflow-wrap:break-word}
+.page-draft .draft-advice-row .draft-coach-suggestion>*{white-space:normal;text-overflow:clip;overflow:visible}
+.page-draft .draft-advice-row .draft-bestfit-title{margin-top:0;min-height:30px;flex-wrap:wrap;gap:4px 8px}
+.draft-live-roto{min-width:0;padding:12px;border-radius:14px;background:linear-gradient(145deg,#202a3a,#151d2a);border:1px solid #42516a}
+.draft-roto-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.draft-roto-heading>b{font-size:13px;color:#eef3fb}
+.draft-roto-switch{display:inline-flex;padding:3px;gap:2px;border:1px solid #394a62;background:#111a27;border-radius:8px}
+.draft-roto-switch button{border:0;background:transparent;border-radius:5px;color:#acbbd1;font:inherit;font-weight:700;font-size:10px;line-height:1.2;padding:6px 9px;cursor:pointer;min-height:28px}
+.draft-roto-switch button[aria-pressed="true"]{background:#3c4e69;color:#fff}
+.draft-roto-switch button:focus-visible{outline:2px solid #ffb877;outline-offset:2px}
+.draft-roto-status{margin:7px 0 6px;font-size:10px;line-height:1.4;color:#b2c1d8}
+.page-draft .draft-roto-table{width:100%;table-layout:auto;border-collapse:collapse;font-size:11px}
+.page-draft .draft-roto-table th,.page-draft .draft-roto-table td{padding:5px 3px;border-bottom:1px solid rgba(180,200,235,.09);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.page-draft .draft-roto-table thead th{font-size:9px;color:#a6b7d0;font-weight:600;text-transform:none;letter-spacing:0}
+.page-draft .draft-roto-table tr>th:nth-child(2){text-align:left}
+.page-draft .draft-roto-table tbody th{font-weight:650;color:#e6ecf6}
+.page-draft .draft-roto-table tr>td:first-child{color:#b2c2d9;text-align:left;width:22px}
+.page-draft .draft-roto-table tr>td:nth-child(3){font-size:10px;color:#a6b7d0}
+.page-draft .draft-roto-table .is-own{background:rgba(255,173,103,.1)}
+.page-draft .draft-roto-table .is-own .draft-roto-score{color:#ffc99a}
+.draft-roto-team{display:flex;align-items:center;gap:6px;min-width:0}
+.draft-roto-team>span{white-space:normal;line-height:1.2;overflow-wrap:break-word}
+.page-draft .draft-roto-team .chip{width:22px;height:22px;min-width:22px;flex:none}
+.page-draft .draft-roto-score{font-weight:850;font-size:15px;color:#e8effc}
+.draft-roto-foot{margin:8px 0 0;font-size:9px;line-height:1.5;color:#aabbd3}
+.draft-roto-warning{color:#ffd29e}
+.page-draft .draft-pool-focus-count{display:inline-block;color:#ffd0a7;font-weight:850;margin-right:5px;white-space:nowrap}
+.page-draft .draft-clock-main{gap:16px;flex-wrap:nowrap}
+.page-draft .draft-clock-current{display:flex;align-items:center;gap:12px;min-width:0;flex:0 1 auto}
+.page-draft .draft-clock-current .draft-clock-team{white-space:normal;overflow-wrap:break-word}
+.draft-upcoming-picks{display:flex;align-items:center;gap:22px;flex:1 1 auto;list-style:none;margin:0;padding:0 0 0 20px;border-left:1px solid rgba(165,185,220,.17);min-width:0}
+.draft-upcoming-picks li{min-width:0;flex:1 1 0;opacity:.78}
+.draft-upcoming-label{font-size:9px;color:#c1cde0;display:block;margin-bottom:5px;white-space:nowrap}
+.draft-upcoming-team{display:flex;align-items:center;gap:7px}
+.draft-upcoming-team b{font-size:16px;line-height:1.2;overflow-wrap:break-word}
+.page-draft .draft-upcoming-team .chip{width:34px;height:34px;flex:none}
+.draft-upcoming-picks li:nth-child(2){opacity:.6}.draft-upcoming-picks li:nth-child(2) b{font-size:14px}.page-draft .draft-upcoming-picks li:nth-child(2) .chip{width:29px;height:29px}
+.draft-upcoming-picks li:nth-child(3){opacity:.42}.draft-upcoming-picks li:nth-child(3) b{font-size:12px}.page-draft .draft-upcoming-picks li:nth-child(3) .chip{width:24px;height:24px}
+.draft-upcoming-picks .is-own .draft-upcoming-label{color:#ffc49a}
+.page-draft .draft-clock-main .draft-espn-clock{flex:0 0 auto}
+@container draft-main (max-width:1100px){
+  .page-draft .draft-advice-row{grid-template-columns:minmax(0,1fr) minmax(240px,.85fr) 215px}
+  .page-draft .draft-advice-row .draft-coach-suggestions{grid-template-columns:1fr}
+  .page-draft .draft-advice-row .draft-coach-suggestion{padding:9px 10px}
+  .draft-upcoming-picks{gap:12px;padding-left:12px}.draft-upcoming-team{gap:5px}.draft-upcoming-team b{font-size:13px}.draft-upcoming-picks li:nth-child(2) b{font-size:12px}
+  .page-draft .draft-clock-current .draft-clock-team{font-size:21px}.page-draft .draft-clock-main{gap:12px}
+}
+@container draft-main (max-width:800px){
+  .page-draft .draft-advice-row{grid-template-columns:minmax(0,1fr) minmax(215px,.8fr)}
+  .page-draft .draft-advice-row .draft-coach-recommendations{grid-column:1/-1}
+  .page-draft .draft-advice-row .draft-coach-suggestions{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .page-draft .draft-roster-positions{grid-row:auto}
+  .page-draft .draft-clock-main{flex-wrap:wrap}
+  .page-draft .draft-clock-current{flex:1 1 50%}
+  .page-draft .draft-clock-main .draft-espn-clock{order:1;width:auto;margin:0;min-width:135px}
+  .draft-upcoming-picks{order:2;flex-basis:100%;padding:12px 0 0;border-left:0;border-top:1px solid rgba(165,185,220,.17)}
+}
+@container draft-main (max-width:480px){
+  .page-draft .draft-advice-row{grid-template-columns:1fr}
+  .page-draft .draft-advice-row .draft-coach-suggestions{grid-template-columns:1fr}
+  .page-draft .draft-clock-current .chip{width:35px;height:35px}.page-draft .draft-clock-current .draft-clock-team{font-size:17px}
+  .page-draft .draft-clock-current{gap:7px;flex-basis:40%}.page-draft .draft-clock-main .draft-espn-clock{min-width:100px;max-width:145px;padding:7px}
+  .page-draft .draft-clock-meta{font-size:9px}.draft-upcoming-team{flex-wrap:wrap}
+}
