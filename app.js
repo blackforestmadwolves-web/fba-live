@@ -96,7 +96,7 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       align-items: center;
       gap: 10px;
       margin-left: auto;
-      max-width: 420px;
+      max-width: 520px;
     }
 
     .podcast-inline-label {
@@ -110,8 +110,8 @@ function ensureHeaderPodcastAndFooterFixStyles() {
       border: 0;
       border-radius: 12px;
       overflow: hidden;
-      width: 320px;
-      height: 80px; /* kompakt in der Kopfzeile */
+      width: 360px;
+      height: 152px; /* größerer Player in der Kopfzeile */
       background: rgba(255,255,255,0.02);
     }
 
