@@ -1,0 +1,11 @@
+{
+  "existing_verified_scopes": [
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.readonly"
+  ],
+  "additional_scope_requiring_approval": "https://www.googleapis.com/auth/drive.file",
+  "purpose": "Create the production folder and generated MP3 files, manage only app-created/selected files, give published final MP3 files link-view access. Keep current scopes and unrelated manifest fields intact. Do not grant full drive scope.",
+  "applied": false
+}
