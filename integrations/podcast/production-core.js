@@ -17,7 +17,7 @@ var FBA_PRODUCTION133=(function(){
       night:p.nba_night,teams:p.teams,matchups:p.matchups,trades:trades,mandatory_trade_ids:(p.mandatory_trade_ids||[]).filter(function(id){return !covered[id];}),
       player_events:p.player_events||[],bbm:{status:p.sources.bbm.status,as_of:p.sources.bbm.as_of,scope:p.sources.bbm.scope,
         teams:(p.sources.bbm.teams||[]).map(function(t){return {team_id:t.team_id,team:t.team,complete:t.complete,strengths:t.strengths,weaknesses:t.weaknesses};})},
-      memory:memory,published:(published||[]).slice(-14).map(function(j){return {id:j.id,date:j.date,kind:j.kind,title:j.title,summary:j.summary,opinions:j.opinions||[],covered_trade_ids:j.covered_trade_ids||[]};}),
+      memory:memory,editorial_modes:['recap','preview'],published:(published||[]).slice(-35).map(function(j){return {id:j.id,date:j.date,kind:j.kind,title:j.title,summary:j.summary,opinions:j.opinions||[],editorial_plan:j.editorial_plan||null,covered_trade_ids:j.covered_trade_ids||[]};}),
       source_refs:refs.filter(function(x,i,a){return x&&a.indexOf(x)===i;}),limitations:p.limitations,
       instructions:'German entertainment. Michael Ellbogen and Tom Winter only. Dry sarcasm, natural conversation, no announcer/ASMR. 15% less arguing; informed disagreement, sometimes agree. FBA spoken Eff Bie Ey. Short greeting. Explain impact, no BBM values or dense percentages. No manager impersonations. Every mandatory completed trade must be mentioned; incomplete trade legs explicitly unknown, no fabricated before/after. Opinions are opinions. Prior claims only from published memory. No invented forecast baseline.'};
   }
@@ -26,7 +26,15 @@ var FBA_PRODUCTION133=(function(){
     assert(d.source_revision===c.revision,'SOURCE_REVISION_CHANGED');assert(berlin(now)===d.date,'EPISODE_DATE_EXPIRED');
     assert(Date.parse(now)-Date.parse(c.revision)<=90*60000,'SOURCE_STALE');
     assert(!['pending_games_or_boxscores','unavailable'].includes(c.night.status),'NIGHT_NOT_FINAL');
-    assert(c.night.status==='complete'||c.mandatory_trade_ids.length||c.player_events.length,'NO_NEW_VERIFIED_STORY');
+    var preview=d.editorial_plan&&d.editorial_plan.mode==='preview';
+    if(preview){
+      assert(d.kind==='daily'&&['out_of_season','no_games'].includes(c.night.status),'PREVIEW_NOT_APPLICABLE');
+      var plan=d.editorial_plan;assert(typeof plan.topic_key==='string'&&/^[a-z0-9-]{8,100}$/.test(plan.topic_key),'PREVIEW_TOPIC_KEY');
+      assert(typeof plan.angle==='string'&&plan.angle.length>=30&&plan.angle.length<=500,'PREVIEW_ANGLE');
+      assert(!(c.published||[]).some(function(j){return j.editorial_plan&&j.editorial_plan.topic_key===plan.topic_key;}),'PREVIEW_TOPIC_ALREADY_COVERED');
+      assert(c.bbm&&c.bbm.status==='ready'&&Date.parse(now)-Date.parse(c.bbm.as_of)<=48*3600000,'PREVIEW_ANALYSIS_STALE');
+    }
+    assert(preview||c.night.status==='complete'||c.mandatory_trade_ids.length||c.player_events.length,'NO_NEW_VERIFIED_STORY');
     if(d.kind==='weekly')assert(c.memory.some(function(m){return (m.matchups||[]).some(function(x){return x.end_date&&x.end_date<d.date&&x.week===d.week;});}),'WEEK_NOT_COMPLETE');
     assert(typeof d.title==='string'&&d.title.length>=5&&d.title.length<=110,'TITLE');assert(typeof d.summary==='string'&&d.summary.length<=500,'SUMMARY');
     assert(Array.isArray(d.turns)&&d.turns.length>=10&&d.turns.length<=100,'TURN_COUNT');
@@ -36,6 +44,7 @@ var FBA_PRODUCTION133=(function(){
       t.source_refs.forEach(function(r){used[r]=true;});seen[t.speaker]=true;words+=t.text.trim().split(/\s+/).length;chars+=t.text.length;
     });
     assert(seen.michael&&seen.tom,'BOTH_HOSTS_REQUIRED');
+    if(preview){assert(Object.keys(used).some(function(r){return r.indexOf('espn:league:')===0;})&&Object.keys(used).some(function(r){return r.indexOf('bbm:profile:')===0;}),'PREVIEW_SOURCES_REQUIRED');}
     assert(words>=(d.kind==='weekly'?2300:650)&&words<=(d.kind==='weekly'?3100:1200),'DURATION_WORD_BUDGET');
     assert(chars<=(d.kind==='weekly'?27000:11000),'CHARACTER_BUDGET');
     assert(c.mandatory_trade_ids.every(function(id){return (d.covered_trade_ids||[]).includes(id)&&used['trade:'+id];}),'MANDATORY_TRADE_MISSING');
