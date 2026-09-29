@@ -7,5 +7,7 @@
   ],
   "additional_scope_requiring_approval": "https://www.googleapis.com/auth/drive.file",
   "purpose": "Create the production folder and generated MP3 files, manage only app-created/selected files, give published final MP3 files link-view access. Keep current scopes and unrelated manifest fields intact. Do not grant full drive scope.",
-  "applied": false
+  "applied": true,
+  "verified_at": "2026-09-29T14:46:24Z",
+  "verification": "Private production folder writable; final audio share capability verified."
 }
