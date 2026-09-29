@@ -3,18 +3,21 @@
  */
 var FBA_PROD133={context:'FBA_Podcast_Redaktion_v133',inbox:'FBA_Podcast_Inbox_v133',jobs:'FBA_Podcast_Produktion_v133',status:'FBA_Podcast_Status_v133',chunk:20000};
 function prodSheet133_(name,headers){var s=book().getSheetByName(name);if(!s){s=book().insertSheet(name);if(headers){s.getRange(1,1,1,headers.length).setValues([headers]).setFontWeight('bold');s.setFrozenRows(1);}s.hideSheet();}return s;}
-function prodConfig133_(){var p=espnPropertiesV1_();return {enabled:p.getProperty('FBA_PODCAST_AUTO_ENABLED')==='true',key:p.getProperty('ELEVENLABS_API_KEY')||'',michael:p.getProperty('FBA_VOICE_MICHAEL')||'',tom:p.getProperty('FBA_VOICE_TOM')||'',approved:p.getProperty('FBA_HOSTS_APPROVED')==='true'};}
+function prodConfig133_(){var p=espnPropertiesV1_(),managers=JSON.parse(p.getProperty('FBA_MANAGER_VOICES136')||'{}');return {enabled:p.getProperty('FBA_PODCAST_AUTO_ENABLED')==='true',key:p.getProperty('ELEVENLABS_API_KEY')||'',michael:p.getProperty('FBA_VOICE_MICHAEL')||'',tom:p.getProperty('FBA_VOICE_TOM')||'',approved:p.getProperty('FBA_HOSTS_APPROVED')==='true',managers:managers};}
 function prodMissing133_(c){var missing=[];if(!c.key)missing.push('ELEVENLABS_API_KEY');if(!c.michael)missing.push('FBA_VOICE_MICHAEL');if(!c.tom)missing.push('FBA_VOICE_TOM');if(!c.approved)missing.push('FBA_HOSTS_APPROVED');if(c.michael&&c.michael===c.tom)missing.push('TWO_DIFFERENT_VOICES');return missing;}
 function prodState133_(state,detail){var sh=prodSheet133_(FBA_PROD133.status,['key','value']);var cfg=prodConfig133_();sh.getRange(2,1,7,2).setValues([['state',state],['detail',detail||''],['updated_at',new Date().toISOString()],['missing',prodMissing133_(cfg).join(', ')],['auto_enabled',cfg.enabled],['daily','08:00 Europe/Berlin; 5–10 Minuten'],['weekly','Montag ab 08:00 Europe/Berlin; ca. 20 Minuten']]);}
 function prodJobs133_(){var sh=prodSheet133_(FBA_PROD133.jobs,['episode_id','status','updated_at','state_1','state_2','state_3','state_4','state_5','state_6','state_7','state_8']);if(sh.getLastRow()<2)return [];return sh.getRange(2,1,sh.getLastRow()-1,11).getValues().map(function(r){try{return JSON.parse(r.slice(3).join(''));}catch(e){throw Error('JOB_STATE_CORRUPT');}});}
 function prodSave133_(j){var sh=prodSheet133_(FBA_PROD133.jobs),ids=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,1).getValues().map(function(r){return r[0];}):[],idx=ids.indexOf(j.id),row=idx<0?sh.getLastRow()+1:idx+2;var s=JSON.stringify(j);if(s.length>160000)throw Error('JOB_TOO_LARGE');var values=[j.id,j.status,new Date().toISOString()];for(var k=0;k<8;k++)values.push(s.substr(k*20000,20000));sh.getRange(row,1,1,11).setNumberFormat('@').setValues([values]);SpreadsheetApp.flush();}
-function prodContext133_(){var p=podcastRead132_(),published=prodJobs133_().filter(function(j){return j.status==='published';});return FBA_PRODUCTION133.context(p,published,new Date().toISOString());}
+function prodContext133_(){var p=podcastRead132_(),published=prodJobs133_().filter(function(j){return j.status==='published';}),c=FBA_PRODUCTION133.context(p,published,new Date().toISOString()),cfg=prodConfig133_();
+ c.manager_speakers=Object.keys(cfg.managers).filter(function(k){return cfg.managers[k].consent_confirmed_at&&cfg.managers[k].voice_id;}).map(function(k){var m=cfg.managers[k];return {speaker:k,name:m.name,team:m.team};});
+ c.manager_policy={consent_confirmed:true,max_guests:3,max_words_each:45,kind:'fictional_press_conference',intro:'fiktive Pressekonferenz',no_factual_memory:true};
+ c.editorial_revision=stableHashV36_(JSON.stringify({version:136,published:published.map(function(j){return [j.id,j.published_at];}),managers:c.manager_speakers}));return c;}
 function prepareFbaPodcast133(){var lock=LockService.getUserLock();if(!lock.tryLock(1000))return {busy:true};try{
  var c=prodContext133_(),sh=prodSheet133_(FBA_PROD133.context),old={};try{old=JSON.parse(sh.getRange(1,1).getValue()||'{}');}catch(e){}
- if(old.revision===c.revision&&old.date===c.date)return c;
+ if(old.revision===c.revision&&old.date===c.date&&old.editorial_revision===c.editorial_revision)return c;
  var slot=old.slot===0?1:0,text=JSON.stringify(c),count=Math.ceil(text.length/20000);if(count>100)throw Error('CONTEXT_TOO_LARGE');
  sh.getRange(2+slot*100,1,count,1).setNumberFormat('@').setValues(Array.from({length:count},function(_,i){return ['J'+text.substr(i*20000,20000)];}));SpreadsheetApp.flush();
- sh.getRange(1,1).setNumberFormat('@').setValue(JSON.stringify({schema:133,slot:slot,start_row:2+slot*100,count:count,revision:c.revision,date:c.date}));
+ sh.getRange(1,1).setNumberFormat('@').setValue(JSON.stringify({schema:133,slot:slot,start_row:2+slot*100,count:count,revision:c.revision,date:c.date,editorial_revision:c.editorial_revision}));
  return c;
  }finally{lock.releaseLock();}}
 function prodAccept133_(c){var sh=prodSheet133_(FBA_PROD133.inbox,['payload_chunks','request_id','count','state']);var head=sh.getRange(2,2,1,3).getValues()[0],request=String(head[0]||'');if(!request||String(head[2]).indexOf('ACCEPTED:')===0||String(head[2]).indexOf('REJECTED:')===0)return;
@@ -22,7 +25,7 @@ function prodAccept133_(c){var sh=prodSheet133_(FBA_PROD133.inbox,['payload_chun
  var raw=sh.getRange(2,1,count,1).getValues().map(function(r){if(typeof r[0]!=='string'||r[0][0]!=='J')throw Error('INBOX_CHUNK');return r[0].slice(1);}).join('');
  try{var payload=JSON.parse(raw);if(payload.schema!==133||payload.request_id!==request||!Array.isArray(payload.episodes)||payload.episodes.length<1||payload.episodes.length>2)throw Error('INBOX_SCHEMA');
    var jobs=prodJobs133_(),ids={};payload.episodes.forEach(function(d){if(ids[d.id])throw Error('DUPLICATE_SLOT');ids[d.id]=true;FBA_PRODUCTION133.validate(d,c,new Date().toISOString());var old=jobs.find(function(j){return j.id===d.id;});if(old&&old.draft_hash!==stableHashV36_(JSON.stringify(d)))throw Error('EPISODE_EXISTS');});
-   payload.episodes.forEach(function(d){if(jobs.some(function(j){return j.id===d.id;}))return;var stats=FBA_PRODUCTION133.validate(d,c,new Date().toISOString());var j=JSON.parse(JSON.stringify(d));j.draft_hash=stableHashV36_(JSON.stringify(d));j.status='queued';j.accepted_at=new Date().toISOString();j.night_date=c.night.date;j.stats=stats;j.parts=FBA_PRODUCTION133.chunks(d.turns).map(function(turns){return {turns:turns,status:'queued'};});prodSave133_(j);});
+   payload.episodes.forEach(function(d){if(jobs.some(function(j){return j.id===d.id;}))return;var stats=FBA_PRODUCTION133.validate(d,c,new Date().toISOString());var j=JSON.parse(JSON.stringify(d));j.draft_hash=stableHashV36_(JSON.stringify(d));j.status='queued';j.season=c.season;j.accepted_at=new Date().toISOString();j.night_date=c.night.date;j.stats=stats;j.voices=prodVoices136_(j,prodConfig133_());j.parts=FBA_PRODUCTION133.chunks(d.turns).map(function(turns){return {turns:turns,status:'queued'};});prodSave133_(j);});
    sh.getRange(2,4).setValue('ACCEPTED:'+request);
  }catch(e){sh.getRange(2,4).setValue('REJECTED:'+request+':'+String(e.message).slice(0,160));throw e;}}
 function prodEleven133_(path,c,options){options=options||{};options.headers={'xi-api-key':c.key};options.muteHttpExceptions=true;return UrlFetchApp.fetch('https://api.elevenlabs.io'+path,options);}
@@ -32,10 +35,11 @@ function prodFolder133_(){var props=espnPropertiesV1_(),id=props.getProperty('FB
 function prodUpload133_(name,bytes,folder){var boundary='fba133_'+Utilities.getUuid().replace(/-/g,''),meta={name:name,mimeType:'audio/mpeg',parents:[folder]},prefix='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify(meta)+'\r\n--'+boundary+'\r\nContent-Type: audio/mpeg\r\n\r\n';
  var body=Utilities.newBlob(prefix).getBytes().concat(bytes,Utilities.newBlob('\r\n--'+boundary+'--').getBytes());return JSON.parse(prodDrive133_('/upload/drive/v3/files?uploadType=multipart&fields=id,size',{method:'post',contentType:'multipart/related; boundary='+boundary,payload:body}).getContentText());}
 function prodRenderPart133_(j,c){var i=j.parts.findIndex(function(p){return p.status!=='ready';});if(i<0)return false;var part=j.parts[i];if(part.status==='requesting')throw Error('PAID_REQUEST_UNCERTAIN');if(part.status==='rejected')throw Error('PROVIDER_REQUEST_REJECTED_REVIEW_REQUIRED');
+ var voices=prodVoices136_(j,c);if(j.voices&&Object.keys(voices).some(function(k){return j.voices[k]!==voices[k];}))throw Error('VOICE_CHANGED_DURING_EPISODE');j.voices=j.voices||voices;
  var chars=part.turns.reduce(function(n,t){return n+t.text.length;},0);prodBudget133_(c,chars);
- var inputs=part.turns.map(function(t){return {text:t.text,voice_id:t.speaker==='michael'?c.michael:c.tom};}),payload={model_id:'eleven_v3',language_code:'de',use_pvc_as_ivc:true,inputs:inputs};
+ var inputs=part.turns.map(function(t){return {text:t.text,voice_id:voices[t.speaker]};}),payload={model_id:'eleven_v3',language_code:'de',use_pvc_as_ivc:true,inputs:inputs};
  // eleven_v3 rejects future_text and request-stitching parameters; retain IDs for audit only.
- part.status='requesting';j.status='rendering';j.voices=j.voices||{michael:c.michael,tom:c.tom};if(j.voices.michael!==c.michael||j.voices.tom!==c.tom)throw Error('HOST_CHANGED_DURING_EPISODE');prodSave133_(j);
+ part.status='requesting';j.status='rendering';prodSave133_(j);
  var r=prodEleven133_('/v1/text-to-dialogue?output_format=mp3_44100_128',c,{method:'post',contentType:'application/json',payload:JSON.stringify(payload)}),code=r.getResponseCode();
  if(code===429){part.status='queued';j.status='queued';prodSave133_(j);throw Error('ELEVENLABS_RATE_LIMIT');}if(code!==200){var detail='';try{var e=JSON.parse(r.getContentText()).detail;detail=typeof e==='string'?e:JSON.stringify(e);}catch(ignore){}part.last_error={http:code,detail:detail.slice(0,1000)};if([400,401,403,404,422].includes(code))part.status='rejected';prodSave133_(j);throw Error('ELEVENLABS_RENDER_HTTP_'+code+':'+detail.slice(0,700));}
  var parsed=FBA_PRODUCTION133.mp3(r.getBlob().getBytes());if(parsed.seconds<2)throw Error('AUDIO_TOO_SHORT');var file=prodUpload133_(j.id+'-part-'+i+'.mp3',parsed.bytes,prodFolder133_());
@@ -64,3 +68,18 @@ function verifyFbaPodcastStorage133(){var id=prodFolder133_(),meta=JSON.parse(pr
 function configureFbaHosts134(){espnPropertiesV1_().setProperties({FBA_VOICE_MICHAEL:"rUxG6T3T35OAyiiJgocG",FBA_VOICE_TOM:"yuDdr3w2HUqhAD3wqxRt",FBA_HOSTS_APPROVED:"true"});return activateFbaPodcast133();}
 function prepareFbaTrade134(){var r=refreshFbaPodcast132();if(!r.ok)throw Error("SOURCE_REFRESH_BUSY");prepareFbaPodcast133();return verifyFbaPodcast133();}
 function produceFbaTrade134(){runFbaPodcast133(true);}
+
+function prodVoices136_(j,c){var voices={};(j.turns||[]).forEach(function(t){var id;if(['michael','tom'].includes(t.speaker))id=c[t.speaker];else{var m=(c.managers||{})[t.speaker];if(!m||!m.consent_confirmed_at||t.kind!=='fictional_press_conference')throw Error('MANAGER_VOICE_NOT_APPROVED');id=m.voice_id;}if(!id)throw Error('VOICE_NOT_CONFIGURED');voices[t.speaker]=id;});return voices;}
+
+// User confirmed all manager permissions and fictional league banter on 2026-09-30.
+// Resolves only existing exact-name, exact-team assets; creates no clones or credentials.
+function configureFbaManagers136(){
+ var wanted=[['manager_janik','Janik J','Dormettingen Eagles'],['manager_emmanuel','Immanuel S','Bishkek Easy $nipers'],['manager_willi','Willi D','Guardians of Rhinos'],['manager_johnny','Johnny B','East Bay Pirates'],['manager_alex','Alex F','Toronto Polar Bears'],['manager_anton','Anton P','Karlsruhe Unicorns'],['manager_maik','Maik S','BlackForest Mad Wolves'],['manager_chris','Chris K','Balingen Lions']];
+ var cfg=prodConfig133_(),all=[],token='',more=true;
+ for(var page=0;page<10&&more;page++){var r=prodEleven133_('/v2/voices?page_size=100'+(token?'&next_page_token='+encodeURIComponent(token):''),cfg);if(r.getResponseCode()!==200)throw Error('MANAGER_VOICE_LOOKUP_HTTP_'+r.getResponseCode());var data=JSON.parse(r.getContentText());all=all.concat(data.voices||[]);more=data.has_more===true;token=data.next_page_token||'';if(more&&!token)throw Error('MANAGER_VOICE_PAGINATION');}
+ if(more)throw Error('MANAGER_VOICE_LIST_INCOMPLETE');var registry={},ids={};
+ wanted.forEach(function(x){var matches=all.filter(function(v){return v.name===x[1]&&String(v.description||'').includes(x[2]);});if(matches.length!==1||!matches[0].voice_id)throw Error('MANAGER_VOICE_AMBIGUOUS_'+x[0]);var v=matches[0];if(ids[v.voice_id])throw Error('MANAGER_VOICE_DUPLICATE');ids[v.voice_id]=true;registry[x[0]]={name:x[1],team:x[2],voice_id:v.voice_id,category:v.category,consent_confirmed_at:'2026-09-30T01:18:00+02:00',consent_basis:'User explicitly confirmed manager permissions and fictional league press conferences'};});
+ espnPropertiesV1_().setProperty('FBA_MANAGER_VOICES136',JSON.stringify(registry));
+ var refreshed=refreshFbaPodcast132();if(!refreshed.ok&&!refreshed.busy)throw Error('SOURCE_REFRESH_FAILED');return verifyFbaMemory136();
+}
+function verifyFbaMemory136(){var context=prepareFbaPodcast133();if(context.busy)throw Error('CONTEXT_BUSY');var cfg=prodConfig133_();var result={ok:true,manager_speakers:context.manager_speakers,host_memory_entries:context.host_memory.length,memory_scope:context.memory_policy.archive,source_revision:context.revision,editorial_revision:context.editorial_revision,auto_enabled:cfg.enabled,hosts_ready:prodMissing133_(cfg).length===0,paid_generation:false};Logger.log(JSON.stringify(result));return result;}
