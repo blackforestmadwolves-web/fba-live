@@ -1,4 +1,4 @@
-# FBA Funk production v134
+# FBA Funk production v136
 
 Installed on 2026-09-29 in the existing Apps Script project, web deployment version 60.
 
@@ -25,7 +25,7 @@ Then run activateFbaPodcast133. This verifies credit reserve and voice availabil
 
 1. Private bridge stores current facts and source timestamps.
 2. Worker prepares an atomic two-slot editorial context in FBA_Podcast_Redaktion_v133 (A1 points to prefixed JSON chunks).
-3. Scheduled assistant writes only validated, source-linked two-host scripts to FBA_Podcast_Inbox_v133 (A2 chunks, B2 request ID, C2 count, D2 SUBMITTED:<id>).
+3. Scheduled assistant writes validated, source-linked host dialogue with optional registered fictional manager snippets to FBA_Podcast_Inbox_v133 (A2 chunks, B2 request ID, C2 count, D2 SUBMITTED:<id>).
 4. Worker rejects duplicate slots, missing trades, stale sources, unfinished nights, unapproved speakers and scripts outside the word budget.
 5. ElevenLabs eleven_v3 dialogue calls use at most 1800 characters. Credit checks reserve twice the next text cost plus 2000 credits. No paid retry after an ambiguous response.
 6. Private MP3 chunks are validated and concatenated on complete MPEG frames. Final duration must be 5–10 minutes daily, 17–23 minutes weekly.
@@ -38,7 +38,17 @@ Storage and voice access verified. The authorized drive.file scope was applied w
 
 Live Eleven v3 validation identified that future_text and previous_request_ids are unsupported for this model despite appearing in the generic endpoint schema. Both fields are omitted. Professional voices use use_pvc_as_ivc. Explicit HTTP 400/401/403/404/422 responses persist a rejected state requiring review; timeouts remain requesting and must never be blindly retried. Successful parts are retained across resumed jobs. Credit reserve can stop generation as the Creator allowance approaches its limit.
 
-ESPN redacts transaction legs for the 2026-09-29 trade. The pilot independently reconstructed Boozer to Lions / Daniels to Unicorns from the September 27 draft, current rosters and identical TRADE acquisition timestamps 33 ms after the accepted event. Its provenance is stored privately with the episode. The background comparison used the same BBM snapshot and swapped those two players in weighted whole-roster projections; this is not a direct Trade Monster result or an optimized-lineup prediction. Future incomplete trades must not be guessed. Historical forecasts not already captured cannot be reconstructed as past predictions. Manager cloning is disabled until documented voice consent and IDs are provided. BBM is background analysis, not a public values feed.
+ESPN redacts transaction legs for the 2026-09-29 trade. The pilot independently reconstructed Boozer to Lions / Daniels to Unicorns from the September 27 draft, current rosters and identical TRADE acquisition timestamps 33 ms after the accepted event. Its provenance is stored privately with the episode. The background comparison used the same BBM snapshot and swapped those two players in weighted whole-roster projections; this is not a direct Trade Monster result or an optimized-lineup prediction. Future incomplete trades must not be guessed. Historical forecasts not already captured cannot be reconstructed as past predictions. BBM is background analysis, not a public values feed.
+
+## Manager snippets and season memory (v136)
+
+The user explicitly confirmed all manager voice permissions and requested invented league press conferences on 2026-09-30. `configureFbaManagers136` resolves the eight existing ElevenLabs assets by exact name plus team description, atomically storing their IDs in Script Properties under `FBA_MANAGER_VOICES136`. It creates no clones and performs no paid synthesis. The editorial context exposes speaker keys, names and teams, never the provider key or IDs.
+
+Per episode, zero to three managers may each speak once for at most 45 words/450 characters. An immediately preceding host introduces the fictional press conference (one intro can cover adjacent managers). Turns carry `kind:fictional_press_conference` and empty source references. Summary and QA also identify the fictional segment. Manager speech cannot count as trade coverage, factual evidence or a host prediction. Voice IDs are frozen when a job is accepted and checked before synthesis; unknown speakers never fall back to a host voice.
+
+`host_claims` persist the host, stable key, thesis, exact spoken excerpt, conditions, time horizon, team IDs and turn index in the published job. `memory_reviews` append later source-backed assessments without editing the original prediction. Every claim in all published jobs is included in `host_memory`; it is not truncated at 35 episodes. Legacy published opinions remain paraphrases with no invented quotation. Only published jobs enter memory. Drafts and fictional manager snippets are excluded. Claims get `memory:claim:<episode-id>:<key>` references. Daily callbacks are limited to two and should occur only when relevant, never as an obligatory recap. Reviews are editorial assessments, not automatic statistical verdicts.
+
+The editorial-context manifest now includes an editorial revision so a newly published episode or changed manager registry refreshes memory even when the ESPN source revision stays unchanged. Public feed schema and frontend remain unchanged.
 
 ## Deploy safely
 
@@ -48,4 +58,4 @@ Install production-core.js + production-gas.js as FBAProduction133.gs alongside 
 
 ## Validation
 
-15 source/production unit tests passed. Real prior ElevenLabs MP3 parsed into 9521 complete frames, 248.7118 seconds; duplicated joined file verified by ffprobe at 497.4236 seconds. Existing rejected voices were used only as local MP3 format fixtures; no old pilot was published.
+25 source/production unit tests passed for v136, including manager labels, fictional/factual separation, explicit voice routing, unpublished-memory exclusion, retention beyond 35 episodes, exact quote attribution and append-only reviews. Real prior ElevenLabs MP3 parsed into 9521 complete frames, 248.7118 seconds; duplicated joined file verified by ffprobe at 497.4236 seconds. Existing rejected voices were used only as local MP3 format fixtures; no old pilot was published. Manager synthesis is verified on its first scheduled audio run, not by the configuration-only check.
