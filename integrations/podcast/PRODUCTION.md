@@ -1,4 +1,4 @@
-# FBA Funk production v133
+# FBA Funk production v134
 
 Installed on 2026-09-29 in the existing Apps Script project, web deployment version 60.
 
@@ -7,7 +7,8 @@ Installed on 2026-09-29 in the existing Apps Script project, web deployment vers
 - Source bridge v132 live, ESPN + private normalized BBM data.
 - Daily editorial automation created; mornings 07:30 Europe/Berlin with hourly retries through 12:30. On Mondays it also prepares the weekly recap after a completed matchup.
 - Renderer worker installed every five minutes; operates only 07:00–13:59 Berlin.
-- Automatic paid rendering is OFF until the user explicitly chooses both host voices and an ElevenLabs API key is provisioned. No new episode has been rendered or published.
+- Automatic rendering activated 2026-09-29 after explicit authorization. Restricted ElevenLabs key (100,000-credit cap) is held only in Script Properties. Michael Ellbogen uses Patrick; Tom Winter uses Samer/Sam.
+- Trade episode daily-2026-09-29 published at 17:18:05 Europe/Berlin, duration 371.958 seconds, four validated MP3 parts, 5,951,319 bytes.
 - Source, inbox, job and status sheets are private. Public feed returns only published episode metadata.
 
 ## Configure once, privately
@@ -33,9 +34,11 @@ Then run activateFbaPodcast133. This verifies credit reserve and voice availabil
 
 ## Limits to verify at activation
 
-No live ElevenLabs API/audio/playback test yet (key and chosen voice IDs absent). Storage probe on 2026-09-29 returned HTTP 403 insufficientPermissions. The project overview confirms drive.readonly plus the existing script/scriptapp/spreadsheets scopes. An additional drive.file grant is required for app-created audio; oauth-scopes-proposed.json records the minimal proposal. It has NOT been applied or authorized. No full-drive scope is proposed. Repeat verifyFbaPodcastStorage133 after the user approves and authorizes the new scope. The editor includes the diagnostic helper; public web deployment remains version 60 (same renderer/publisher, without the editor-only probe and extended reason codes). A provider timeout after a paid request fails closed to prevent duplicate charges. Credit reserve can stop publication as the Creator allowance approaches its limit; there is no plan upgrade or enabled overage.
+Storage and voice access verified. The authorized drive.file scope was applied while preserving all existing scopes. No full-drive scope, subscription upgrade or enabled overage. Public web deployment version 60 serves the published-only feed; triggers execute current HEAD. Temporary private credential setup form and route were removed immediately after saving.
 
-ESPN currently redacts the players in one accepted trade; the show must acknowledge uncertainty instead of inventing a trade analysis. Historical forecasts not already captured cannot be reconstructed as past predictions. Manager cloning is disabled until documented voice consent and IDs are provided. BBM is background analysis, not a public values feed.
+Live Eleven v3 validation identified that future_text and previous_request_ids are unsupported for this model despite appearing in the generic endpoint schema. Both fields are omitted. Professional voices use use_pvc_as_ivc. Explicit HTTP 400/401/403/404/422 responses persist a rejected state requiring review; timeouts remain requesting and must never be blindly retried. Successful parts are retained across resumed jobs. Credit reserve can stop generation as the Creator allowance approaches its limit.
+
+ESPN redacts transaction legs for the 2026-09-29 trade. The pilot independently reconstructed Boozer to Lions / Daniels to Unicorns from the September 27 draft, current rosters and identical TRADE acquisition timestamps 33 ms after the accepted event. Its provenance is stored privately with the episode. The background comparison used the same BBM snapshot and swapped those two players in weighted whole-roster projections; this is not a direct Trade Monster result or an optimized-lineup prediction. Future incomplete trades must not be guessed. Historical forecasts not already captured cannot be reconstructed as past predictions. Manager cloning is disabled until documented voice consent and IDs are provided. BBM is background analysis, not a public values feed.
 
 ## Deploy safely
 
